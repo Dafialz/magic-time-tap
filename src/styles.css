@@ -1,0 +1,24 @@
+:root{
+  --bg:#0f1724;
+  --panel:#111827;
+  --accent:#7c3aed;
+  --text:#e6eef8;
+}
+
+*{box-sizing:border-box;font-family:Inter,Segoe UI,Arial,sans-serif}
+body{margin:0;background:linear-gradient(180deg,#041022 0%, #081229 100%);color:var(--text)}
+.app{max-width:980px;margin:24px auto;padding:18px;border-radius:12px;background:rgba(255,255,255,0.02)}
+header h1{margin:0 0 8px 0;font-size:20px}
+.topbar{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:14px}
+.tap-area{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px;background:rgba(255,255,255,0.02);border-radius:10px;margin-bottom:16px}
+.tap-btn{padding:28px 48px;border-radius:12px;border:none;background:var(--accent);color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.25)}
+.upgrades{margin-bottom:16px}
+.upgrades-list{display:flex;flex-direction:column;gap:8px}
+.upgrade{display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,0.01);border-radius:8px}
+.u-info{display:flex;flex-direction:column}
+.prestige{margin-bottom:16px;padding:12px;background:rgba(255,255,255,0.01);border-radius:8px}
+.hc-shop{margin-bottom:16px}
+.hc-items{display:flex;gap:12px}
+.hc-item{padding:10px;background:rgba(255,255,255,0.01);border-radius:8px}
+button:disabled{opacity:0.45;cursor:not-allowed}
+footer{margin-top:12px;color:rgba(255,255,255,0.5);font-size:13px}
