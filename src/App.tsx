@@ -361,22 +361,62 @@ export default function App() {
       <main className="page-content">
         {activeTab === "tap" && (
           <>
-            <TapArea
-              onTap={onClickTap}
-              tapStyle={tapStyle}
-              meteorVisible={meteorVisible}
-              onMeteorClick={onMeteorClick}
-              meteorBuffLeft={meteorBuffLeft}
-              meteorSpawnIn={meteorSpawnIn}
-            />
+            {/* HERO секція */}
+            <section className="hero">
+              <div className="hero__bg" />
+              <h1 className="hero__title">MAGIC TIME</h1>
 
+              <div className="stat-card">
+                <div className="stat-card__caption">Косм. Енергія</div>
+                <div className="stat-card__value">{formatNum(ce)}</div>
+              </div>
+
+              <button
+                className={`meteor-card ${meteorVisible ? "meteor-card--active" : ""}`}
+                onClick={() => meteorVisible && onMeteorClick()}
+              >
+                <div className="meteor-card__icon">☄️</div>
+                <div className="meteor-card__text">
+                  {meteorVisible ? (
+                    <>
+                      <div className="meteor-card__title">Написати, щоб зібрати</div>
+                      <div className="meteor-card__subtitle">Золотий Метеорит</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="meteor-card__title">Метеор через</div>
+                      <div className="meteor-card__subtitle">~{Math.max(0, meteorSpawnIn)}s</div>
+                    </>
+                  )}
+                </div>
+                <div className="meteor-card__bonus">
+                  <span>+0</span>
+                  <small>x10</small>
+                </div>
+              </button>
+            </section>
+
+            {/* (опціонально) кнопка TAP */}
+            <div style={{ margin: "12px 0 4px" }}>
+              <TapArea
+                onTap={onClickTap}
+                tapStyle={tapStyle}
+                meteorVisible={meteorVisible}
+                onMeteorClick={onMeteorClick}
+                meteorBuffLeft={meteorBuffLeft}
+                meteorSpawnIn={meteorSpawnIn}
+              />
+            </div>
+
+            {/* Престиж */}
             <section className="prestige" style={{ marginTop: 18 }}>
               <h2>Престиж (Time Reset)</h2>
               <p>Доступний з рівня 10. Хронокристали дають перманентні бонуси.</p>
               <button onClick={performPrestige} disabled={!canPrestige}>Виконати Time Reset</button>
             </section>
 
-            { (level >= 10) && (
+            {/* Бос */}
+            {(level >= 10) && (
               <BossPanel
                 level={level}
                 isBossLevel={isBossLevel}
@@ -447,21 +487,9 @@ export default function App() {
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
-      {/* Мінімальні стилі */}
+      {/* Локальні стилі для нижнього меню (залишив для сумісності) */}
       <style>{`
-        .tap-area { position: relative; }
-        .meteor { margin:12px auto 0;max-width:520px;padding:10px 12px;border-radius:10px;background:rgba(255,215,0,.12);cursor:pointer }
-        .boss .bar{width:100%;height:12px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden;margin:6px 0 8px;}
-        .boss .bar-fill{height:100%;background:#7c3aed;}
-        .boss .bar-fill.bar-time{background:#10b981;}
-        .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-        .inv-card{background:rgba(255,255,255,.06);padding:10px;border-radius:10px}
-        .inv-card.eq{outline:2px solid #7c3aed}
-        .inv-card .title{font-weight:700;margin-bottom:6px}
-        .inv-card .row{opacity:.9;margin:2px 0}
-
-        .page-content{ padding-bottom: 92px; } /* місце під нижню навігацію */
-
+        .page-content{ padding-bottom: 92px; }
         .bottom-nav{
           position: fixed; left: 0; right: 0; bottom: 0;
           display: grid; grid-template-columns: repeat(5,1fr);
