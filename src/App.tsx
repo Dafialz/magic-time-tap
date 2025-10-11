@@ -29,11 +29,15 @@ import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
 import HcShop from "./components/HcShop";
+import BottomNav, { TabKey } from "./components/BottomNav";
 
 export default function App() {
+  // ===== Вкладки (нижнє меню)
+  const [activeTab, setActiveTab] = useState<TabKey>("tap");
+
   // ===== Telegram WebApp integration (ready + colors)
   useEffect(() => {
-    const tg = (window as any)?.Telegram?.WebApp; // <- кастинг щоб TS не лаявся
+    const tg = (window as any)?.Telegram?.WebApp;
     if (!tg) return;
     tg.ready();
     tg.expand();
@@ -354,78 +358,96 @@ export default function App() {
         meteorBuffLeft={meteorBuffLeft} meteorMult={meteorMult}
       />
 
-      <main>
-        <TapArea
-          onTap={onClickTap}
-          tapStyle={tapStyle}
-          meteorVisible={meteorVisible}
-          onMeteorClick={onMeteorClick}
-          meteorBuffLeft={meteorBuffLeft}
-          meteorSpawnIn={meteorSpawnIn}
-        />
+      <main className="page-content">
+        {activeTab === "tap" && (
+          <>
+            <TapArea
+              onTap={onClickTap}
+              tapStyle={tapStyle}
+              meteorVisible={meteorVisible}
+              onMeteorClick={onMeteorClick}
+              meteorBuffLeft={meteorBuffLeft}
+              meteorSpawnIn={meteorSpawnIn}
+            />
 
-        <BossPanel
-          level={level}
-          isBossLevel={isBossLevel}
-          bossActive={bossActive}
-          bossData={bossData}
-          bossRetryCooldown={bossRetryCooldown}
-          startBossFight={startBossFight}
-          bossHP={bossHP} bossMaxHP={bossMaxHP} bossTimeLeft={bossTimeLeft}
-          bossHPpct={bossHPpct} bossTimePct={bossTimePct}
-        />
+            <section className="prestige" style={{ marginTop: 18 }}>
+              <h2>Престиж (Time Reset)</h2>
+              <p>Доступний з рівня 10. Хронокристали дають перманентні бонуси.</p>
+              <button onClick={performPrestige} disabled={!canPrestige}>Виконати Time Reset</button>
+            </section>
 
-        <UpgradesList
-          upgrades={upgrades}
-          ce={ce}
-          getCost={getCost}
-          buyUpgrade={buyUpgrade}
-        />
+            { (level >= 10) && (
+              <BossPanel
+                level={level}
+                isBossLevel={isBossLevel}
+                bossActive={bossActive}
+                bossData={bossData}
+                bossRetryCooldown={bossRetryCooldown}
+                startBossFight={startBossFight}
+                bossHP={bossHP} bossMaxHP={bossMaxHP} bossTimeLeft={bossTimeLeft}
+                bossHPpct={bossHPpct} bossTimePct={bossTimePct}
+              />
+            )}
+          </>
+        )}
 
-        <ArtifactsPanel
-          artifacts={artifacts}
-          equippedIds={equippedIds}
-          toggleEquip={toggleEquip}
-        />
+        {activeTab === "upgrades" && (
+          <UpgradesList
+            upgrades={upgrades}
+            ce={ce}
+            getCost={getCost}
+            buyUpgrade={buyUpgrade}
+          />
+        )}
 
-        <CraftPanel
-          rarityCount={rarityCount}
-          canCraft={canCraft}
-          craftRarity={craftRarity}
-        />
+        {activeTab === "artifacts" && (
+          <>
+            <ArtifactsPanel
+              artifacts={artifacts}
+              equippedIds={equippedIds}
+              toggleEquip={toggleEquip}
+            />
+            <CraftPanel
+              rarityCount={rarityCount}
+              canCraft={canCraft}
+              craftRarity={craftRarity}
+            />
+          </>
+        )}
 
-        <SkinsShop
-          ownedSkins={ownedSkins}
-          equippedSkinId={equippedSkinId}
-          buySkin={(id: string, price: number) => {
-            if (ownedSkins.includes(id)) { setEquippedSkinId(id); return; }
-            if (mm < price) { alert("Не вистачає MM"); return; }
-            setMm(v => v - price);
-            setOwnedSkins(list => [...list, id]);
-            setEquippedSkinId(id);
-          }}
-        />
+        {activeTab === "skins" && (
+          <SkinsShop
+            ownedSkins={ownedSkins}
+            equippedSkinId={equippedSkinId}
+            buySkin={(id: string, price: number) => {
+              if (ownedSkins.includes(id)) { setEquippedSkinId(id); return; }
+              if (mm < price) { alert("Не вистачає MM"); return; }
+              setMm(v => v - price);
+              setOwnedSkins(list => [...list, id]);
+              setEquippedSkinId(id);
+            }}
+          />
+        )}
 
-        <section className="prestige">
-          <h2>Престиж (Time Reset)</h2>
-          <p>Доступний з рівня 10. Хронокристали дають перманентні бонуси.</p>
-          <button onClick={performPrestige} disabled={!canPrestige}>Виконати Time Reset</button>
-        </section>
-
-        <HcShop
-          buyHcUpgrade={buyHcUpgrade}
-          setClickPower={setClickPower}
-          setAutoPerSec={setAutoPerSec}
-        />
+        {activeTab === "hc" && (
+          <HcShop
+            buyHcUpgrade={buyHcUpgrade}
+            setClickPower={setClickPower}
+            setAutoPerSec={setAutoPerSec}
+          />
+        )}
       </main>
 
-      <footer>
+      <footer style={{ paddingBottom: 80 }}>
         <small>Білд: артефакти, крафт, інвентар, скіни, епохи, метеорит, боси, офлайн-доход.</small>
         <div style={{ marginTop: 8 }}>
           <button onClick={() => { wipeSave(); window.location.reload(); }}>Новий початок (очистити сейв)</button>
         </div>
       </footer>
 
+      <BottomNav active={activeTab} onChange={setActiveTab} />
+
+      {/* Мінімальні стилі */}
       <style>{`
         .tap-area { position: relative; }
         .meteor { margin:12px auto 0;max-width:520px;padding:10px 12px;border-radius:10px;background:rgba(255,215,0,.12);cursor:pointer }
@@ -437,6 +459,25 @@ export default function App() {
         .inv-card.eq{outline:2px solid #7c3aed}
         .inv-card .title{font-weight:700;margin-bottom:6px}
         .inv-card .row{opacity:.9;margin:2px 0}
+
+        .page-content{ padding-bottom: 92px; } /* місце під нижню навігацію */
+
+        .bottom-nav{
+          position: fixed; left: 0; right: 0; bottom: 0;
+          display: grid; grid-template-columns: repeat(5,1fr);
+          background: rgba(17,24,39,.9);
+          backdrop-filter: blur(6px);
+          border-top: 1px solid rgba(255,255,255,.08);
+          padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+          z-index: 50;
+        }
+        .bn-item{
+          display:flex; flex-direction:column; align-items:center; justify-content:center;
+          gap:4px; padding:8px 4px; border-radius:10px; border:none; background:transparent; color:#e5e7eb; cursor:pointer;
+        }
+        .bn-item.active{ background: rgba(124,58,237,.18); color:#fff;}
+        .bn-icon{ font-size:18px; line-height:18px;}
+        .bn-label{ font-size:12px; }
       `}</style>
     </div>
   );
