@@ -2,126 +2,81 @@ import React from "react";
 
 export type TabKey = "tap" | "upgrades" | "artifacts" | "skins" | "hc";
 
-type Item = { label: string; icon: React.ReactNode; key: TabKey };
-
-const Grad = () => (
-  <defs>
-    <linearGradient id="mtpGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stopColor="#28E7A8" />
-      <stop offset="100%" stopColor="#6F52FF" />
-    </linearGradient>
-  </defs>
-);
-
-const IconWrap = ({ children }: { children: React.ReactNode }) => (
-  <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden>
-    <Grad />
-    {children}
-  </svg>
-);
-
-// 🕹️ Tap (hand)
-const IHand = () => (
-  <IconWrap>
-    <path
-      d="M7 11v2.5c0 1.933 1.567 3.5 3.5 3.5h4A2.5 2.5 0 0 0 17 14.5V12a1 1 0 1 0-2 0v1M7 11l.5-2.5A1.5 1.5 0 0 1 9 7h0a1.5 1.5 0 0 1 1.5 1.5V11M10.5 7V6a1.5 1.5 0 0 1 3 0v5M13.5 6V5a1.5 1.5 0 0 1 3 0v6"
-      fill="none"
-      stroke="url(#mtpGrad)"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </IconWrap>
-);
-
-// ⚙️ Upgrades (gear)
-const IGear = () => (
-  <IconWrap>
-    <circle cx="12" cy="12" r="3" fill="none" stroke="url(#mtpGrad)" strokeWidth="1.7" />
-    <path
-      d="M19 12a7 7 0 0 0-.14-1.4l1.7-1.24-1.8-3.12-1.98.7A7 7 0 0 0 14.4 5L14 3h-4l-.4 2a7 7 0 0 0-2.38 1.94l-1.98-.7-1.8 3.12 1.7 1.24A7 7 0 0 0 5 12c0 .47.05.93.14 1.37l-1.7 1.25 1.8 3.12 1.98-.7A7 7 0 0 0 9.6 19l.4 2h4l.4-2a7 7 0 0 0 2.38-1.96l1.98.7 1.8-3.12-1.7-1.25c.09-.44.14-.9.14-1.37Z"
-      fill="none"
-      stroke="url(#mtpGrad)"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </IconWrap>
-);
-
-// 💎 Artifacts (crystal)
-const ICrystal = () => (
-  <IconWrap>
-    <path
-      d="M12 2l4 5-4 15-4-15 4-5Zm0 0l6 7-6 13-6-13 6-7Z"
-      fill="none"
-      stroke="url(#mtpGrad)"
-      strokeWidth="1.6"
-      strokeLinejoin="round"
-    />
-  </IconWrap>
-);
-
-// 🎭 Skins (mask/trophy hybrid)
-const IMask = () => (
-  <IconWrap>
-    <path
-      d="M4 5h16v4a8 8 0 0 1-16 0V5Zm3 4a2 2 0 0 0 4 0M13 9a2 2 0 0 0 4 0M9 17v2h6v-2"
-      fill="none"
-      stroke="url(#mtpGrad)"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </IconWrap>
-);
-
-// 💰 HC (hex + spark)
-const IHC = () => (
-  <IconWrap>
-    <path
-      d="M12 3 5 7v10l7 4 7-4V7l-7-4Z"
-      fill="none"
-      stroke="url(#mtpGrad)"
-      strokeWidth="1.6"
-      strokeLinejoin="round"
-    />
-    <path d="M9 12h6M9 9h6M9 15h6" stroke="url(#mtpGrad)" strokeWidth="1.4" strokeLinecap="round" />
-  </IconWrap>
-);
-
-const ITEMS: Item[] = [
-  { key: "tap", label: "Тапати", icon: <IHand /> },
-  { key: "upgrades", label: "Апгрейди", icon: <IGear /> },
-  { key: "artifacts", label: "Артефакти", icon: <ICrystal /> },
-  { key: "skins", label: "Скіни", icon: <IMask /> },
-  { key: "hc", label: "HC", icon: <IHC /> },
-];
-
-export default function BottomNav({
-  active,
-  onChange,
-}: {
+type Props = {
   active: TabKey;
   onChange: (tab: TabKey) => void;
-}) {
+};
+
+const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
+  {
+    key: "tap",
+    label: "Тапати",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2a2 2 0 0 1 2 2v8l1.5-1.2a2 2 0 0 1 3.2 1.6V18a4 4 0 0 1-4 4h-2.5A5.5 5.5 0 0 1 6 16.5V12a2 2 0 0 1 4 0V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  {
+    key: "upgrades",
+    label: "Апгрейди",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3l4 7h-8l4-7zm0 18v-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  {
+    key: "artifacts",
+    label: "Артефакти",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3l7 7-7 11L5 10l7-7z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  {
+    key: "skins",
+    label: "Скіни",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path d="M8 4h8l-1 6H9L8 4zm1 10h6l1 6H8l1-6z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  {
+    key: "hc",
+    label: "HC",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3l8 4v6c0 4.418-3.582 8-8 8s-8-3.582-8-8V7l8-4z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M8.5 12h7M12 9v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    )
+  }
+];
+
+export default function BottomNav({ active, onChange }: Props) {
+  // ВАЖЛИВО: центруємо fixed-панель навіть у Telegram WebView
+  const fixedCenterStyle: React.CSSProperties = {
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "min(560px, 100vw)"
+  };
+
   return (
-    <nav className="bottom-nav">
-      {ITEMS.map(({ key, label, icon }) => {
-        const isActive = active === key;
-        return (
-          <button
-            key={key}
-            className={`bn-item ${isActive ? "active" : ""}`}
-            onClick={() => onChange(key)}
-            aria-current={isActive ? "page" : undefined}
-            aria-label={label}
-          >
-            <span className="bn-icon">{icon}</span>
-            <span className="bn-label">{label}</span>
-          </button>
-        );
-      })}
+    <nav className="bottom-nav" style={fixedCenterStyle}>
+      {items.map(it => (
+        <button
+          key={it.key}
+          className={`bn-item ${active === it.key ? "active" : ""}`}
+          onClick={() => onChange(it.key)}
+          aria-label={it.label}
+        >
+          <span className="bn-icon">{it.icon}</span>
+          <span className="bn-label">{it.label}</span>
+        </button>
+      ))}
     </nav>
   );
 }
