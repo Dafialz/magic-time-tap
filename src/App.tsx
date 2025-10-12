@@ -23,7 +23,6 @@ import { formatNum } from "./utils/format";
 // UI
 import HeaderBar from "./components/HeaderBar";
 import TapArea from "./components/TapArea";
-import BossPanel from "./components/BossPanel";
 import UpgradesList, { Upgrade } from "./components/UpgradesList";
 import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
@@ -31,10 +30,10 @@ import SkinsShop from "./components/SkinsShop";
 import BottomNav, { TabKey } from "./components/BottomNav";
 
 export default function App() {
-  // ===== Вкладки (нижнє меню)
+  // ===== Tabs
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
-  // ===== Telegram WebApp integration (ready + colors)
+  // ===== Telegram WebApp
   useEffect(() => {
     const tg = (window as any)?.Telegram?.WebApp;
     if (!tg) return;
@@ -46,7 +45,7 @@ export default function App() {
     } catch {}
   }, []);
 
-  // ===== Валюти/стани
+  // ===== Currencies / state
   const [ce, setCe] = useState<number>(0);
   const [mm, setMm] = useState<number>(0);
   const [totalEarned, setTotalEarned] = useState<number>(0);
@@ -57,7 +56,7 @@ export default function App() {
   const [level, setLevel] = useState<number>(1);
   const [prestiges, setPrestiges] = useState<number>(0);
 
-  // Апгрейди
+  // Upgrades
   const initialUpgrades: Upgrade[] = [
     { id: "u1", name: "Пісочний Годинник", level: 0, baseCost: 10, costMult: 1.15, clickPowerBonus: 1 },
     { id: "u2", name: "Міні Вежа", level: 0, baseCost: 100, costMult: 1.18, autoPerSecBonus: 0.5 },
@@ -69,7 +68,7 @@ export default function App() {
   const epoch: Epoch = useMemo(() => epochByLevel(level), [level]);
   const epochMult = epoch.mult;
 
-  // Boss
+  // Boss flags (збережено для майбутніх екранів)
   const bossTier: BossTier | 0 = useMemo(() => Math.floor(level / 10) as BossTier | 0, [level]);
   const isBossLevel = level >= 10 && level % 10 === 0;
 
@@ -89,11 +88,11 @@ export default function App() {
   const [artifacts, setArtifacts] = useState<ArtifactInstance[]>([]);
   const [equippedIds, setEquippedIds] = useState<string[]>([]); // <= 3
 
-  // Skins (cosmetics)
+  // Skins
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["classic"]);
   const [equippedSkinId, setEquippedSkinId] = useState<string>("classic");
 
-  // ===== LOAD SAVE (+ офлайн)
+  // ===== LOAD SAVE (+ офлайн-доход)
   useEffect(() => {
     const s = loadState();
     const now = Date.now();
@@ -148,7 +147,7 @@ export default function App() {
     scheduleSave(payload);
   }, [ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges, upgrades, artifacts, equippedIds, ownedSkins, equippedSkinId]);
 
-  // ==== Артефакти → агрегація бонусів
+  // ==== Артефакти → агреговані бонуси
   const artifactLevels: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
     for (const a of artifacts) map[a.id] = a.level;
@@ -334,7 +333,6 @@ export default function App() {
   const bossTimePct = bossData && bossData.durationSec > 0 ? Math.max(0, Math.min(100, (bossTimeLeft / bossData.durationSec) * 100)) : 0;
 
   const activeSkin = getSkinById(equippedSkinId) ?? getSkinById("classic")!;
-  // прозора стилізація TAP-кнопки (щоб не перекривати фон)
   const tapStyle: React.CSSProperties = {
     color: activeSkin?.tapStyle.color,
     border: "none",
@@ -346,7 +344,7 @@ export default function App() {
   };
 
   return (
-    // фон лишається глобально на body (див. App.css)
+    // ФОН лишається на body (див. App.css) — тут нічого не перекриваємо
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
       <HeaderBar
         ce={ce} mm={mm} hc={hc} level={level}
@@ -358,19 +356,17 @@ export default function App() {
 
       <main className="page-content">
         {activeTab === "tap" && (
-          <>
-            <TapArea
-              onTap={onClickTap}
-              tapStyle={tapStyle}
-              currentEnergy={ce}
-              meteorVisible={meteorVisible}
-              onMeteorClick={onMeteorClick}
-              meteorBuffLeft={meteorBuffLeft}
-              meteorSpawnIn={meteorSpawnIn}
-              meteorBonus={0}
-              meteorMultiplier={GOLDEN_METEOR.mult}
-            />
-          </>
+          <TapArea
+            onTap={onClickTap}
+            tapStyle={tapStyle}
+            currentEnergy={ce}
+            meteorVisible={meteorVisible}
+            onMeteorClick={onMeteorClick}
+            meteorBuffLeft={meteorBuffLeft}
+            meteorSpawnIn={meteorSpawnIn}
+            meteorBonus={0}
+            meteorMultiplier={GOLDEN_METEOR.mult}
+          />
         )}
 
         {activeTab === "upgrades" && (
@@ -423,7 +419,7 @@ export default function App() {
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
       <style>{`
-        .page-content{ padding-bottom: 92px; } /* місце під нижню навігацію */
+        .page-content{ padding-bottom: 92px; }
       `}</style>
     </div>
   );

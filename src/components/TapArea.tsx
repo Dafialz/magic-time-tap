@@ -35,7 +35,22 @@ export default function TapArea({
   return (
     <div className="tap-area">
       {/* HERO-КНОПКА: годинник під літерами, тап по всій шапці */}
-      <button className="hero hero--tap" onClick={onTap} aria-label="Tap">
+      <button
+        type="button"
+        className="hero hero--tap"
+        onClick={onTap}
+        aria-label="Tap"
+        // повний reset, щоб не спрацьовували глобальні стилі button (градієнт/тіні)
+        style={{
+          background: "transparent",
+          boxShadow: "none",
+          padding: 0,
+          border: 0,
+          outline: "none",
+          WebkitTapHighlightColor: "transparent",
+          cursor: "pointer",
+        }}
+      >
         <div className="hero__bg" />
         <h1 className="hero__title">MAGIC TIME</h1>
       </button>
@@ -48,6 +63,7 @@ export default function TapArea({
 
       {/* Банер «Золотий Метеорит» */}
       <button
+        type="button"
         className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
         onClick={meteorVisible ? onMeteorClick : undefined}
         aria-label="Золотий Метеорит"
