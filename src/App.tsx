@@ -334,11 +334,13 @@ export default function App() {
   const bossTimePct = bossData && bossData.durationSec > 0 ? Math.max(0, Math.min(100, (bossTimeLeft / bossData.durationSec) * 100)) : 0;
 
   const activeSkin = getSkinById(equippedSkinId) ?? getSkinById("classic")!;
+  // ВАЖЛИВО: більше не малюємо фіолетову плитку — без background/boxShadow
   const tapStyle: React.CSSProperties = {
-    background: activeSkin?.tapStyle.background,
     color: activeSkin?.tapStyle.color,
-    boxShadow: activeSkin?.tapStyle.boxShadow ?? "none",
-    border: "none", borderRadius: 12, padding: "18px 32px", fontSize: 22, cursor: "pointer"
+    border: "none",
+    borderRadius: 12,
+    padding: "0",          // контейнер прозорий; відступи задає CSS
+    cursor: "pointer"
   };
 
   return (
@@ -347,14 +349,14 @@ export default function App() {
         ce={ce} mm={mm} hc={hc} level={level}
         epochName={epoch.name} epochMult={epochMult}
         clickPower={clickPower} autoPerSec={autoPerSec}
-        effectiveFarmMult={effectiveFarmMult}
+        effectiveFarmMult={(1 + artAgg.farm) * epochMult * farmMult}
         meteorBuffLeft={meteorBuffLeft} meteorMult={meteorMult}
       />
 
       <main className="page-content">
         {activeTab === "tap" && (
           <>
-            {/* Уся геро-секція та метеор — всередині TapArea */}
+            {/* Головний екран — як на макеті: HERO → CE → Метеор */}
             <TapArea
               onTap={onClickTap}
               tapStyle={tapStyle}
@@ -366,27 +368,6 @@ export default function App() {
               meteorBonus={0}
               meteorMultiplier={GOLDEN_METEOR.mult}
             />
-
-            {/* Престиж */}
-            <section className="prestige" style={{ marginTop: 18 }}>
-              <h2>Престиж (Time Reset)</h2>
-              <p>Доступний з рівня 10. Хронокристали дають перманентні бонуси.</p>
-              <button onClick={performPrestige} disabled={!canPrestige}>Виконати Time Reset</button>
-            </section>
-
-            {/* Бос */}
-            {(level >= 10) && (
-              <BossPanel
-                level={level}
-                isBossLevel={isBossLevel}
-                bossActive={bossActive}
-                bossData={bossData}
-                bossRetryCooldown={bossRetryCooldown}
-                startBossFight={startBossFight}
-                bossHP={bossHP} bossMaxHP={bossMaxHP} bossTimeLeft={bossTimeLeft}
-                bossHPpct={bossHPpct} bossTimePct={bossTimePct}
-              />
-            )}
           </>
         )}
 
@@ -400,13 +381,11 @@ export default function App() {
         )}
 
         {activeTab === "artifacts" && (
-          <>
-            <ArtifactsPanel
-              artifacts={artifacts}
-              equippedIds={equippedIds}
-              toggleEquip={toggleEquip}
-            />
-          </>
+          <ArtifactsPanel
+            artifacts={artifacts}
+            equippedIds={equippedIds}
+            toggleEquip={toggleEquip}
+          />
         )}
 
         {activeTab === "craft" && (
