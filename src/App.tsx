@@ -342,11 +342,11 @@ export default function App() {
     padding: "0",
     cursor: "pointer",
     background: "transparent",
-    boxShadow: "none"
+    boxShadow: "none",
   };
 
   return (
-    // ВАЖЛИВО: фон не задаємо тут, щоб не перекривати космічний бек з body
+    // фон лишається глобально на body (див. App.css)
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
       <HeaderBar
         ce={ce} mm={mm} hc={hc} level={level}

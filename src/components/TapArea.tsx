@@ -3,7 +3,7 @@ import React from "react";
 type Props = {
   // TAP
   onTap: () => void;
-  tapStyle?: React.CSSProperties;
+  tapStyle?: React.CSSProperties; // лишив для сумісності, тут не використовується
 
   // CE
   currentEnergy: number;
@@ -21,7 +21,6 @@ type Props = {
 
 export default function TapArea({
   onTap,
-  tapStyle,
   currentEnergy,
   meteorVisible,
   onMeteorClick,
@@ -33,40 +32,13 @@ export default function TapArea({
   const spawnIn = Math.max(0, Math.floor(meteorSpawnIn));
   const buffLeft = Math.max(0, Math.floor(meteorBuffLeft));
 
-  // Фільтруємо стилі, щоб нічого не перекривало картинку-кнопку
-  const { background, backgroundImage, boxShadow, ...safeTapStyle } = tapStyle || {};
-
   return (
     <div className="tap-area">
-      {/* HERO: великий водяний знак годинника під заголовком */}
-      <div className="hero" aria-hidden="true">
+      {/* HERO-КНОПКА: годинник під літерами, тап по всій шапці */}
+      <button className="hero hero--tap" onClick={onTap} aria-label="Tap">
         <div className="hero__bg" />
         <h1 className="hero__title">MAGIC TIME</h1>
-      </div>
-
-      {/* КНОПКА TAP = ЗОБРАЖЕННЯ /hero-hourglass.jpg */}
-      <button
-        className="tap-btn tap-btn--hourglass"
-        onClick={onTap}
-        aria-label="Tap"
-        style={{
-          ...safeTapStyle,
-          background: "transparent",
-          boxShadow: "none",
-          backgroundImage: 'url("/hero-hourglass.jpg")',
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center 8%",
-          backgroundSize: "72%",
-          width: "min(72vw, 420px)",
-          height: "min(72vw, 420px)",
-          padding: 0,
-          border: "none",
-          outline: "none",
-          WebkitTapHighlightColor: "transparent",
-          filter: "drop-shadow(0 0 18px rgba(40,231,168,.45))",
-          transition: "transform .08s ease, filter .15s ease",
-        }}
-      />
+      </button>
 
       {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
