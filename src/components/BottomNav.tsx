@@ -11,8 +11,8 @@ const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
   {
     key: "tap",
     label: "Тапати",
+    // мінімалістична рука; колір тягнеться від currentColor (керується CSS)
     icon: (
-      // рука-тап (мінімалістичний SVG, підлаштовується під currentColor)
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M8 11v-1a2 2 0 1 1 4 0v4" strokeLinecap="round" />
         <path d="M12 10v6" strokeLinecap="round" />

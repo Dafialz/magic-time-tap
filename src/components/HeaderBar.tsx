@@ -25,10 +25,10 @@ export default function HeaderBar({
 }: Props) {
   return (
     <header className="header">
-      {/* великий бірюзовий заголовок як у референсі */}
+      {/* великий бірюзовий заголовок згори */}
       <h1 className="hero__title">MAGIC TIME</h1>
 
-      {/* компактний інфобар як картка зверху */}
+      {/* компактна картка зі статами (верхній бар як на референсі) */}
       <div className="card header__stats">
         <div className="row">
           <strong>CE:</strong> {Math.floor(ce)}&nbsp;&nbsp;
@@ -44,9 +44,7 @@ export default function HeaderBar({
         <div className="row">
           <strong>Farm</strong> x{effectiveFarmMult.toFixed(2)}
           {meteorBuffLeft > 0 && (
-            <span className="badge badge--meteor">
-              ☄️ x{meteorMult.toFixed(1)} • {meteorBuffLeft}s
-            </span>
+            <span className="badge badge--meteor">☄️ x{meteorMult.toFixed(1)} • {meteorBuffLeft}s</span>
           )}
         </div>
       </div>
