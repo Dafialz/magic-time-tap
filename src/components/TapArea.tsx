@@ -41,29 +41,28 @@ export default function TapArea({
         <h1 className="hero__title">MAGIC TIME</h1>
       </div>
 
-      {/* КНОПКА TAP = ЗОБРАЖЕННЯ hero-hourglass.jpg */}
+      {/* КНОПКА TAP = зображення hero-hourglass.jpg (повністю прозора кнопка) */}
       <button
+        type="button"
         className="tap-btn tap-btn--hourglass"
         onClick={onTap}
         aria-label="Tap"
-        // прозора кнопка з фоном-картинкою, що скейлиться як у макеті
         style={{
           backgroundImage: 'url("/hero-hourglass.jpg")',
           backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-          backgroundSize: "contain",
-          // розміри адаптивні: мін/макс як у референсі
+          backgroundPosition: "center 0%",
+          backgroundSize: "70%",
           width: "min(64vw, 340px)",
           height: "min(64vw, 340px)",
-          // прибираємо будь-які фони/тіні від скіна
           backgroundColor: "transparent",
           boxShadow: "none",
           padding: 0,
           border: "none",
+          outline: "none",
           ...tapStyle,
         }}
       />
-      <span className="tap-btn__label">TAP</span>
+      <span className="tap-btn__label" aria-hidden="true">TAP</span>
 
       {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
@@ -73,6 +72,7 @@ export default function TapArea({
 
       {/* Банер «Золотий Метеорит» */}
       <button
+        type="button"
         className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
         onClick={meteorVisible ? onMeteorClick : undefined}
         aria-label="Золотий Метеорит"
