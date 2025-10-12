@@ -88,19 +88,23 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 /* ====== HERO ====== */
 .hero{
   position: relative;
-  padding: 28px 6px 12px;
+  padding: 24px 6px 0;
   display: grid;
   gap: 18px;
   place-items: center;
+  /* резервуємо місце, щоб великий водяний знак був як у макеті */
+  min-height: clamp(200px, 36vh, 340px);
 }
 
 /* водяний знак (великий годинник під заголовком) */
 .hero__bg{
   position: absolute; inset: 0;
-  background: url("/hero-hourglass.jpg") center 12% / 56% no-repeat;
-  opacity: .12;
-  filter: drop-shadow(0 12px 40px rgba(46,255,204,.12));
+  /* РОЗМІР/ПОЗИЦІЯ як у референсі: чітко під літерами */
+  background: url("/hero-hourglass.jpg") center 38% / clamp(320px, 66vw, 560px) no-repeat;
+  opacity: .22; /* добре видно, але не перебиває текст */
+  filter: drop-shadow(0 10px 36px rgba(46,255,204,.22));
   pointer-events: none;
+  z-index: 1;
 }
 
 /* великий бірюзовий MAGIC TIME (серіф як у макеті) */
@@ -117,6 +121,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   background-clip: text;
   color: transparent;
   text-shadow: 0 12px 32px rgba(46,255,204,.10);
+  z-index: 2; /* завжди поверх водяного знака */
 }
 
 /* ====== CE лічильник ====== */
@@ -227,14 +232,8 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   filter: drop-shadow(0 0 22px rgba(40,231,168,.65));
 }
 
-/* Підпис TAP під картинкою */
-.tap-btn__label{
-  font-weight: 900;
-  letter-spacing: .8px;
-  color: var(--mint-100);
-  text-shadow: 0 0 12px rgba(40,231,168,.55);
-  margin-top: 6px;
-}
+/* ПІДПИС TAP — ховаємо (у JSX теж приберемо) */
+.tap-btn__label{ display:none; }
 
 /* Хінт під TAP */
 .tap-hint{ color: var(--mtp-text-dim); text-align: center; margin-top: 6px; }
@@ -248,7 +247,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 
   width: min(560px, 100vw);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);   /* кожен елемент займає 1fr */
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
 
   padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
@@ -265,15 +264,15 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   color: var(--mint-300); font-weight: 800;
   transition: transform .08s ease, background .18s ease, box-shadow .18s ease, color .18s ease, filter .18s ease;
   outline: none; user-select: none;
-  min-width: 0;            /* важливо: дозволяє стискатись у вузьких колонках */
+  min-width: 0;
 }
 .bn-item:active{ transform: translateY(1px) scale(.98); }
 .bn-item.active{ color:#fff; filter: drop-shadow(0 0 12px rgba(40,231,168,.5)); }
 
 .bn-card{
-  width: 100%;              /* ГОЛОВНЕ: жодної фіксованої ширини */
+  width: 100%;
   height: 56px;
-  max-width: 96px;          /* обмежуємо зростання на широких */
+  max-width: 96px;
   border-radius: 16px;
   display:grid; place-items:center;
   background: var(--nav-glass);
@@ -294,12 +293,12 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   font-size: 12px;
   letter-spacing: .2px;
   color: var(--mint-300);
-  white-space: nowrap;       /* без переносів */
+  white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .bn-item.active .bn-label{ color:#fff; }
 
-/* ====== Адаптивність: зменшуємо все поступово ====== */
+/* ====== Адаптивність ====== */
 @media (max-width: 430px){
   .bottom-nav{ gap: 8px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
   .bn-card{ height: 54px; }

@@ -33,29 +33,27 @@ export default function TapArea({
   const spawnIn = Math.max(0, Math.floor(meteorSpawnIn));
   const buffLeft = Math.max(0, Math.floor(meteorBuffLeft));
 
-  // ⚠️ Фільтруємо можливі фони зі skінів, щоб вони НЕ перекривали картинку
+  // Фільтруємо стилі, щоб нічого не перекривало картинку-кнопку
   const { background, backgroundImage, boxShadow, ...safeTapStyle } = tapStyle || {};
 
   return (
     <div className="tap-area">
-      {/* HERO: водяний знак + заголовок */}
+      {/* HERO: великий водяний знак годинника під заголовком */}
       <div className="hero" aria-hidden="true">
         <div className="hero__bg" />
         <h1 className="hero__title">MAGIC TIME</h1>
       </div>
 
-      {/* КНОПКА TAP = ЗОБРАЖЕННЯ hero-hourglass.jpg (завжди зверху) */}
+      {/* КНОПКА TAP = ЗОБРАЖЕННЯ /hero-hourglass.jpg */}
       <button
         className="tap-btn tap-btn--hourglass"
         onClick={onTap}
         aria-label="Tap"
         style={{
-          // 1) Будь-які безпечні стилі зі скіну (колір тощо)
           ...safeTapStyle,
-          // 2) Наші значення, що ПОВИННІ перемогти
           background: "transparent",
           boxShadow: "none",
-          backgroundImage: 'url("hero-hourglass.jpg")',
+          backgroundImage: 'url("/hero-hourglass.jpg")',
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center 8%",
           backgroundSize: "72%",
@@ -69,7 +67,6 @@ export default function TapArea({
           transition: "transform .08s ease, filter .15s ease",
         }}
       />
-      <span className="tap-btn__label">TAP</span>
 
       {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
