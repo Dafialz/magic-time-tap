@@ -372,6 +372,8 @@ export default function App() {
               </div>
 
               <button
+                type="button"
+                aria-label={meteorVisible ? "Зібрати Золотий Метеорит" : "Таймер метеорита"}
                 className={`meteor-card ${meteorVisible ? "meteor-card--active" : ""}`}
                 onClick={() => meteorVisible && onMeteorClick()}
               >
@@ -396,11 +398,12 @@ export default function App() {
               </button>
             </section>
 
-            {/* (опціонально) кнопка TAP */}
+            {/* TAP зона */}
             <div style={{ margin: "12px 0 4px" }}>
               <TapArea
                 onTap={onClickTap}
                 tapStyle={tapStyle}
+                /* Приховуємо старий банер метеорита усередині TapArea через CSS */
                 meteorVisible={meteorVisible}
                 onMeteorClick={onMeteorClick}
                 meteorBuffLeft={meteorBuffLeft}
@@ -487,25 +490,11 @@ export default function App() {
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
-      {/* Локальні стилі для нижнього меню (залишив для сумісності) */}
+      {/* Локальні дрібні стилі — решта у App.css */}
       <style>{`
-        .page-content{ padding-bottom: 92px; }
-        .bottom-nav{
-          position: fixed; left: 0; right: 0; bottom: 0;
-          display: grid; grid-template-columns: repeat(5,1fr);
-          background: rgba(17,24,39,.9);
-          backdrop-filter: blur(6px);
-          border-top: 1px solid rgba(255,255,255,.08);
-          padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
-          z-index: 50;
-        }
-        .bn-item{
-          display:flex; flex-direction:column; align-items:center; justify-content:center;
-          gap:4px; padding:8px 4px; border-radius:10px; border:none; background:transparent; color:#e5e7eb; cursor:pointer;
-        }
-        .bn-item.active{ background: rgba(124,58,237,.18); color:#fff;}
-        .bn-icon{ font-size:18px; line-height:18px;}
-        .bn-label{ font-size:12px; }
+        .page-content{ padding-bottom: 92px; } /* місце під нижню навігацію */
+        /* Ховаємо старий "мікро"-банер метеорита всередині TapArea, щоб не дублювався */
+        .tap-area .meteor{ display:none !important; }
       `}</style>
     </div>
   );
