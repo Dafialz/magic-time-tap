@@ -35,9 +35,9 @@ body{
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   color: var(--mtp-text);
 
-  /* космічний бек + фолбек-градієнт */
+  /* космічний бек + фолбек-градієнт (ВАЖЛИВО: шлях відносний до /public) */
   background:
-    url("/bg-space.jpg") center/cover no-repeat fixed,
+    url("bg-space.jpg") center/cover no-repeat fixed,
     radial-gradient(1200px 800px at 50% -10%, #162034 0%, var(--mtp-bg) 70%);
 }
 
@@ -97,7 +97,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 /* водяний знак (великий годинник під заголовком) */
 .hero__bg{
   position: absolute; inset: 0;
-  background: url("/hero-hourglass.jpg") center 12% / 56% no-repeat;
+  background: url("hero-hourglass.jpg") center 12% / 56% no-repeat;
   opacity: .12;
   filter: drop-shadow(0 12px 40px rgba(46,255,204,.12));
   pointer-events: none;
@@ -206,14 +206,25 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   box-shadow: none !important;
   border-radius: 16px;
   display:flex; flex-direction: column; align-items: center; gap: 8px;
+  cursor: pointer;
 }
 
-/* Розміри/поведінка самої «картинки-кнопки» (зображення задається inline) */
+/* Зображення-кнопка (герой-годинник) з glow-ефектом */
 .tap-btn--hourglass{
   width: min(64vw, 340px);
   height: min(64vw, 340px);
-  background: transparent;
+  background-image: url("hero-hourglass.jpg");
+  background-repeat: no-repeat;
+  background-position: center 0%;
+  background-size: 70%;
   border: none;
+  outline: none;
+  filter: drop-shadow(0 0 18px rgba(40,231,168,.45));
+  transition: transform .08s ease, filter .15s ease;
+}
+.tap-btn--hourglass:active{
+  transform: scale(.98);
+  filter: drop-shadow(0 0 22px rgba(40,231,168,.65));
 }
 
 /* Підпис TAP під картинкою */
