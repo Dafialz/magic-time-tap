@@ -2,35 +2,45 @@ import React from "react";
 
 type Props = {
   onTap: () => void;
-  tapStyle: React.CSSProperties;
+  tapStyle?: React.CSSProperties;
+
   meteorVisible: boolean;
   onMeteorClick: () => void;
   meteorBuffLeft: number;
   meteorSpawnIn: number;
 };
 
-export default function TapArea(p: Props) {
+export default function TapArea({
+  onTap,
+  tapStyle,
+  meteorVisible,
+  onMeteorClick,
+  meteorBuffLeft,
+  meteorSpawnIn,
+}: Props) {
   return (
-    <section className="tap-area" style={{ textAlign: "center", padding: 12 }}>
-      {/* Велика кнопка TAP */}
-      <button className="tap-btn" style={p.tapStyle} onClick={p.onTap}>TAP</button>
+    <section className="tap-area" aria-label="Зона натискань">
+      <button
+        type="button"
+        className="tap-btn"
+        style={tapStyle}
+        onClick={onTap}
+      >
+        TAP
+      </button>
 
-      {/* Підпис під кнопкою */}
-      <p className="tap-hint">Натискай, щоб збирати Часову Енергію</p>
+      <div className="tap-hint">Натискай, щоб збирати Часову Енергію</div>
 
-      {/* Тільки текстовий таймер під кнопкою — без білої “карточки” зверху */}
-      {p.meteorBuffLeft === 0 && !p.meteorVisible && (
-        <div style={{ marginTop: 8, opacity: .9 }}>
-          Метеор через ~{Math.max(0, p.meteorSpawnIn)}s
-        </div>
-      )}
-
-      {/* Якщо метеор з’явився — клікабельний банер (він стилиться через .meteor у твоєму CSS) */}
-      {p.meteorVisible && (
-        <div className="meteor" onClick={p.onMeteorClick} title="Золотий Метеорит — натисни!">
-          ✨ Золотий Метеорит! Натисни — x10 на 10s
-        </div>
-      )}
+      {/* нижній текст-таймер, банер метеорита тепер у HERO секції */}
+      <div style={{ marginTop: 10, opacity: 0.9, textAlign: "center" }}>
+        {meteorVisible ? (
+          <span role="button" onClick={onMeteorClick} style={{ cursor: "pointer" }}>
+            ✨ Метеор активний • буст ще ~{Math.max(0, meteorBuffLeft)}s
+          </span>
+        ) : (
+          <span>Метеор через ~{Math.max(0, meteorSpawnIn)}s</span>
+        )}
+      </div>
     </section>
   );
 }
