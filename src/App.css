@@ -195,33 +195,37 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   padding:2px 8px; border-radius:999px; font-size:12px;
 }
 
-/* ====== TAP AREA — пісковий годинник ====== */
+/* ====== TAP AREA — пісковий годинник як КАРТИНКА ====== */
 .tap-area{ position: relative; display:grid; place-items:center; gap:12px; }
 
+/* Головне: кнопка прозора, без градієнта і тіней з глобальних button */
 .tap-btn{
-  background: transparent;
-  padding: 8px 10px;
+  background: transparent !important;
+  padding: 0 !important;
+  border: 0;
+  box-shadow: none !important;
   border-radius: 16px;
   display:flex; flex-direction: column; align-items: center; gap: 8px;
 }
 
-.tap-btn--hourglass{ border: none; background: transparent; }
-
-.tap-hourglass{
-  color: var(--mint-300);
-  filter: drop-shadow(0 0 14px rgba(40,231,168,.55));
-  transition: transform .08s ease, filter .15s ease;
+/* Розміри/поведінка самої «картинки-кнопки» (зображення задається inline) */
+.tap-btn--hourglass{
+  width: min(64vw, 340px);
+  height: min(64vw, 340px);
+  background: transparent;
+  border: none;
 }
-.tap-hourglass path{ vector-effect: non-scaling-stroke; }
-.tap-btn:active .tap-hourglass{ transform: scale(.98); filter: drop-shadow(0 0 18px rgba(40,231,168,.7)); }
 
+/* Підпис TAP під картинкою */
 .tap-btn__label{
   font-weight: 900;
   letter-spacing: .8px;
   color: var(--mint-100);
   text-shadow: 0 0 12px rgba(40,231,168,.55);
+  margin-top: 6px;
 }
 
+/* Хінт під TAP */
 .tap-hint{ color: var(--mtp-text-dim); text-align: center; margin-top: 6px; }
 
 /* ====== BottomNav — адаптивні «скляні» кнопки ====== */

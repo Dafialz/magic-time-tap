@@ -41,16 +41,29 @@ export default function TapArea({
         <h1 className="hero__title">MAGIC TIME</h1>
       </div>
 
-      {/* Великий пісковий годинник (кнопка TAP) */}
+      {/* КНОПКА TAP = ЗОБРАЖЕННЯ hero-hourglass.jpg */}
       <button
         className="tap-btn tap-btn--hourglass"
         onClick={onTap}
         aria-label="Tap"
-        style={tapStyle}
-      >
-        <HourglassIcon />
-        <span className="tap-btn__label">TAP</span>
-      </button>
+        // прозора кнопка з фоном-картинкою, що скейлиться як у макеті
+        style={{
+          backgroundImage: 'url("/hero-hourglass.jpg")',
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          backgroundSize: "contain",
+          // розміри адаптивні: мін/макс як у референсі
+          width: "min(64vw, 340px)",
+          height: "min(64vw, 340px)",
+          // прибираємо будь-які фони/тіні від скіна
+          backgroundColor: "transparent",
+          boxShadow: "none",
+          padding: 0,
+          border: "none",
+          ...tapStyle,
+        }}
+      />
+      <span className="tap-btn__label">TAP</span>
 
       {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
@@ -87,30 +100,6 @@ export default function TapArea({
         {!meteorVisible && <> • Метеор через ~{spawnIn}s</>}
       </p>
     </div>
-  );
-}
-
-/** Лого-«пісочний годинник» */
-function HourglassIcon() {
-  return (
-    <svg
-      className="tap-hourglass"
-      width="132"
-      height="132"
-      viewBox="0 0 84 84"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M18 14h48L50 36l16 22H18l16-22L18 14Z"
-        stroke="currentColor"
-        strokeWidth="6"
-        strokeLinejoin="round"
-      />
-      {/* перемички як у мокапі */}
-      <path d="M26 26h20M38 58h20" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
-    </svg>
   );
 }
 
