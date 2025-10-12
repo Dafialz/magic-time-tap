@@ -359,7 +359,7 @@ export default function App() {
             {/* Головний екран — як на макеті: HERO → CE → Метеор */}
             <TapArea
               onTap={onClickTap}
-              tapStyle={tapStyle}
+             //apStyle={tapStyle}
               currentEnergy={ce}
               meteorVisible={meteorVisible}
               onMeteorClick={onMeteorClick}

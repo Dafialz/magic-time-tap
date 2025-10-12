@@ -5,18 +5,18 @@ type Props = {
   onTap: () => void;
   tapStyle?: React.CSSProperties;
 
-  // CE (динамічне значення)
+  // CE
   currentEnergy: number;
 
   // Метеор
   meteorVisible: boolean;
   onMeteorClick: () => void;
-  meteorBuffLeft: number;   // сек залишку бафа (якщо активний)
-  meteorSpawnIn: number;    // сек до появи (якщо неактивний)
+  meteorBuffLeft: number;
+  meteorSpawnIn: number;
 
-  // (необов’язково) відображення бонусу на банері
-  meteorBonus?: number;      // скільки додасть (для відмальовки)
-  meteorMultiplier?: number; // xN праворуч
+  // (необов’язково)
+  meteorBonus?: number;
+  meteorMultiplier?: number;
 };
 
 export default function TapArea({
@@ -33,36 +33,43 @@ export default function TapArea({
   const spawnIn = Math.max(0, Math.floor(meteorSpawnIn));
   const buffLeft = Math.max(0, Math.floor(meteorBuffLeft));
 
+  // ⚠️ Фільтруємо можливі фони зі skінів, щоб вони НЕ перекривали картинку
+  const { background, backgroundImage, boxShadow, ...safeTapStyle } = tapStyle || {};
+
   return (
     <div className="tap-area">
-      {/* HERO: водяний знак годинника + великий заголовок */}
+      {/* HERO: водяний знак + заголовок */}
       <div className="hero" aria-hidden="true">
         <div className="hero__bg" />
         <h1 className="hero__title">MAGIC TIME</h1>
       </div>
 
-      {/* КНОПКА TAP = зображення hero-hourglass.jpg (повністю прозора кнопка) */}
+      {/* КНОПКА TAP = ЗОБРАЖЕННЯ hero-hourglass.jpg (завжди зверху) */}
       <button
-        type="button"
         className="tap-btn tap-btn--hourglass"
         onClick={onTap}
         aria-label="Tap"
         style={{
-          backgroundImage: 'url("/hero-hourglass.jpg")',
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center 0%",
-          backgroundSize: "70%",
-          width: "min(64vw, 340px)",
-          height: "min(64vw, 340px)",
-          backgroundColor: "transparent",
+          // 1) Будь-які безпечні стилі зі скіну (колір тощо)
+          ...safeTapStyle,
+          // 2) Наші значення, що ПОВИННІ перемогти
+          background: "transparent",
           boxShadow: "none",
+          backgroundImage: 'url("hero-hourglass.jpg")',
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center 8%",
+          backgroundSize: "72%",
+          width: "min(72vw, 420px)",
+          height: "min(72vw, 420px)",
           padding: 0,
           border: "none",
           outline: "none",
-          ...tapStyle,
+          WebkitTapHighlightColor: "transparent",
+          filter: "drop-shadow(0 0 18px rgba(40,231,168,.45))",
+          transition: "transform .08s ease, filter .15s ease",
         }}
       />
-      <span className="tap-btn__label" aria-hidden="true">TAP</span>
+      <span className="tap-btn__label">TAP</span>
 
       {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
@@ -72,7 +79,6 @@ export default function TapArea({
 
       {/* Банер «Золотий Метеорит» */}
       <button
-        type="button"
         className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
         onClick={meteorVisible ? onMeteorClick : undefined}
         aria-label="Золотий Метеорит"
