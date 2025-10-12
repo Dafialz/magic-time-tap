@@ -224,7 +224,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 
 .tap-hint{ color: var(--mtp-text-dim); text-align: center; margin-top: 6px; }
 
-/* ====== BottomNav — компактні бірюзові «скляні» кнопки ====== */
+/* ====== BottomNav — адаптивні «скляні» кнопки ====== */
 .bottom-nav{
   position: fixed;
   left: 50%;
@@ -233,7 +233,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 
   width: min(560px, 100vw);
   display: grid;
-  grid-template-columns: repeat(5,1fr);
+  grid-template-columns: repeat(5, 1fr);   /* кожен елемент займає 1fr */
   gap: 10px;
 
   padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
@@ -246,17 +246,19 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 .bn-item{
   appearance: none; border: 0; background: transparent;
   display: grid; grid-template-rows: auto auto; justify-items: center; align-items: start;
-  gap: 6px; padding: 2px; border-radius: 14px; cursor: pointer;
+  gap: 6px; padding: 0; border-radius: 14px; cursor: pointer;
   color: var(--mint-300); font-weight: 800;
   transition: transform .08s ease, background .18s ease, box-shadow .18s ease, color .18s ease, filter .18s ease;
-  outline: none;
-  user-select: none;
+  outline: none; user-select: none;
+  min-width: 0;            /* важливо: дозволяє стискатись у вузьких колонках */
 }
 .bn-item:active{ transform: translateY(1px) scale(.98); }
 .bn-item.active{ color:#fff; filter: drop-shadow(0 0 12px rgba(40,231,168,.5)); }
 
 .bn-card{
-  width: 76px; height: 58px;
+  width: 100%;              /* ГОЛОВНЕ: жодної фіксованої ширини */
+  height: 56px;
+  max-width: 96px;          /* обмежуємо зростання на широких */
   border-radius: 16px;
   display:grid; place-items:center;
   background: var(--nav-glass);
@@ -273,12 +275,33 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 }
 
 .bn-icon{ font-size: 20px; line-height: 1; }
-.bn-label{ font-size: 12px; letter-spacing: .2px; color: var(--mint-300); }
+.bn-label{
+  font-size: 12px;
+  letter-spacing: .2px;
+  color: var(--mint-300);
+  white-space: nowrap;       /* без переносів */
+  overflow: hidden; text-overflow: ellipsis;
+}
 .bn-item.active .bn-label{ color:#fff; }
 
-@media (max-width: 360px){
-  .bn-card{ width: 70px; height: 54px; }
+/* ====== Адаптивність: зменшуємо все поступово ====== */
+@media (max-width: 430px){
+  .bottom-nav{ gap: 8px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .bn-card{ height: 54px; }
+  .bn-icon{ font-size: 19px; }
+  .bn-label{ font-size: 11.5px; }
+}
+@media (max-width: 390px){
+  .bottom-nav{ gap: 8px; }
+  .bn-card{ height: 50px; border-radius: 14px; }
+  .bn-icon{ font-size: 18px; }
   .bn-label{ font-size: 11px; }
+}
+@media (max-width: 360px){
+  .bottom-nav{ gap: 6px; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); }
+  .bn-card{ height: 46px; border-radius: 12px; }
+  .bn-icon{ font-size: 17px; }
+  .bn-label{ font-size: 10.5px; }
 }
 
 /* ====== Дрібне / сумісність ====== */
