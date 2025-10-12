@@ -28,7 +28,6 @@ import UpgradesList, { Upgrade } from "./components/UpgradesList";
 import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
-import HcShop from "./components/HcShop";
 import BottomNav, { TabKey } from "./components/BottomNav";
 
 export default function App() {
@@ -290,12 +289,6 @@ export default function App() {
     alert(`Престиж виконано! Отримано ${gained} HC.`);
   };
 
-  // ==== HC shop
-  const buyHcUpgrade = (cost: number, apply: () => void) => {
-    if (hc < cost) { alert("Немає стільки Хронокристалів"); return; }
-    setHc(prev => prev - cost); apply();
-  };
-
   // ==== Equip
   const toggleEquip = (id: string) => {
     setEquippedIds(prev => {
@@ -361,55 +354,18 @@ export default function App() {
       <main className="page-content">
         {activeTab === "tap" && (
           <>
-            {/* HERO секція */}
-            <section className="hero">
-              <div className="hero__bg" />
-              <h1 className="hero__title">MAGIC TIME</h1>
-
-              <div className="stat-card">
-                <div className="stat-card__caption">Косм. Енергія</div>
-                <div className="stat-card__value">{formatNum(ce)}</div>
-              </div>
-
-              <button
-                type="button"
-                aria-label={meteorVisible ? "Зібрати Золотий Метеорит" : "Таймер метеорита"}
-                className={`meteor-card ${meteorVisible ? "meteor-card--active" : ""}`}
-                onClick={() => meteorVisible && onMeteorClick()}
-              >
-                <div className="meteor-card__icon">☄️</div>
-                <div className="meteor-card__text">
-                  {meteorVisible ? (
-                    <>
-                      <div className="meteor-card__title">Написати, щоб зібрати</div>
-                      <div className="meteor-card__subtitle">Золотий Метеорит</div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="meteor-card__title">Метеор через</div>
-                      <div className="meteor-card__subtitle">~{Math.max(0, meteorSpawnIn)}s</div>
-                    </>
-                  )}
-                </div>
-                <div className="meteor-card__bonus">
-                  <span>+0</span>
-                  <small>x10</small>
-                </div>
-              </button>
-            </section>
-
-            {/* TAP зона */}
-            <div style={{ margin: "12px 0 4px" }}>
-              <TapArea
-                onTap={onClickTap}
-                tapStyle={tapStyle}
-                /* приховуємо старий банер метеорита всередині TapArea через CSS */
-                meteorVisible={meteorVisible}
-                onMeteorClick={onMeteorClick}
-                meteorBuffLeft={meteorBuffLeft}
-                meteorSpawnIn={meteorSpawnIn}
-              />
-            </div>
+            {/* Уся геро-секція та метеор — всередині TapArea */}
+            <TapArea
+              onTap={onClickTap}
+              tapStyle={tapStyle}
+              currentEnergy={ce}
+              meteorVisible={meteorVisible}
+              onMeteorClick={onMeteorClick}
+              meteorBuffLeft={meteorBuffLeft}
+              meteorSpawnIn={meteorSpawnIn}
+              meteorBonus={0}
+              meteorMultiplier={GOLDEN_METEOR.mult}
+            />
 
             {/* Престиж */}
             <section className="prestige" style={{ marginTop: 18 }}>
@@ -450,12 +406,15 @@ export default function App() {
               equippedIds={equippedIds}
               toggleEquip={toggleEquip}
             />
-            <CraftPanel
-              rarityCount={rarityCount}
-              canCraft={canCraft}
-              craftRarity={craftRarity}
-            />
           </>
+        )}
+
+        {activeTab === "craft" && (
+          <CraftPanel
+            rarityCount={rarityCount}
+            canCraft={canCraft}
+            craftRarity={craftRarity}
+          />
         )}
 
         {activeTab === "skins" && (
@@ -471,14 +430,6 @@ export default function App() {
             }}
           />
         )}
-
-        {activeTab === "hc" && (
-          <HcShop
-            buyHcUpgrade={buyHcUpgrade}
-            setClickPower={setClickPower}
-            setAutoPerSec={setAutoPerSec}
-          />
-        )}
       </main>
 
       <footer style={{ paddingBottom: 80 }}>
@@ -490,10 +441,8 @@ export default function App() {
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
-      {/* Лише дрібні локальні стилі. УВАГА: стилів .bottom-nav тут більше немає — все в App.css */}
       <style>{`
         .page-content{ padding-bottom: 92px; } /* місце під нижню навігацію */
-        .tap-area .meteor{ display:none !important; } /* не дублюємо банер метеорита */
       `}</style>
     </div>
   );

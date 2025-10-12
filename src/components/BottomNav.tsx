@@ -1,6 +1,6 @@
 import React from "react";
 
-export type TabKey = "tap" | "upgrades" | "artifacts" | "skins" | "hc";
+export type TabKey = "tap" | "upgrades" | "artifacts" | "craft" | "skins";
 
 type Props = {
   active: TabKey;
@@ -11,7 +11,6 @@ const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
   {
     key: "tap",
     label: "Тапати",
-    // мінімалістична рука; колір тягнеться від currentColor (керується CSS)
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M8 11v-1a2 2 0 1 1 4 0v4" strokeLinecap="round" />
@@ -40,22 +39,24 @@ const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
     ),
   },
   {
-    key: "skins",
-    label: "Скіни",
+    key: "craft",
+    label: "Крафт",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M9 8h6l1 10H8L9 8z" />
-        <path d="M8 8l4-3 4 3" />
+        <path d="M8 20c0-3.314 2.686-6 6-6" />
+        <path d="M16 4v6a4 4 0 0 1-8 0V4" />
+        <path d="M8 4h8" />
       </svg>
     ),
   },
   {
-    key: "hc",
-    label: "HC",
+    key: "skins",
+    label: "СКІНИ",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="7" />
-        <path d="M9 12h6M12 9v6" />
+        <path d="M8 21h8l1-9H7l1 9z" />
+        <path d="M9 8h6l1 4H8l1-4z" />
+        <path d="M8 8l4-3 4 3" />
       </svg>
     ),
   },

@@ -1,10 +1,13 @@
-/* ====== Magic Time — базова тема ====== */
+/* ====== Magic Time — базова тема (v2 під референс) ====== */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&display=swap');
+
 :root{
   --mtp-bg: #0b1220;
   --mtp-card: rgba(255,255,255,.06);
   --mtp-text: #e5e7eb;
   --mtp-text-dim: #cfd6ff;
   --mtp-border: rgba(255,255,255,.08);
+
   --mtp-grad-a: #28E7A8;   /* mint */
   --mtp-grad-b: #6F52FF;   /* violet */
   --mtp-yellow: #ffd54a;
@@ -17,6 +20,11 @@
 
   /* скляна навігація */
   --nav-glass: color-mix(in oklab, var(--mtp-bg) 72%, transparent);
+
+  /* додаткові акценти під макет */
+  --purple-glow: rgba(111,82,255,.32);
+  --card-glow: 0 10px 28px rgba(0,0,0,.25);
+  --ring: inset 0 0 0 1px rgba(255,255,255,.03);
 }
 
 *{ box-sizing: border-box; }
@@ -45,12 +53,16 @@ body{
 h1,h2,h3{ margin: 0 0 8px; font-weight: 700; }
 p{ margin: 0 0 10px; color: var(--mtp-text-dim); }
 
+a{ color: inherit; text-decoration: none; }
+
 /* Картки/панелі */
 .card{
-  background: var(--mtp-card);
+  background: color-mix(in oklab, var(--mtp-bg) 62%, transparent);
   border: 1px solid var(--mtp-border);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 14px;
+  box-shadow: var(--ring), var(--card-glow);
+  backdrop-filter: blur(6px);
 }
 
 /* Кнопки (базові) */
@@ -61,7 +73,7 @@ button{
   border-radius: 12px;
   padding: 10px 14px;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   background: linear-gradient(90deg, var(--mtp-grad-a), var(--mtp-grad-b));
   box-shadow: 0 6px 18px rgba(111,82,255,.25);
@@ -70,128 +82,139 @@ button{
 button:active{ transform: translateY(1px) scale(.98); }
 button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-allowed; }
 
-a{ color: inherit; text-decoration: none; }
-
 /* ====== Контент сторінки ====== */
 .page-content{ padding-bottom: 128px; }
 
 /* ====== HERO ====== */
 .hero{
   position: relative;
-  padding: 22px 6px 10px;
+  padding: 28px 6px 12px;
   display: grid;
-  gap: 14px;
+  gap: 18px;
   place-items: center;
 }
 
-/* водяний знак (годинник) */
+/* водяний знак (великий годинник під заголовком) */
 .hero__bg{
   position: absolute; inset: 0;
-  background: url("/hero-hourglass.jpg") center 8% / 64% no-repeat;
-  opacity: .16;
+  background: url("/hero-hourglass.jpg") center 12% / 56% no-repeat;
+  opacity: .12;
   filter: drop-shadow(0 12px 40px rgba(46,255,204,.12));
   pointer-events: none;
 }
 
-/* великий бірюзовий MAGIC TIME */
+/* великий бірюзовий MAGIC TIME (серіф як у макеті) */
 .hero__title{
   position: relative;
   text-align: center;
+  font-family: "Cinzel", ui-serif, Georgia, "Times New Roman", serif;
   font-weight: 800;
-  letter-spacing: 1.2px;
-  font-size: clamp(26px, 7vw, 44px);
+  letter-spacing: 1px;
+  font-size: clamp(34px, 8vw, 56px);
+  line-height: 1.05;
   background: linear-gradient(180deg, #79ffe3 0%, #39f3c1 40%, #55ffee 60%, #66a6ff 95%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 10px 30px rgba(46,255,204,.10);
+  text-shadow: 0 12px 32px rgba(46,255,204,.10);
 }
 
-/* CE лічильник */
+/* ====== CE лічильник ====== */
 .stat-card{
   position: relative;
-  width: 88%;
-  max-width: 520px;
+  width: 90%;
+  max-width: 540px;
   text-align: center;
-  padding: 16px 14px 18px;
-  border-radius: 16px;
-  background: color-mix(in oklab, var(--mtp-bg) 65%, transparent);
-  border: 1px solid var(--mtp-border);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02), 0 10px 28px rgba(0,0,0,.25);
-  backdrop-filter: blur(6px);
+  padding: 16px 16px 18px;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--mtp-bg) 62%, transparent);
+  border: 1px solid color-mix(in oklab, white 6%, var(--mtp-border));
+  box-shadow: var(--ring), var(--card-glow);
+  backdrop-filter: blur(8px);
 }
-.stat-card__caption{ color: var(--mtp-text-dim); font-weight: 600; letter-spacing: .3px; }
-.stat-card__value{ margin-top: 6px; font-size: clamp(28px, 7vw, 38px); font-weight: 800; }
+.stat-card__caption{
+  color: var(--mtp-text-dim);
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+.stat-card__value{
+  margin-top: 6px;
+  font-size: clamp(30px, 7.4vw, 42px);
+  font-weight: 800;
+  text-shadow: 0 6px 22px rgba(0,0,0,.4);
+}
 
-/* банер метеорита */
+/* ====== Банер «Золотий Метеорит» ====== */
 .meteor-card{
   position: relative;
   display: grid;
-  grid-template-columns: 40px 1fr auto;
+  grid-template-columns: 44px 1fr auto;
   gap: 12px;
   align-items: center;
   width: 92%;
   max-width: 540px;
-  margin: 2px 0 4px;
+  margin: 6px 0 2px;
   padding: 14px 16px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(111,82,255,.22), rgba(111,82,255,.1));
-  border: 1px solid var(--mtp-border);
-  box-shadow: 0 8px 26px rgba(111,82,255,.22);
-  cursor: default;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(111,82,255,.22), rgba(111,82,255,.10));
+  border: 1px solid color-mix(in oklab, white 7%, var(--mtp-border));
+  box-shadow: 0 10px 32px var(--purple-glow), var(--ring);
 }
 .meteor-card--active{
-  box-shadow: 0 10px 32px rgba(111,82,255,.32), 0 0 0 1px rgba(255,255,255,.06) inset;
-  background: linear-gradient(180deg, rgba(111,82,255,.28), rgba(111,82,255,.12));
+  background:
+    linear-gradient(180deg, rgba(111,82,255,.28), rgba(111,82,255,.12));
+  box-shadow: 0 12px 36px rgba(111,82,255,.36), var(--ring);
   cursor: pointer;
 }
+
 .meteor-card__icon{
-  width:40px;height:40px;border-radius:12px;
+  width:44px;height:44px;border-radius:14px;
   display:grid;place-items:center;
-  background: radial-gradient(circle at 30% 20%, rgba(255,213,74,.9), rgba(255,213,74,.35) 60%, transparent 70%);
+  background: radial-gradient(circle at 30% 20%, rgba(255,213,74,.95), rgba(255,213,74,.35) 58%, transparent 70%);
   box-shadow: 0 0 22px rgba(255,213,74,.45);
   font-size:22px;
 }
 .meteor-card__text{ text-align:left; }
-.meteor-card__title{ font-weight:700; letter-spacing:.2px; }
-.meteor-card__subtitle{ color:var(--mtp-yellow); font-weight:800; font-size:18px; }
-.meteor-card__bonus{ display:grid; place-items:end; text-align:right; gap:2px; padding-right:2px; }
-.meteor-card__bonus span{ font-weight:700; }
+.meteor-card__title{
+  font-weight:700; letter-spacing:.2px; opacity:.95;
+}
+.meteor-card__subtitle{
+  color:var(--mtp-yellow);
+  font-weight:800;
+  font-size:18px;
+  text-shadow: 0 8px 18px rgba(255,213,74,.25);
+}
+.meteor-card__bonus{
+  display:grid; place-items:end; text-align:right; gap:2px; padding-right:2px;
+}
+.meteor-card__bonus span{ font-weight:800; }
 .meteor-card__bonus small{
   display:inline-block; margin-top:2px;
   background: rgba(255,255,255,.08); border:1px solid var(--mtp-border);
-  padding:2px 6px; border-radius:999px; font-size:12px;
+  padding:2px 8px; border-radius:999px; font-size:12px;
 }
 
 /* ====== TAP AREA — пісковий годинник ====== */
-.tap-area{ position: relative; display:grid; place-items:center; gap:10px; }
+.tap-area{ position: relative; display:grid; place-items:center; gap:12px; }
 
-/* сама кнопка-підставка */
 .tap-btn{
   background: transparent;
   padding: 8px 10px;
   border-radius: 16px;
-  box-shadow: none;
-  display:flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  display:flex; flex-direction: column; align-items: center; gap: 8px;
 }
 
-/* модифікатор під іконку-годинник */
-.tap-btn--hourglass{
-  border: none;
-  background: transparent;
-}
+.tap-btn--hourglass{ border: none; background: transparent; }
 
-/* SVG-годинник: бірюзова обводка + м’яке світіння */
 .tap-hourglass{
   color: var(--mint-300);
-  filter: drop-shadow(0 0 10px rgba(40,231,168,.55));
+  filter: drop-shadow(0 0 14px rgba(40,231,168,.55));
+  transition: transform .08s ease, filter .15s ease;
 }
 .tap-hourglass path{ vector-effect: non-scaling-stroke; }
+.tap-btn:active .tap-hourglass{ transform: scale(.98); filter: drop-shadow(0 0 18px rgba(40,231,168,.7)); }
 
-/* текст TAP під іконкою */
 .tap-btn__label{
   font-weight: 900;
   letter-spacing: .8px;
@@ -199,7 +222,6 @@ a{ color: inherit; text-decoration: none; }
   text-shadow: 0 0 12px rgba(40,231,168,.55);
 }
 
-/* підпис під TAP */
 .tap-hint{ color: var(--mtp-text-dim); text-align: center; margin-top: 6px; }
 
 /* ====== BottomNav — компактні бірюзові «скляні» кнопки ====== */
@@ -212,9 +234,9 @@ a{ color: inherit; text-decoration: none; }
   width: min(560px, 100vw);
   display: grid;
   grid-template-columns: repeat(5,1fr);
-  gap: 8px;
+  gap: 10px;
 
-  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
   background: color-mix(in oklab, var(--mtp-bg) 86%, transparent);
   backdrop-filter: blur(8px) saturate(120%);
   border-top: 1px solid var(--mtp-border);
@@ -224,30 +246,34 @@ a{ color: inherit; text-decoration: none; }
 .bn-item{
   appearance: none; border: 0; background: transparent;
   display: grid; grid-template-rows: auto auto; justify-items: center; align-items: start;
-  gap: 6px; padding: 2px; border-radius: 12px; cursor: pointer;
-  color: var(--mint-300); font-weight: 700;
+  gap: 6px; padding: 2px; border-radius: 14px; cursor: pointer;
+  color: var(--mint-300); font-weight: 800;
   transition: transform .08s ease, background .18s ease, box-shadow .18s ease, color .18s ease, filter .18s ease;
   outline: none;
+  user-select: none;
 }
 .bn-item:active{ transform: translateY(1px) scale(.98); }
-.bn-item.active{ color:#fff; filter: drop-shadow(0 0 10px rgba(40,231,168,.45)); }
+.bn-item.active{ color:#fff; filter: drop-shadow(0 0 12px rgba(40,231,168,.5)); }
 
 .bn-card{
-  width: 74px; height: 56px;        /* компактніше */
-  border-radius: 14px;
+  width: 76px; height: 58px;
+  border-radius: 16px;
   display:grid; place-items:center;
   background: var(--nav-glass);
-  border: 1px solid color-mix(in oklab, var(--mint-500) 30%, var(--mtp-border));
+  border: 1px solid color-mix(in oklab, var(--mint-500) 32%, var(--mtp-border));
   box-shadow: 0 8px 20px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.03);
 }
 .bn-item.active .bn-card{
-  background: linear-gradient(180deg, color-mix(in oklab, var(--mint-500) 8%, transparent), color-mix(in oklab, var(--mint-500) 18%, transparent));
-  box-shadow: 0 10px 26px rgba(40,231,168,.26);
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--mint-500) 10%, transparent),
+    color-mix(in oklab, var(--mint-500) 22%, transparent)
+  );
+  box-shadow: 0 12px 28px rgba(40,231,168,.28);
   border-color: color-mix(in oklab, var(--mint-500) 60%, var(--mtp-border));
 }
 
 .bn-icon{ font-size: 20px; line-height: 1; }
-.bn-label{ font-size: 12px; letter-spacing: .2px; user-select: none; color: var(--mint-300); }
+.bn-label{ font-size: 12px; letter-spacing: .2px; color: var(--mint-300); }
 .bn-item.active .bn-label{ color:#fff; }
 
 @media (max-width: 360px){
@@ -265,7 +291,7 @@ a{ color: inherit; text-decoration: none; }
 }
 .read-the-docs{ color:#888; }
 
-/* Бари босса / інвентар (якщо треба) */
+/* ====== Боси / інвентар (збережено) ====== */
 .boss .bar{width:100%;height:12px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden;margin:6px 0 8px;}
 .boss .bar-fill{height:100%;background:#7c3aed;}
 .boss .bar-fill.bar-time{background:#10b981;}
