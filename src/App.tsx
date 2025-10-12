@@ -334,17 +334,20 @@ export default function App() {
   const bossTimePct = bossData && bossData.durationSec > 0 ? Math.max(0, Math.min(100, (bossTimeLeft / bossData.durationSec) * 100)) : 0;
 
   const activeSkin = getSkinById(equippedSkinId) ?? getSkinById("classic")!;
-  // ВАЖЛИВО: більше не малюємо фіолетову плитку — без background/boxShadow
+  // прозора стилізація TAP-кнопки (щоб не перекривати фон)
   const tapStyle: React.CSSProperties = {
     color: activeSkin?.tapStyle.color,
     border: "none",
     borderRadius: 12,
-    padding: "0",          // контейнер прозорий; відступи задає CSS
-    cursor: "pointer"
+    padding: "0",
+    cursor: "pointer",
+    background: "transparent",
+    boxShadow: "none"
   };
 
   return (
-    <div className="app" style={{ background: epoch.bg, minHeight: "100vh" }}>
+    // ВАЖЛИВО: фон не задаємо тут, щоб не перекривати космічний бек з body
+    <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
       <HeaderBar
         ce={ce} mm={mm} hc={hc} level={level}
         epochName={epoch.name} epochMult={epochMult}
@@ -356,10 +359,9 @@ export default function App() {
       <main className="page-content">
         {activeTab === "tap" && (
           <>
-            {/* Головний екран — як на макеті: HERO → CE → Метеор */}
             <TapArea
               onTap={onClickTap}
-             //apStyle={tapStyle}
+              tapStyle={tapStyle}
               currentEnergy={ce}
               meteorVisible={meteorVisible}
               onMeteorClick={onMeteorClick}
