@@ -86,7 +86,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 /* ====== Контент сторінки ====== */
 .page-content{ padding-bottom: 128px; }
 
-/* ====== HERO (кнопка-область) ====== */
+/* ====== HERO (шапка) ====== */
 .hero{
   position: relative;
   /* без верхнього падінгу — текст вище */
@@ -97,7 +97,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   min-height: clamp(220px, 36vh, 360px);
 }
 
-/* варіант "кнопка": повний reset стилів звичайної кнопки */
+/* варіант "кнопка": старий підхід (збережено для сумісності) */
 .hero--tap{
   all: unset;
   display: grid;
@@ -108,6 +108,23 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   min-height: clamp(220px, 36vh, 360px);
   cursor: pointer;
 }
+
+/* НОВЕ: окрема зона для тапа ПІД заголовком */
+.hero-tap{
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
+  display: block;
+  width: 92%;
+  max-width: 540px;
+  margin: -4px auto 0; /* трохи ближче до титулу */
+  height: clamp(160px, 28vh, 300px);
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  cursor: pointer;
+  box-shadow: none;
+}
+.hero-tap:active{ transform: translateY(1px) scale(.98); }
 
 /* водяний знак (великий годинник під заголовком) — прозорий PNG */
 .hero__bg{

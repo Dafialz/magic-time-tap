@@ -34,20 +34,21 @@ export default function TapArea({
 
   return (
     <div className="tap-area">
-      {/* HERO-ШАПКА: водяний знак + ТИТУЛ над кнопкою */}
-      <div className="hero" aria-hidden="false" style={{ position: "relative" }}>
+      {/* HERO: водяний знак і ТИТУЛ (НЕ клікається) */}
+      <div className="hero">
         <div className="hero__bg" aria-hidden="true" />
         <h1 className="hero__title">MAGIC TIME</h1>
-
-        {/* Невидима кнопка, що перекриває всю hero-зону */}
-        <button
-          type="button"
-          className="hero--tap"
-          onClick={onTap}
-          aria-label="Tap"
-          style={{ position: "absolute", inset: 0, background: "transparent" }}
-        />
       </div>
+
+      {/* ОКРЕМА TAP-КНОПКА під заголовком */}
+      <button
+        type="button"
+        className="hero-tap"
+        onClick={onTap}
+        aria-label="Tap"
+      >
+        <span className="tap-btn__label" aria-hidden="true"></span>
+      </button>
 
       {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
@@ -80,7 +81,7 @@ export default function TapArea({
       </button>
 
       {/* Хінт під кнопкою */}
-      <p className="tap-hинt">
+      <p className="tap-hint">
         Натискай, щоб збирати Часову Енергію
         {!meteorVisible && <> • Метеор через ~{spawnIn}s</>}
       </p>
