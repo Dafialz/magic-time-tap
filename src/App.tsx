@@ -13,8 +13,6 @@ import { GOLDEN_METEOR, nextMeteorIn } from "./systems/events";
 import { rollArtifactId, getArtifactById, aggregateArtifacts } from "./systems/artifacts";
 import type { AggregatedBonus } from "./systems/artifacts";
 
-import { getSkinById } from "./systems/skins";
-
 import { countByRarity, nextRarity, rollByRarity } from "./systems/crafting";
 import type { Rarity } from "./systems/crafting";
 
@@ -332,17 +330,6 @@ export default function App() {
   const bossHPpct = bossMaxHP > 0 ? Math.max(0, Math.min(100, (bossHP / bossMaxHP) * 100)) : 0;
   const bossTimePct = bossData && bossData.durationSec > 0 ? Math.max(0, Math.min(100, (bossTimeLeft / bossData.durationSec) * 100)) : 0;
 
-  const activeSkin = getSkinById(equippedSkinId) ?? getSkinById("classic")!;
-  const tapStyle: React.CSSProperties = {
-    color: activeSkin?.tapStyle.color,
-    border: "none",
-    borderRadius: 12,
-    padding: "0",
-    cursor: "pointer",
-    background: "transparent",
-    boxShadow: "none",
-  };
-
   return (
     // ФОН лишається на body (див. App.css) — тут нічого не перекриваємо
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
@@ -358,7 +345,6 @@ export default function App() {
         {activeTab === "tap" && (
           <TapArea
             onTap={onClickTap}
-            tapStyle={tapStyle}
             currentEnergy={ce}
             meteorVisible={meteorVisible}
             onMeteorClick={onMeteorClick}
