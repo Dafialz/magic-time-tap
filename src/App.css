@@ -113,7 +113,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 .hero__bg{
   position: absolute; inset: 0;
   /* опустив годинник і збільшив — текст чітко зверху, як на референсі */
-  background: url("/hero-hourglass.png?v=6") center 34% / clamp(440px, 78vw, 720px) no-repeat;
+  background: url("/hero-hourglass.png?v=6") center 36% / clamp(440px, 78vw, 720px) no-repeat;
   opacity: .28;
   filter: drop-shadow(0 0 36px rgba(46,255,204,.26));
   pointer-events: none;
