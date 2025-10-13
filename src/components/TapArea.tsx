@@ -3,7 +3,7 @@ import React from "react";
 type Props = {
   // TAP
   onTap: () => void;
-  tapStyle?: React.CSSProperties; // лишив для сумісності, тут не використовується
+  tapStyle?: React.CSSProperties;
 
   // CE
   currentEnergy: number;
@@ -40,18 +40,8 @@ export default function TapArea({
         className="hero hero--tap"
         onClick={onTap}
         aria-label="Tap"
-        // повний reset, щоб не спрацьовували глобальні стилі button (градієнт/тіні)
-        style={{
-          background: "transparent",
-          boxShadow: "none",
-          padding: 0,
-          border: 0,
-          outline: "none",
-          WebkitTapHighlightColor: "transparent",
-          cursor: "pointer",
-        }}
       >
-        <div className="hero__bg" />
+        <div className="hero__bg" aria-hidden="true" />
         <h1 className="hero__title">MAGIC TIME</h1>
       </button>
 

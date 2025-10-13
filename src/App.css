@@ -88,13 +88,13 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 /* ====== HERO (тепер це може бути кнопка) ====== */
 .hero{
   position: relative;
-  /* менший верхній відступ, щоб заголовок сидів вище */
-  padding: clamp(20px, 5vh, 48px) 6px 0;
+  /* Безпечний верхній відступ з урахуванням шапки Telegram/iOS */
+  padding: clamp(28px, calc(env(safe-area-inset-top) + 24px), 96px) 6px 0;
   display: grid;
   gap: 18px;
   place-items: center;
-  /* трохи нижча секція, аби годинник підліз під текст */
-  min-height: clamp(220px, 36vh, 360px);
+  /* Вища секція, щоб помістити текст + великий годинник */
+  min-height: clamp(260px, 42vh, 420px);
 }
 
 /* варіант "кнопка": скидаємо стилі звичайної кнопки */
@@ -104,21 +104,21 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   gap: 18px;
   place-items: center;
   position: relative;
-  padding: clamp(20px, 5vh, 48px) 6px 0;
-  min-height: clamp(220px, 36vh, 360px);
+  padding: clamp(28px, calc(env(safe-area-inset-top) + 24px), 96px) 6px 0;
+  min-height: clamp(260px, 42vh, 420px);
   cursor: pointer;
 }
 
 /* водяний знак (великий годинник під заголовком) — ПРОЗОРИЙ PNG */
 .hero__bg{
   position: absolute; inset: 0;
-  /* опустив годинник і збільшив — текст чітко зверху, як на референсі */
-  background: url("/hero-hourglass.png?v=6") center 36% / clamp(440px, 78vw, 720px) no-repeat;
-  opacity: .28;
-  filter: drop-shadow(0 0 36px rgba(46,255,204,.26));
+  /* робимо більшим і ОПУСКАЄМО нижче, щоб "MAGIC TIME" був вище */
+  background: url("/hero-hourglass.png?v=7") center 40% / clamp(460px, 80vw, 740px) no-repeat;
+  opacity: .24;
+  filter: drop-shadow(0 0 36px rgba(46,255,204,.24));
   pointer-events: none;
   will-change: transform, filter;
-  z-index: 1;
+  z-index: 1;  /* нижче за заголовок */
 }
 
 .hero--tap:active .hero__bg{
@@ -140,7 +140,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   background-clip: text;
   color: transparent;
   text-shadow: 0 12px 32px rgba(46,255,204,.10);
-  z-index: 2;
+  z-index: 2;   /* вище за годинник */
 }
 
 /* ====== CE лічильник ====== */
