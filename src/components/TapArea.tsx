@@ -34,21 +34,30 @@ export default function TapArea({
 
   return (
     <div className="tap-area">
-      {/* HERO: водяний знак і ТИТУЛ (НЕ клікається) */}
-      <div className="hero">
+      {/* HERO: фон + титул (титул НЕ клікається) */}
+      <div className="hero" style={{ position: "relative", userSelect: "none" }}>
         <div className="hero__bg" aria-hidden="true" />
-        <h1 className="hero__title">MAGIC TIME</h1>
-      </div>
+        <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
-      {/* ОКРЕМА TAP-КНОПКА під заголовком */}
-      <button
-        type="button"
-        className="hero-tap"
-        onClick={onTap}
-        aria-label="Tap"
-      >
-        <span className="tap-btn__label" aria-hidden="true"></span>
-      </button>
+        {/* TAP-оверлей тільки під текстом */}
+        <button
+          type="button"
+          onClick={onTap}
+          aria-label="Tap"
+          style={{
+            position: "absolute",
+            left: "4%",
+            right: "4%",
+            top: "50%",    // верх оверлею — нижче тексту
+            bottom: 0,
+            border: 0,
+            borderRadius: 18,
+            background: "transparent",
+            cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        />
+      </div>
 
       {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
