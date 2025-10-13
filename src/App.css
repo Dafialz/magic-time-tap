@@ -42,11 +42,12 @@ body{
   background-attachment: fixed, fixed;
 }
 
-/* Контейнер програми */
+/* Контейнер програми: приберемо верхній внутр. відступ,
+   щоб заголовок під’їхав вище під Telegram-бар */
 #root{
   max-width: 560px;
   margin: 0 auto;
-  padding: 16px 14px 116px;
+  padding: 0 14px 116px;
   text-align: initial;
 }
 
@@ -85,40 +86,39 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 /* ====== Контент сторінки ====== */
 .page-content{ padding-bottom: 128px; }
 
-/* ====== HERO (тепер це може бути кнопка) ====== */
+/* ====== HERO (кнопка-область) ====== */
 .hero{
   position: relative;
-  /* Безпечний верхній відступ з урахуванням шапки Telegram/iOS */
-  padding: clamp(28px, calc(env(safe-area-inset-top) + 24px), 96px) 6px 0;
+  /* без верхнього падінгу — текст вище */
+  padding: 0 6px 0;
   display: grid;
   gap: 18px;
   place-items: center;
-  /* Вища секція, щоб помістити текст + великий годинник */
-  min-height: clamp(260px, 42vh, 420px);
+  min-height: clamp(220px, 36vh, 360px);
 }
 
-/* варіант "кнопка": скидаємо стилі звичайної кнопки */
+/* варіант "кнопка": повний reset стилів звичайної кнопки */
 .hero--tap{
   all: unset;
   display: grid;
   gap: 18px;
   place-items: center;
   position: relative;
-  padding: clamp(28px, calc(env(safe-area-inset-top) + 24px), 96px) 6px 0;
-  min-height: clamp(260px, 42vh, 420px);
+  padding: 0 6px 0;
+  min-height: clamp(220px, 36vh, 360px);
   cursor: pointer;
 }
 
-/* водяний знак (великий годинник під заголовком) — ПРОЗОРИЙ PNG */
+/* водяний знак (великий годинник під заголовком) — прозорий PNG */
 .hero__bg{
   position: absolute; inset: 0;
-  /* робимо більшим і ОПУСКАЄМО нижче, щоб "MAGIC TIME" був вище */
-  background: url("/hero-hourglass.png?v=7") center 40% / clamp(460px, 80vw, 740px) no-repeat;
-  opacity: .24;
-  filter: drop-shadow(0 0 36px rgba(46,255,204,.24));
+  /* трохи вище і більший, щоб текст ліг поверх як на референсі */
+  background: url("/hero-hourglass.png?v=8") center 22% / clamp(460px, 80vw, 760px) no-repeat;
+  opacity: .30;
+  filter: drop-shadow(0 0 36px rgba(46,255,204,.26));
   pointer-events: none;
   will-change: transform, filter;
-  z-index: 1;  /* нижче за заголовок */
+  z-index: 1;
 }
 
 .hero--tap:active .hero__bg{
@@ -140,7 +140,13 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   background-clip: text;
   color: transparent;
   text-shadow: 0 12px 32px rgba(46,255,204,.10);
-  z-index: 2;   /* вище за годинник */
+  z-index: 2;
+}
+
+/* Компенсація верхньої зони (Telegram/iOS safe-area) */
+@supports (padding: max(0px)) {
+  #root{ padding-top: max(0px, env(safe-area-inset-top, 0px)); }
+  .hero{ margin-top: calc(-1 * env(safe-area-inset-top, 0px)); }
 }
 
 /* ====== CE лічильник ====== */
