@@ -88,13 +88,13 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 /* ====== HERO (тепер це може бути кнопка) ====== */
 .hero{
   position: relative;
-  /* Більше відступу зверху, щоб не впиратись у шапку Telegram */
-  padding: clamp(44px, 8vh, 72px) 6px 0;
+  /* менший верхній відступ, щоб заголовок сидів вище */
+  padding: clamp(20px, 5vh, 48px) 6px 0;
   display: grid;
   gap: 18px;
   place-items: center;
-  /* Трохи вище — щоб влізла комбінація “текст + годинник” як на рефі */
-  min-height: clamp(240px, 40vh, 380px);
+  /* трохи нижча секція, аби годинник підліз під текст */
+  min-height: clamp(220px, 36vh, 360px);
 }
 
 /* варіант "кнопка": скидаємо стилі звичайної кнопки */
@@ -104,18 +104,18 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   gap: 18px;
   place-items: center;
   position: relative;
-  padding: clamp(44px, 8vh, 72px) 6px 0;
-  min-height: clamp(240px, 40vh, 380px);
+  padding: clamp(20px, 5vh, 48px) 6px 0;
+  min-height: clamp(220px, 36vh, 360px);
   cursor: pointer;
 }
 
 /* водяний знак (великий годинник під заголовком) — ПРОЗОРИЙ PNG */
 .hero__bg{
   position: absolute; inset: 0;
-  /* трохи нижче/більше, щоб текст сидів поверх, як на скріні */
-  background: url("/hero-hourglass.png?v=5") center 24% / clamp(420px, 74vw, 680px) no-repeat;
-  opacity: .34;
-  filter: drop-shadow(0 0 38px rgba(46,255,204,.28));
+  /* опустив годинник і збільшив — текст чітко зверху, як на референсі */
+  background: url("/hero-hourglass.png?v=6") center 34% / clamp(440px, 78vw, 720px) no-repeat;
+  opacity: .28;
+  filter: drop-shadow(0 0 36px rgba(46,255,204,.26));
   pointer-events: none;
   will-change: transform, filter;
   z-index: 1;
@@ -123,7 +123,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 
 .hero--tap:active .hero__bg{
   transform: scale(.99);
-  filter: drop-shadow(0 0 46px rgba(46,255,204,.36));
+  filter: drop-shadow(0 0 44px rgba(46,255,204,.34));
 }
 
 /* великий бірюзовий MAGIC TIME (поверх годинника) */
@@ -233,7 +233,7 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   .bn-label{ font-size: 10.5px; }
 }
 
-/* ====== Дрібне / сумісність ====== */
+/* дрібне / сумісність */
 .logo{ height: 6em; padding: 1.5em; will-change: filter; transition: filter 300ms; }
 .logo:hover{ filter: drop-shadow(0 0 2em #646cffaa); }
 .logo.react:hover{ filter: drop-shadow(0 0 2em #61dafbaa); }
