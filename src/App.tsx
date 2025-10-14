@@ -13,6 +13,12 @@ import { GOLDEN_METEOR, nextMeteorIn } from "./systems/events";
 import { rollArtifactId, getArtifactById, aggregateArtifacts } from "./systems/artifacts";
 import type { AggregatedBonus } from "./systems/artifacts";
 
+import {
+  buildCraftItems,
+  incomePerHourAtLevel,
+  mgpPrestigeMult,
+} from "./systems/economy";
+
 import { formatNum } from "./utils/format";
 
 // UI
@@ -23,6 +29,8 @@ import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
 import BottomNav, { TabKey } from "./components/BottomNav";
+
+const CRAFT_SLOT_COUNT = 21;
 
 export default function App() {
   // ===== Tabs
@@ -51,10 +59,10 @@ export default function App() {
   const [level, setLevel] = useState<number>(1);
   const [prestiges, setPrestiges] = useState<number>(0);
 
-  // ===== Магазин/крафт
-  const [mgp, setMgp] = useState<number>(0);                 // баланс MGP
-  const [craftSlots, setCraftSlots] = useState<number[]>(    // 4×5 (тимчасово 20), 0 = пусто
-    () => Array(20).fill(0)
+  // ===== Магазин/крафт (MGP + 21 слот)
+  const [mgp, setMgp] = useState<number>(0);
+  const [craftSlots, setCraftSlots] = useState<number[]>(
+    () => Array(CRAFT_SLOT_COUNT).fill(0)
   );
 
   // Upgrades
@@ -93,7 +101,10 @@ export default function App() {
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["classic"]);
   const [equippedSkinId, setEquippedSkinId] = useState<string>("classic");
 
-  // ===== LOAD SAVE (+ офлайн-доход)
+  // ===== Економіка крафту (формули з однієї точки)
+  const craftItems = useMemo(() => buildCraftItems(), []);
+
+  // ===== LOAD SAVE (+ офлайн-доход, + міграція під нові поля)
   useEffect(() => {
     const sAny = loadState() as any;
     const now = Date.now();
@@ -109,9 +120,19 @@ export default function App() {
     setLevel(sAny.level ?? 1);
     setPrestiges(sAny.prestiges ?? 0);
 
-    // нове: mgp + craftSlots (м’яка міграція)
+    // нове: mgp + craftSlots (м’яка міграція + підгін до 21 слота)
     setMgp(sAny.mgp ?? 0);
-    setCraftSlots(Array.isArray(sAny.craftSlots) ? sAny.craftSlots : Array(20).fill(0));
+    if (Array.isArray(sAny.craftSlots)) {
+      const arr = [...sAny.craftSlots];
+      if (arr.length < CRAFT_SLOT_COUNT) {
+        while (arr.length < CRAFT_SLOT_COUNT) arr.push(0);
+        setCraftSlots(arr);
+      } else {
+        setCraftSlots(arr.slice(0, CRAFT_SLOT_COUNT));
+      }
+    } else {
+      setCraftSlots(Array(CRAFT_SLOT_COUNT).fill(0));
+    }
 
     if (Array.isArray(sAny.upgrades)) {
       setUpgrades(prev =>
@@ -140,7 +161,7 @@ export default function App() {
 
   // ===== AUTOSAVE (включно з mgp та craftSlots)
   useEffect(() => {
-    const payload: any = {
+    const payload: SaveState = {
       ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
       upgrades: upgrades.map(u => ({ id: u.id, level: u.level })),
       lastSeenAt: Date.now(),
@@ -148,10 +169,11 @@ export default function App() {
       equippedArtifactIds: equippedIds,
       ownedSkins,
       equippedSkinId,
+      // нове
       mgp,
       craftSlots,
     };
-    scheduleSave(payload as SaveState);
+    scheduleSave(payload);
   }, [
     ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
     upgrades, artifacts, equippedIds, ownedSkins, equippedSkinId,
@@ -175,11 +197,11 @@ export default function App() {
   const effectiveClickMult = (1 + artAgg.click) * meteorMult * epochMult * farmMult;
   const effectiveAutoMult  = (1 + artAgg.auto)  * meteorMult * epochMult * farmMult;
 
-  // ====== Дохід MGP від сітки (g=1.20, L1=1 mgp/год)
+  // ====== Дохід MGP від сітки (g=1.20, L1=1 mgp/год) з урахуванням престиж-множника
   const mgpIncomePerHour = useMemo(() => {
-    const g = 1.20;
-    return craftSlots.reduce((sum, lvl) => sum + (lvl > 0 ? Math.pow(g, lvl - 1) : 0), 0);
-  }, [craftSlots]);
+    const base = craftSlots.reduce((sum, lvl) => sum + (lvl > 0 ? incomePerHourAtLevel(lvl) : 0), 0);
+    return base * mgpPrestigeMult(prestiges);
+  }, [craftSlots, prestiges]);
 
   // TAP
   const onClickTap = () => {
@@ -198,7 +220,6 @@ export default function App() {
         setTotalEarned(te => te + inc);
         if (bossActive) setBossHP(hp => Math.max(0, hp - autoPerSec));
       }
-
       // MGP: додаємо щосекунди
       if (mgpIncomePerHour > 0) {
         setMgp(v => v + mgpIncomePerHour / 3600);
@@ -360,6 +381,7 @@ export default function App() {
             setMgp={setMgp}
             slots={craftSlots}
             setSlots={setCraftSlots}
+            items={craftItems}
           />
         )}
 

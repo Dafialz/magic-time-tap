@@ -6,14 +6,16 @@ type Props = {
   addToCraft: (levelToPlace?: number) => boolean;
 };
 
-// 50 товарів магазину (ціна росте плавно)
+// Магазин (50 позицій) — «картки» як у Trump’s Empire.
+// Ціни підняті: експоненційно із м’яким множником та високою базою.
 type ShopItem = { id: string; name: string; price: number };
 
 const SHOP_ITEMS: ShopItem[] = Array.from({ length: 50 }, (_, i) => {
   const idx = i + 1;
-  const base = 25;           // стартова ціна
-  const mult = 1.18;         // м’який приріст
-  const price = Math.round(base * Math.pow(mult, i)); // ≈ експоненційне зростання
+  const BASE = 500;      // стартова ціна помітно вища
+  const MULT = 1.28;     // плавне, але відчутне зростання
+  const price = Math.round(BASE * Math.pow(MULT, i));
+
   const name =
     [
       "Піщинка Часу","Іскорка Хроно","Міні-Годинник","Кварцовий Пісок","Тік-Модуль",
@@ -33,7 +35,7 @@ const SHOP_ITEMS: ShopItem[] = Array.from({ length: 50 }, (_, i) => {
 export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
   const tryBuy = (item: ShopItem) => {
     if (mgp < item.price) { alert("Не вистачає MGP"); return; }
-    const placed = addToCraft(1);
+    const placed = addToCraft(1);     // купівля = поставити L1 у крафт-сітку
     if (!placed) return;
     setMgp(v => v - item.price);
   };
@@ -41,20 +43,30 @@ export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
   return (
     <section className="shop">
       <h2>Магазин артефактів</h2>
-      <p style={{ marginTop: 6, opacity: 0.9 }}>
-        Баланс: <b>{Math.floor(mgp).toLocaleString("uk-UA")}</b> mgp
-      </p>
+      <div className="shop-balance">Баланс: <b>{Math.floor(mgp).toLocaleString("uk-UA")}</b> mgp</div>
 
-      <div className="inv-grid">
-        {SHOP_ITEMS.map((it) => (
-          <div key={it.id} className="inv-card">
-            <div className="title">{it.name}</div>
-            <div className="row">Ціна: {it.price.toLocaleString("uk-UA")} mgp</div>
-            <button onClick={() => tryBuy(it)} disabled={mgp < it.price}>
-              {mgp >= it.price ? "Купити" : "Не вистачає"}
-            </button>
-          </div>
-        ))}
+      <div className="shop-list">
+        {SHOP_ITEMS.map((it) => {
+          const enough = mgp >= it.price;
+          return (
+            <div key={it.id} className={`shop-item ${enough ? "can" : ""}`}>
+              <div className="shop-left">
+                <div className="shop-icon">🜲</div>
+                <div className="shop-text">
+                  <div className="shop-title">{it.name}</div>
+                  <div className="shop-sub">Ціна: {it.price.toLocaleString("uk-UA")} mgp</div>
+                </div>
+              </div>
+              <button
+                className="shop-buy"
+                disabled={!enough}
+                onClick={() => tryBuy(it)}
+              >
+                {enough ? "КУПИТИ" : "Не вистачає"}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

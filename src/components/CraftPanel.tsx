@@ -1,68 +1,34 @@
 import React, { useMemo, useState } from "react";
+import { buildCraftItems } from "../systems/economy";
 
 /**
  * CraftPanel 3×7 (21 слот):
- * - кожен слот зберігає рівень (0 = порожньо)
  * - клік ставить L1 або апґрейдить до L+1
- * - drag & drop: перетягни слот на "$", щоб продати за 70% ціни поточного рівня
- * - доходи/ціни — g=1.20, ROI 5→10 днів (L1→L50)
+ * - drag & drop: перетягни слот на «$», щоб продати за 70% ціни поточного рівня
+ * - економіка: ROI 5→10 днів, g=1.20, ціна = ROI * 24 * income * PRICE_SCALE
  */
 
 type CraftItem = {
   level: number;
   name: string;
-  price_mgp: number;            // ціна цього рівня (L-апґрейду)
-  income_per_hour_mgp: number;  // дохід з одного слота на цьому рівні
-  roi_days: number;             // окупність у днях
+  price_mgp: number;
+  income_per_hour_mgp: number;
+  roi_days: number;
 };
 
 type Props = {
   mgp: number;
-  // ВАЖЛИВО: сеттери як Dispatch<SetStateAction<...>> для підтримки (prev)=>...
   setMgp: React.Dispatch<React.SetStateAction<number>>;
-  slots: number[];               // довжина = 21; значення 0..50
+  slots: number[]; // 21 елемент (0..50)
   setSlots: React.Dispatch<React.SetStateAction<number[]>>;
-  items?: CraftItem[];           // (необов'язково) 50 рівнів
+  items?: CraftItem[]; // кастомні, якщо треба
 };
 
-const CRAFT_NAMES: string[] = [
-  "Піщинка Часу","Міні-годинник","Кварцовий хронометр","Аметистовий таймер","Ретро-маятник",
-  "Портативна клепсидра","Стак Часу","Магнітний годинник","Неонова стрілка","Астральний маятник",
-  "Руна годинника","Пружина Епох","Гіроскоп часу","Сферичний хроном","Ізумрудна клепсидра",
-  "Фотонний секундомір","Хрономаяк","Крипто-хронометр","Пісочний портал","Кристал Вічності",
-  "Вежа Тік-Так","Квантовий таймер","Базальтовий годинник","Резонатор епох","Сапфірова спіраль",
-  "Кванто-маятник","Фрактальний годинник","Стержень Хроноса","Лінза секунд","Хронограф Небул",
-  "Темпоральний турбіон","Пульсарний метроном","Магічний регулятор","Синхронізатор епох","Антиматерійна стрілка",
-  "Годинник Дракона","Ефірний турбіон","Кібер-хроном","Арканум часу","Венценосний годинник",
-  "Призма Секунд","Хроножниво","Полярний маятник","Двигун Кайроса","Кваркова клепсидра",
-  "Кільце Еонів","Сингулярний хроном","Серце Галактики","Часовий Реактор","Брама Вічності"
-];
-
 function round2(n: number) { return Math.round(n * 100) / 100; }
-function round3(n: number) { return Math.round(n * 1000) / 1000; }
 const coin = (n: number) => n.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
 
-/** Генеруємо дефолтні 50 рівнів (економіка) */
-function buildDefaultItems(): CraftItem[] {
-  const COST_SCALE = 0.1415231988486343; // підібрано під 60 днів до L50 без донату
-  const g = 1.20;
-  return Array.from({ length: 50 }, (_, i) => {
-    const level = i + 1;
-    const roi_days = 5 + (level - 1) * (10 - 5) / 49; // 5 → 10
-    const income = Math.pow(g, level - 1);           // mgp/год
-    const baseCost = roi_days * 24 * income;
-    return {
-      level,
-      name: CRAFT_NAMES[i] ?? `L${level}`,
-      price_mgp: round2(baseCost * COST_SCALE),
-      income_per_hour_mgp: round3(income),
-      roi_days: round3(roi_days),
-    };
-  });
-}
-
 export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Props) {
-  const defs = useMemo(() => items ?? buildDefaultItems(), [items]);
+  const defs = useMemo(() => items ?? buildCraftItems(), [items]);
   const [dragOverDollar, setDragOverDollar] = useState(false);
 
   const defOf = (lvl: number | undefined) =>
@@ -82,20 +48,15 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     setMgp(v => round2(v - d.price_mgp));
   };
 
-  // ---- Drag helpers ----
+  // ---- Drag & Sell (на «$») ----
   const onCellDragStart = (e: React.DragEvent, index: number, level: number) => {
     if (!level) { e.preventDefault(); return; }
-    const payload = JSON.stringify({ index, level });
-    e.dataTransfer.setData("text/plain", payload);
+    e.dataTransfer.setData("text/plain", JSON.stringify({ index, level }));
     e.dataTransfer.effectAllowed = "move";
   };
-  const onCellDragEnd = () => { setDragOverDollar(false); };
+  const onCellDragEnd = () => setDragOverDollar(false);
 
-  const onDollarDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    setDragOverDollar(true);
-  };
+  const onDollarDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOverDollar(true); };
   const onDollarDragLeave = () => setDragOverDollar(false);
 
   const onDollarDrop = (e: React.DragEvent) => {
@@ -110,19 +71,13 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
 
     const idx = data.index as number;
     const lvl = data.level as number;
-
-    // валідуємо поточний стан слота
     if (idx < 0 || idx >= slots.length) return;
     if (slots[idx] !== lvl || lvl <= 0) return;
 
     const curDef = defOf(lvl);
     if (!curDef) return;
 
-    // 70% ціни рівня
     const sellGain = round2(curDef.price_mgp * 0.7);
-    if (sellGain <= 0) return;
-
-    // оновлюємо баланс і очищаємо слот
     setMgp(v => round2(v + sellGain));
     setSlots(prev => {
       const copy = [...prev];
@@ -131,9 +86,10 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     });
   };
 
-  const totalIncome = useMemo(() => {
-    return slots.reduce((acc, lvl) => acc + (defOf(lvl)?.income_per_hour_mgp ?? 0), 0);
-  }, [slots]);
+  const totalIncome = useMemo(
+    () => slots.reduce((acc, lvl) => acc + (defOf(lvl)?.income_per_hour_mgp ?? 0), 0),
+    [slots]
+  );
 
   return (
     <section className="craft">
@@ -181,7 +137,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
         })}
       </div>
 
-      {/* Бірюзовий значок $ у правому нижньому куті (drop target) */}
+      {/* Бірюзовий значок $ — ціль для дропа (продаж 70%) */}
       <button
         className={`craft-dollar ${dragOverDollar ? "drag-over" : ""}`}
         title="Перетягни сюди предмет, щоб продати за 70% ціни рівня"
