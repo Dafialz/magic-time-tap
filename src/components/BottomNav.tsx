@@ -7,59 +7,62 @@ type Props = {
   onChange: (tab: TabKey) => void;
 };
 
+// SVG-іконки під дизайн (mint line icons)
+const HandIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    {/* долоня з піднятим вказівним */}
+    <path d="M7 11v3c0 1.8-1.1 3.3-2.3 4.2" strokeLinecap="round"/>
+    <path d="M11 16c0 2 1.6 3.5 3.5 3.5h.5a3 3 0 0 0 3-3v-3a2 2 0 0 0-4 0" strokeLinecap="round"/>
+    <path d="M11 6v7" strokeLinecap="round"/>
+    <path d="M13.5 6v5" strokeLinecap="round"/>
+    <path d="M9.5 8v5" strokeLinecap="round"/>
+    <path d="M7.5 9v2" strokeLinecap="round"/>
+  </svg>
+);
+
+const HourglassIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M6 4h12" strokeLinecap="round"/>
+    <path d="M6 20h12" strokeLinecap="round"/>
+    <path d="M7 5c0 4 10 4 10 8s-10 4-10 8" />
+    <path d="M17 5c0 4-10 4-10 8s10 4 10 8" />
+  </svg>
+);
+
+const ObeliskIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 3l3 5v12H9V8l3-5z" />
+    <path d="M9 19h6l2 2H7l2-2z" />
+  </svg>
+);
+
+const FlaskIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M10 3h4" strokeLinecap="round"/>
+    <path d="M10 3v6" />
+    <path d="M14 3v6" />
+    <path d="M7 21h10l1.5-2.5a4.5 4.5 0 0 0-3.9-6.7H9.4a4.5 4.5 0 0 0-3.9 6.7L7 21z" />
+    <path d="M9 13c.8 1 2.2 1.6 3 1.6s2.2-.6 3-1.6" />
+  </svg>
+);
+
+const TrophyIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M8 5h8v3a4 4 0 0 1-8 0V5z" />
+    <path d="M6 5h-3v2a4 4 0 0 0 4 4" />
+    <path d="M18 5h3v2a4 4 0 0 1-4 4" />
+    <path d="M12 12v4" />
+    <path d="M9 20h6" />
+    <path d="M8 20l1-4h6l1 4" />
+  </svg>
+);
+
 const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
-  {
-    key: "tap",
-    label: "Тапати",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M8 11v-1a2 2 0 1 1 4 0v4" strokeLinecap="round" />
-        <path d="M12 10v6" strokeLinecap="round" />
-        <path d="M12 16c0 2 1.5 3.5 3.5 3.5h.5a3 3 0 0 0 3-3v-3a2 2 0 0 0-4 0" strokeLinecap="round" />
-        <path d="M6 21c1.2-1 2.3-2.5 2.3-4.2V11" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    key: "upgrades",
-    label: "Апгрейди",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 6v12M6 12h12" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    key: "artifacts",
-    label: "Артефакти",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 3l6 6-6 12L6 9l6-6z" />
-      </svg>
-    ),
-  },
-  {
-    key: "craft",
-    label: "Крафт",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M8 20c0-3.314 2.686-6 6-6" />
-        <path d="M16 4v6a4 4 0 0 1-8 0V4" />
-        <path d="M8 4h8" />
-      </svg>
-    ),
-  },
-  {
-    key: "skins",
-    label: "СКІНИ",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M8 21h8l1-9H7l1 9z" />
-        <path d="M9 8h6l1 4H8l1-4z" />
-        <path d="M8 8l4-3 4 3" />
-      </svg>
-    ),
-  },
+  { key: "tap",       label: "Тапати",     icon: <HandIcon/> },
+  { key: "upgrades",  label: "Апгрейди",   icon: <HourglassIcon/> },
+  { key: "artifacts", label: "Артефакти",  icon: <ObeliskIcon/> },
+  { key: "craft",     label: "Крафт",      icon: <FlaskIcon/> },
+  { key: "skins",     label: "СКІНИ",      icon: <TrophyIcon/> },
 ];
 
 export default function BottomNav({ active, onChange }: Props) {
