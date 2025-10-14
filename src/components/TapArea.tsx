@@ -39,19 +39,14 @@ export default function TapArea({
         <div className="hero__bg" aria-hidden="true" />
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
-        {/* TAP-оверлей тільки під текстом */}
+        {/* TAP-оверлей тільки нижче тексту
+            координати керуються ТІЛЬКИ через CSS (.hero > button) */}
         <button
           type="button"
           onClick={onTap}
           aria-label="Tap"
           style={{
-            position: "absolute",
-            left: "4%",
-            right: "4%",
-            top: "50%",    // верх оверлею — нижче тексту
-            bottom: 0,
             border: 0,
-            borderRadius: 18,
             background: "transparent",
             cursor: "pointer",
             WebkitTapHighlightColor: "transparent",

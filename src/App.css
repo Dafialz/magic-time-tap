@@ -114,39 +114,10 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
 }
 .hero > button:active{ transform: translateY(1px) scale(.98); }
 
-/* варіант "кнопка": сумісність */
-.hero--tap{
-  all: unset;
-  display: grid;
-  gap: 18px;
-  place-items: center;
-  position: relative;
-  padding: 0 6px 0;
-  min-height: clamp(220px, 36vh, 360px);
-  cursor: pointer;
-}
-
-/* окрема зона для тапа (якщо використовується) */
-.hero-tap{
-  -webkit-tap-highlight-color: transparent;
-  appearance: none;
-  display: block;
-  width: 92%;
-  max-width: 540px;
-  margin: -4px auto 0;
-  height: clamp(160px, 28vh, 300px);
-  border: 0;
-  border-radius: 18px;
-  background: transparent;
-  cursor: pointer;
-  box-shadow: none;
-}
-.hero-tap:active{ transform: translateY(1px) scale(.98); }
-
-/* водяний знак */
+/* водяний знак (пісковий годинник) — опускаємо нижче, щоб текст не накладався */
 .hero__bg{
   position: absolute; inset: 0;
-  background: url("/hero-hourglass.png?v=8") center 22% / clamp(460px, 80vw, 760px) no-repeat;
+  background: url("/hero-hourglass.png?v=8") center 34% / clamp(460px, 80vw, 760px) no-repeat;
   opacity: .30;
   filter: drop-shadow(0 0 36px rgba(46,255,204,.26));
   pointer-events: none;
@@ -168,8 +139,16 @@ button:disabled{ opacity:.55; filter:grayscale(.3) brightness(.8); cursor:not-al
   background-clip: text;
   color: transparent;
   text-shadow: 0 12px 32px rgba(46,255,204,.10);
-  z-index: 2;
-  pointer-events: none; /* текст не клікається */
+  z-index: 2;          /* завжди над водяним знаком */
+  pointer-events: none;/* текст не клікається */
+}
+
+/* Адаптив: на нижчих екранах ще трохи опускаємо годинник */
+@media (max-height: 760px){
+  .hero__bg{ background-position: center 38%; }
+}
+@media (max-height: 680px){
+  .hero__bg{ background-position: center 42%; }
 }
 
 /* Компенсація safe-area */
