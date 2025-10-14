@@ -53,7 +53,7 @@ body{
   pointer-events:none; z-index:2;
 }
 
-/* Блок годинника — рівно по центру, фіксований */
+/* Блок годинника */
 .hero__clock{
   position:relative;
   width:var(--clock-size);
@@ -62,7 +62,6 @@ body{
   margin:4px auto;
 }
 
-/* Підсвітка (яскравість) */
 .hero__clock::before{
   content:"";
   position:absolute; inset:0;
@@ -84,7 +83,6 @@ body{
   pointer-events:none; user-select:none; z-index:1;
 }
 
-/* Клік-зона тільки по годиннику */
 .hero__tap{
   position:absolute; inset:0; border:0; background:transparent;
   border-radius:18px; cursor:pointer; -webkit-tap-highlight-color:transparent; z-index:2;
@@ -133,7 +131,7 @@ body{
 .meteor-card__subtitle{ color:var(--mtp-yellow); font-weight:800; font-size:18px; text-shadow:0 8px 18px rgba(255,213,74,.25); }
 .meteor-card__bonus{ display:grid; place-items:end; text-align:right; gap:2px; }
 
-/* ===== Навігація (контейнер) ===== */
+/* ===== BottomNav ===== */
 .bottom-nav{
   position:fixed; left:50%; transform:translateX(-50%); bottom:0;
   width:min(560px, 100vw);
@@ -143,62 +141,32 @@ body{
   backdrop-filter: blur(8px) saturate(120%);
   border-top:1px solid var(--mtp-border); z-index:50;
 }
-
-/* --- BottomNav items --- */
 .bn-item{
-  appearance:none;
-  border:0;
-  background:transparent;
-  display:grid;
-  grid-template-rows:auto auto;
-  justify-items:center;
-  align-items:start;
-  gap:6px;
-  padding:0;
-  border-radius:14px;
-  cursor:pointer;
-  color:#66ffd8;                    /* базовий м’ятний (успадковується в SVG через currentColor) */
-  font-weight:800;
+  appearance:none; border:0; background:transparent;
+  display:grid; grid-template-rows:auto auto; justify-items:center; align-items:start; gap:6px;
+  padding:0; border-radius:14px; cursor:pointer; color:#66ffd8; font-weight:800;
   transition: transform .08s, background .18s, box-shadow .18s, color .18s, filter .18s;
   outline:none; user-select:none; min-width:0;
 }
 .bn-item:active{ transform: translateY(1px) scale(.98); }
-.bn-item.active{
-  color:#fff;
-  filter: drop-shadow(0 0 12px rgba(40,231,168,.5));
-}
-
+.bn-item.active{ color:#fff; filter: drop-shadow(0 0 12px rgba(40,231,168,.5)); }
 .bn-card{
-  width:100%;
-  height:56px;
-  max-width:96px;
-  border-radius:16px;
-  display:grid;
-  place-items:center;
-  background: color-mix(in oklab, var(--mtp-bg) 86%, transparent); /* скляний фон */
+  width:100%; height:56px; max-width:96px; border-radius:16px; display:grid; place-items:center;
+  background: color-mix(in oklab, var(--mtp-bg) 86%, transparent);
   border: 1px solid color-mix(in oklab, var(--mtp-grad-a) 32%, var(--mtp-border));
   box-shadow: 0 8px 20px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.03);
 }
 .bn-item.active .bn-card{
-  background: linear-gradient(
-    180deg,
+  background: linear-gradient(180deg,
     color-mix(in oklab, var(--mtp-grad-a) 10%, transparent),
-    color-mix(in oklab, var(--mtp-grad-a) 22%, transparent)
-  );
+    color-mix(in oklab, var(--mtp-grad-a) 22%, transparent));
   box-shadow: 0 12px 28px rgba(40,231,168,.28);
   border-color: color-mix(in oklab, var(--mtp-grad-a) 60%, var(--mtp-border));
 }
-
 .bn-icon{ font-size:20px; line-height:1; }
-.bn-label{
-  font-size:12px;
-  letter-spacing:.2px;
-  color:#66ffd8;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
+.bn-label{ font-size:12px; letter-spacing:.2px; color:#66ffd8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bn-item.active .bn-label{ color:#fff; }
 
-/* Розміри на вузьких екранах */
 @media (max-width: 430px){
   .bottom-nav{ gap:8px; padding:10px 12px calc(12px + env(safe-area-inset-bottom)); }
   .bn-card{ height:54px; }
@@ -217,11 +185,64 @@ body{
   .bn-label{ font-size:10.5px; }
 }
 
-/* Адаптив для годинника */
-@media (max-width:400px){ :root{ --clock-size:min(70vw, 360px); } }
-@media (min-width:1000px){ :root{ --clock-size:min(52vw, 420px); } }
+/* ===== CRAFT ===== */
+.craft .craft-grid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr); /* 3×7 = 21 */
+  gap:10px;
+  width:100%;
+  max-width:540px;
+  margin:8px auto;
+}
+.craft .cell{
+  appearance:none; border:1px solid color-mix(in oklab, #fff 7%, var(--mtp-border));
+  background: color-mix(in oklab, var(--mtp-bg) 78%, transparent);
+  box-shadow: 0 8px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.03);
+  border-radius:12px; padding:10px;
+  display:grid; grid-template-rows:auto auto auto; align-items:center; text-align:center;
+  color:var(--mtp-text); cursor:pointer;
+  min-height:92px;
+}
+/* курсор для перетягування, тільки коли є предмет */
+.craft .cell[draggable="true"]{ cursor: grab; }
+.craft .cell[draggable="true"]:active{ cursor: grabbing; }
 
-/* safe-area компенсація */
-@supports (padding:max(0px)){
-  #root{ padding-bottom:calc(160px + env(safe-area-inset-bottom)); }
+.craft .cell.has{
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--mtp-grad-b) 14%, transparent),
+    color-mix(in oklab, var(--mtp-bg) 80%, transparent));
+  border-color: color-mix(in oklab, var(--mtp-grad-b) 40%, var(--mtp-border));
+}
+.craft .cell:disabled{ opacity:.6; cursor:default; }
+.craft .cell-icon{ font-weight:800; opacity:.95; }
+.craft .cell-title{ font-weight:700; font-size:14px; }
+.craft .cell-sub{ opacity:.85; font-size:12px; }
+
+/* Бірюзовий $ внизу праворуч */
+.craft-dollar{
+  position:fixed;
+  right: calc(14px + 2px);
+  bottom: calc(88px + env(safe-area-inset-bottom)); /* над навігацією */
+  width:56px; height:56px; border-radius:999px;
+  border:1px solid color-mix(in oklab, var(--mtp-grad-a) 60%, var(--mtp-border));
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--mtp-grad-a) 16%, transparent),
+    color-mix(in oklab, var(--mtp-bg) 84%, transparent));
+  color:#66ffd8; font-weight:900; font-size:24px; line-height:1;
+  display:grid; place-items:center;
+  box-shadow: 0 10px 24px rgba(40,231,168,.25), inset 0 0 0 1px rgba(255,255,255,.04);
+  user-select:none;
+}
+.craft-dollar:active{ transform: translateY(1px) scale(.98); }
+
+/* підсвічування цілі при перетягуванні */
+.craft-dollar.drag-over{
+  border-color: color-mix(in oklab, var(--mtp-grad-a) 85%, #fff);
+  box-shadow: 0 0 0 3px rgba(40,231,168,.25), 0 12px 28px rgba(40,231,168,.35), inset 0 0 0 1px rgba(255,255,255,.06);
+  filter: drop-shadow(0 0 18px rgba(40,231,168,.45));
+}
+
+/* Адаптив для крафту */
+@media (max-width:360px){
+  .craft .cell{ min-height:88px; padding:8px; }
 }

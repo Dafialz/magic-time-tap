@@ -13,10 +13,6 @@ import { GOLDEN_METEOR, nextMeteorIn } from "./systems/events";
 import { rollArtifactId, getArtifactById, aggregateArtifacts } from "./systems/artifacts";
 import type { AggregatedBonus } from "./systems/artifacts";
 
-// ⚠️ Прибрано імпорти системи крафту за рідкостями
-// import { countByRarity, nextRarity, rollByRarity } from "./systems/crafting";
-// import type { Rarity } from "./systems/crafting";
-
 import { formatNum } from "./utils/format";
 
 // UI
@@ -55,9 +51,9 @@ export default function App() {
   const [level, setLevel] = useState<number>(1);
   const [prestiges, setPrestiges] = useState<number>(0);
 
-  // ===== НОВА валюта/стан для крафт-сітки
-  const [mgp, setMgp] = useState<number>(0);                      // баланс MGP
-  const [craftSlots, setCraftSlots] = useState<number[]>(         // 20 слотів 4×5, 0 = пусто
+  // ===== Магазин/крафт
+  const [mgp, setMgp] = useState<number>(0);                 // баланс MGP
+  const [craftSlots, setCraftSlots] = useState<number[]>(    // 4×5 (тимчасово 20), 0 = пусто
     () => Array(20).fill(0)
   );
 
@@ -89,7 +85,7 @@ export default function App() {
   const [meteorBuffLeft, setMeteorBuffLeft] = useState(0);
   const [meteorSpawnIn, setMeteorSpawnIn] = useState<number>(() => nextMeteorIn(GOLDEN_METEOR));
 
-  // Artifacts / Inventory
+  // Артефакти (дроп із босів)
   const [artifacts, setArtifacts] = useState<ArtifactInstance[]>([]);
   const [equippedIds, setEquippedIds] = useState<string[]>([]); // <= 3
 
@@ -99,41 +95,41 @@ export default function App() {
 
   // ===== LOAD SAVE (+ офлайн-доход)
   useEffect(() => {
-    const s = loadState();
+    const sAny = loadState() as any;
     const now = Date.now();
-    if (!s) return;
+    if (!sAny) return;
 
-    setCe(s.ce ?? 0);
-    setMm(s.mm ?? 0);
-    setTotalEarned(s.totalEarned ?? 0);
-    setClickPower(s.clickPower ?? 1);
-    setAutoPerSec(s.autoPerSec ?? 0);
-    setFarmMult(s.farmMult ?? 1);
-    setHc(s.hc ?? 0);
-    setLevel(s.level ?? 1);
-    setPrestiges(s.prestiges ?? 0);
+    setCe(sAny.ce ?? 0);
+    setMm(sAny.mm ?? 0);
+    setTotalEarned(sAny.totalEarned ?? 0);
+    setClickPower(sAny.clickPower ?? 1);
+    setAutoPerSec(sAny.autoPerSec ?? 0);
+    setFarmMult(sAny.farmMult ?? 1);
+    setHc(sAny.hc ?? 0);
+    setLevel(sAny.level ?? 1);
+    setPrestiges(sAny.prestiges ?? 0);
 
-    // нове: mgp + craftSlots із сейва
-    setMgp(s.mgp ?? 0);
-    setCraftSlots(Array.isArray(s.craftSlots) ? s.craftSlots : Array(20).fill(0));
+    // нове: mgp + craftSlots (м’яка міграція)
+    setMgp(sAny.mgp ?? 0);
+    setCraftSlots(Array.isArray(sAny.craftSlots) ? sAny.craftSlots : Array(20).fill(0));
 
-    if (Array.isArray(s.upgrades)) {
+    if (Array.isArray(sAny.upgrades)) {
       setUpgrades(prev =>
         prev.map(u => {
-          const found = s.upgrades.find((x: { id: string; level: number }) => x.id === u.id);
+          const found = sAny.upgrades.find((x: { id: string; level: number }) => x.id === u.id);
           return found ? { ...u, level: found.level } : u;
         })
       );
     }
 
-    setArtifacts(s.artifacts ?? []);
-    setEquippedIds(s.equippedArtifactIds ?? []);
-    setOwnedSkins(s.ownedSkins ?? ["classic"]);
-    setEquippedSkinId(s.equippedSkinId ?? "classic");
+    setArtifacts(sAny.artifacts ?? []);
+    setEquippedIds(sAny.equippedArtifactIds ?? []);
+    setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
+    setEquippedSkinId(sAny.equippedSkinId ?? "classic");
 
-    if (s.lastSeenAt && s.autoPerSec) {
-      const secsAway = Math.min(12 * 3600, Math.floor((now - s.lastSeenAt) / 1000));
-      const gain = s.autoPerSec * epochByLevel(s.level ?? 1).mult * s.farmMult * secsAway;
+    if (sAny.lastSeenAt && sAny.autoPerSec) {
+      const secsAway = Math.min(12 * 3600, Math.floor((now - sAny.lastSeenAt) / 1000));
+      const gain = sAny.autoPerSec * epochByLevel(sAny.level ?? 1).mult * sAny.farmMult * secsAway;
       if (gain > 0) {
         setCe(v => v + gain);
         setTotalEarned(te => te + gain);
@@ -142,9 +138,9 @@ export default function App() {
     }
   }, []);
 
-  // ===== AUTOSAVE (🔄 тепер зберігаємо mgp та craftSlots)
+  // ===== AUTOSAVE (включно з mgp та craftSlots)
   useEffect(() => {
-    const payload: SaveState = {
+    const payload: any = {
       ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
       upgrades: upgrades.map(u => ({ id: u.id, level: u.level })),
       lastSeenAt: Date.now(),
@@ -152,15 +148,13 @@ export default function App() {
       equippedArtifactIds: equippedIds,
       ownedSkins,
       equippedSkinId,
-      // нові поля:
       mgp,
       craftSlots,
     };
-    scheduleSave(payload);
+    scheduleSave(payload as SaveState);
   }, [
     ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
     upgrades, artifacts, equippedIds, ownedSkins, equippedSkinId,
-    // тригеримо сейв і на зміну mgp/слотів
     mgp, craftSlots
   ]);
 
@@ -180,9 +174,8 @@ export default function App() {
   const meteorMult = meteorBuffLeft > 0 ? GOLDEN_METEOR.mult : 1;
   const effectiveClickMult = (1 + artAgg.click) * meteorMult * epochMult * farmMult;
   const effectiveAutoMult  = (1 + artAgg.auto)  * meteorMult * epochMult * farmMult;
-  const effectiveFarmMult  = (1 + artAgg.farm)  * epochMult * farmMult;
 
-  // ====== Дохід MGP від сітки (той самий профіль, що в CraftPanel): g=1.20, L1=1 mgp/год
+  // ====== Дохід MGP від сітки (g=1.20, L1=1 mgp/год)
   const mgpIncomePerHour = useMemo(() => {
     const g = 1.20;
     return craftSlots.reduce((sum, lvl) => sum + (lvl > 0 ? Math.pow(g, lvl - 1) : 0), 0);
@@ -299,24 +292,6 @@ export default function App() {
   };
   const getCost = (u: Upgrade) => Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
 
-  // ==== Prestige
-  const canPrestige = level >= 10;
-  const performPrestige = () => {
-    if (!canPrestige) return;
-    const gained = Math.floor(totalEarned / 10000);
-    if (gained <= 0) { alert("Немає достатньо заробітку для Хронокристалів. Грайте далі!"); return; }
-    setHc(h => h + gained);
-    setPrestiges(p => p + 1);
-    setCe(0); setMm(0); setTotalEarned(0);
-    setClickPower(1 + gained * 0.5);
-    setAutoPerSec(0 + gained * 0.2);
-    setFarmMult(1);
-    setUpgrades(initialUpgrades.map(u0 => ({ ...u0, level: 0 })));
-    setLevel(1);
-    setBossActive(false); setBossHP(0); setBossMaxHP(0); setBossTimeLeft(0); setBossData(null);
-    alert(`Престиж виконано! Отримано ${gained} HC.`);
-  };
-
   // ==== Equip
   const toggleEquip = (id: string) => {
     setEquippedIds(prev => {
@@ -326,9 +301,17 @@ export default function App() {
     });
   };
 
-  // UI helpers
-  const bossHPpct = bossMaxHP > 0 ? Math.max(0, Math.min(100, (bossHP / bossMaxHP) * 100)) : 0;
-  const bossTimePct = bossData && bossData.durationSec > 0 ? Math.max(0, Math.min(100, (bossTimeLeft / bossData.durationSec) * 100)) : 0;
+  // ==== Додати предмет у крафт (L1 за замовчуванням)
+  const addToCraft = (levelToPlace = 1): boolean => {
+    const idx = craftSlots.findIndex(v => v === 0);
+    if (idx === -1) { alert("Немає вільних слотів у крафті"); return false; }
+    setCraftSlots(prev => {
+      const copy = [...prev];
+      copy[idx] = Math.max(1, levelToPlace);
+      return copy;
+    });
+    return true;
+  };
 
   return (
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
@@ -365,9 +348,9 @@ export default function App() {
 
         {activeTab === "artifacts" && (
           <ArtifactsPanel
-            artifacts={artifacts}
-            equippedIds={equippedIds}
-            toggleEquip={toggleEquip}
+            mgp={mgp}
+            setMgp={setMgp}
+            addToCraft={addToCraft}
           />
         )}
 
@@ -395,12 +378,15 @@ export default function App() {
         )}
       </main>
 
-      <footer style={{ paddingBottom: 80 }}>
-        <small>Білд: артефакти, крафт, інвентар, скіни, епохи, метеорит, боси, офлайн-доход.</small>
-        <div style={{ marginTop: 8 }}>
-          <button onClick={() => { wipeSave(); window.location.reload(); }}>Новий початок (очистити сейв)</button>
-        </div>
-      </footer>
+      {/* футер тепер лише на головній */}
+      {activeTab === "tap" && (
+        <footer style={{ paddingBottom: 80 }}>
+          <small>Білд: артефакти, крафт, інвентар, скіни, епохи, метеорит, боси, офлайн-доход.</small>
+          <div style={{ marginTop: 8 }}>
+            <button onClick={() => { wipeSave(); window.location.reload(); }}>Новий початок (очистити сейв)</button>
+          </div>
+        </footer>
+      )}
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
