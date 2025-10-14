@@ -13,8 +13,9 @@ import { GOLDEN_METEOR, nextMeteorIn } from "./systems/events";
 import { rollArtifactId, getArtifactById, aggregateArtifacts } from "./systems/artifacts";
 import type { AggregatedBonus } from "./systems/artifacts";
 
-import { countByRarity, nextRarity, rollByRarity } from "./systems/crafting";
-import type { Rarity } from "./systems/crafting";
+// ⚠️ Прибрано імпорти системи крафту за рідкостями
+// import { countByRarity, nextRarity, rollByRarity } from "./systems/crafting";
+// import type { Rarity } from "./systems/crafting";
 
 import { formatNum } from "./utils/format";
 
@@ -54,6 +55,12 @@ export default function App() {
   const [level, setLevel] = useState<number>(1);
   const [prestiges, setPrestiges] = useState<number>(0);
 
+  // ===== НОВА валюта/стан для крафт-сітки
+  const [mgp, setMgp] = useState<number>(0);                      // баланс MGP
+  const [craftSlots, setCraftSlots] = useState<number[]>(         // 20 слотів 4×5, 0 = пусто
+    () => Array(20).fill(0)
+  );
+
   // Upgrades
   const initialUpgrades: Upgrade[] = [
     { id: "u1", name: "Пісочний Годинник", level: 0, baseCost: 10, costMult: 1.15, clickPowerBonus: 1 },
@@ -66,7 +73,7 @@ export default function App() {
   const epoch: Epoch = useMemo(() => epochByLevel(level), [level]);
   const epochMult = epoch.mult;
 
-  // Boss flags (збережено для майбутніх екранів)
+  // Boss flags
   const bossTier: BossTier | 0 = useMemo(() => Math.floor(level / 10) as BossTier | 0, [level]);
   const isBossLevel = level >= 10 && level % 10 === 0;
 
@@ -106,6 +113,10 @@ export default function App() {
     setLevel(s.level ?? 1);
     setPrestiges(s.prestiges ?? 0);
 
+    // нове: mgp + craftSlots із сейва
+    setMgp(s.mgp ?? 0);
+    setCraftSlots(Array.isArray(s.craftSlots) ? s.craftSlots : Array(20).fill(0));
+
     if (Array.isArray(s.upgrades)) {
       setUpgrades(prev =>
         prev.map(u => {
@@ -131,7 +142,7 @@ export default function App() {
     }
   }, []);
 
-  // ===== AUTOSAVE
+  // ===== AUTOSAVE (🔄 тепер зберігаємо mgp та craftSlots)
   useEffect(() => {
     const payload: SaveState = {
       ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
@@ -141,9 +152,17 @@ export default function App() {
       equippedArtifactIds: equippedIds,
       ownedSkins,
       equippedSkinId,
+      // нові поля:
+      mgp,
+      craftSlots,
     };
     scheduleSave(payload);
-  }, [ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges, upgrades, artifacts, equippedIds, ownedSkins, equippedSkinId]);
+  }, [
+    ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
+    upgrades, artifacts, equippedIds, ownedSkins, equippedSkinId,
+    // тригеримо сейв і на зміну mgp/слотів
+    mgp, craftSlots
+  ]);
 
   // ==== Артефакти → агреговані бонуси
   const artifactLevels: Record<string, number> = useMemo(() => {
@@ -163,6 +182,12 @@ export default function App() {
   const effectiveAutoMult  = (1 + artAgg.auto)  * meteorMult * epochMult * farmMult;
   const effectiveFarmMult  = (1 + artAgg.farm)  * epochMult * farmMult;
 
+  // ====== Дохід MGP від сітки (той самий профіль, що в CraftPanel): g=1.20, L1=1 mgp/год
+  const mgpIncomePerHour = useMemo(() => {
+    const g = 1.20;
+    return craftSlots.reduce((sum, lvl) => sum + (lvl > 0 ? Math.pow(g, lvl - 1) : 0), 0);
+  }, [craftSlots]);
+
   // TAP
   const onClickTap = () => {
     const inc = clickPower * effectiveClickMult;
@@ -171,7 +196,7 @@ export default function App() {
     if (bossActive) setBossHP(hp => Math.max(0, hp - clickPower));
   };
 
-  // автофарм + таймери
+  // автофарм + таймери + MGP нарахування
   useEffect(() => {
     const id = window.setInterval(() => {
       if (autoPerSec > 0) {
@@ -180,6 +205,12 @@ export default function App() {
         setTotalEarned(te => te + inc);
         if (bossActive) setBossHP(hp => Math.max(0, hp - autoPerSec));
       }
+
+      // MGP: додаємо щосекунди
+      if (mgpIncomePerHour > 0) {
+        setMgp(v => v + mgpIncomePerHour / 3600);
+      }
+
       if (bossActive && bossTimeLeft > 0) setBossTimeLeft(t => Math.max(0, t - 1));
       if (bossRetryCooldown > 0) setBossRetryCooldown(t => Math.max(0, t - 1));
 
@@ -194,7 +225,7 @@ export default function App() {
       }
     }, 1000);
     return () => window.clearInterval(id);
-  }, [autoPerSec, effectiveAutoMult, bossActive, bossTimeLeft, bossRetryCooldown, meteorBuffLeft, meteorVisible]);
+  }, [autoPerSec, effectiveAutoMult, bossActive, bossTimeLeft, bossRetryCooldown, meteorBuffLeft, meteorVisible, mgpIncomePerHour]);
 
   const onMeteorClick = () => {
     setMeteorVisible(false);
@@ -295,43 +326,11 @@ export default function App() {
     });
   };
 
-  // ==== Craft 3→1
-  const rarityCount = useMemo(() => countByRarity(artifacts), [artifacts]);
-  const openedTier = useMemo(() => Math.max(1, Math.floor(level / 10)), [level]);
-  function canCraft(r: Rarity) {
-    const nr = nextRarity(r);
-    if (!nr) return false;
-    return rarityCount[r] >= 3;
-  }
-  const craftRarity = (r: Rarity) => {
-    const target = nextRarity(r);
-    if (!target) { alert("Максимальна рідкість. Крафт недоступний."); return; }
-    if (!canCraft(r)) { alert("Потрібно 3 артефакти цієї рідкості."); return; }
-
-    setArtifacts(prev => {
-      let left = 3;
-      const newInv: ArtifactInstance[] = [];
-      for (const it of prev) {
-        const meta = getArtifactById(it.id);
-        if (left > 0 && meta?.rarity === r) { left--; continue; }
-        newInv.push(it);
-      }
-      if (left > 0) return prev;
-
-      const newId = rollByRarity(target, openedTier);
-      if (!newId) { alert("Ще не відкриті артефакти цієї рідкості для твого прогресу."); return prev; }
-
-      alert(`🔧 Крафт успішний! Отримано: ${getArtifactById(newId)?.name}`);
-      return [...newInv, { id: newId, level: 1 }];
-    });
-  };
-
   // UI helpers
   const bossHPpct = bossMaxHP > 0 ? Math.max(0, Math.min(100, (bossHP / bossMaxHP) * 100)) : 0;
   const bossTimePct = bossData && bossData.durationSec > 0 ? Math.max(0, Math.min(100, (bossTimeLeft / bossData.durationSec) * 100)) : 0;
 
   return (
-    // ФОН лишається на body (див. App.css) — тут нічого не перекриваємо
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
       <HeaderBar
         ce={ce} mm={mm} hc={hc} level={level}
@@ -374,9 +373,10 @@ export default function App() {
 
         {activeTab === "craft" && (
           <CraftPanel
-            rarityCount={rarityCount}
-            canCraft={canCraft}
-            craftRarity={craftRarity}
+            mgp={mgp}
+            setMgp={setMgp}
+            slots={craftSlots}
+            setSlots={setCraftSlots}
           />
         )}
 
