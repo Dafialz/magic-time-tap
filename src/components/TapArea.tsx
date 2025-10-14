@@ -30,40 +30,34 @@ export default function TapArea({
 
   return (
     <div className="tap-area">
-      {/* HERO */}
+      {/* HERO: заголовок + окремий блок годинника */}
       <div className="hero" style={{ position: "relative", userSelect: "none" }}>
-        {/* Водяний знак окремим <img> із фіксованим top */}
-        <img
-          src="/hero-hourglass.png?v=11"
-          alt=""
-          aria-hidden="true"
-          className="hero__img"
-          decoding="async"
-        />
-        {/* Заголовок завжди вище за водяний знак і не клікається */}
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
-        {/* TAP-оверлей починається нижче заголовка (позиція керується лише CSS) */}
-        <button
-          type="button"
-          onClick={onTap}
-          aria-label="Tap"
-          style={{
-            border: 0,
-            background: "transparent",
-            cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
-          }}
-        />
+        <div className="hero__clock">
+          <img
+            src="/hero-hourglass.png?v=12"
+            alt=""
+            aria-hidden="true"
+            className="hero__img"
+            decoding="async"
+          />
+          <button
+            type="button"
+            className="hero__tap"
+            onClick={onTap}
+            aria-label="Tap"
+          />
+        </div>
       </div>
 
-      {/* CE — картка */}
+      {/* CE — скляна картка */}
       <section className="stat-card" aria-live="polite">
         <div className="stat-card__caption">Косм. Енергія</div>
         <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
       </section>
 
-      {/* «Золотий Метеорит» */}
+      {/* Банер «Золотий Метеорит» */}
       <button
         type="button"
         className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
