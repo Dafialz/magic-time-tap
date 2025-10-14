@@ -34,7 +34,7 @@ export default function TapArea({
       <div className="hero" style={{ position: "relative", userSelect: "none" }}>
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
-        {/* Годинник строго фіксованого розміру (не розширюється) */}
+        {/* Годинник фіксованого розміру */}
         <div className="hero__clock">
           <img
             src="/hero-hourglass.png"
@@ -55,7 +55,7 @@ export default function TapArea({
 
       {/* CE */}
       <section className="stat-card" aria-live="polite">
-        <div className="stat-card__caption">Косм. Енергія</div>
+        <div className="stat-card__caption">Космічна енергія</div>
         <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
       </section>
 
@@ -70,10 +70,10 @@ export default function TapArea({
 
         <div className="meteor-card__text">
           <div className="meteor-card__title">
-            {meteorVisible ? "Написати, щоб зібрати" : `Метеор через ~${Math.max(0, Math.floor(meteorSpawnIn))}s`}
+            {meteorVisible ? "Написати, щоб зібрати" : `Метеор через ~${spawnIn}s`}
           </div>
           <div className="meteor-card__subtitle">
-            Золотий Метеорит{meteorVisible && meteorBuffLeft > 0 ? ` • ${Math.max(0, Math.floor(meteorBuffLeft))}s` : ""}
+            Золотий Метеорит{meteorVisible && buffLeft > 0 ? ` • ${buffLeft}s` : ""}
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export default function TapArea({
 
       <p className="tap-hint">
         Натискай, щоб збирати Часову Енергію
-        {!meteorVisible && <> • Метеор через ~{Math.max(0, Math.floor(meteorSpawnIn))}s</>}
+        {!meteorVisible && <> • Метеор через ~{spawnIn}s</>}
       </p>
     </div>
   );
