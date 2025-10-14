@@ -1,20 +1,16 @@
 import React from "react";
 
 type Props = {
-  // TAP
   onTap: () => void;
   tapStyle?: React.CSSProperties;
 
-  // CE
   currentEnergy: number;
 
-  // Метеор
   meteorVisible: boolean;
   onMeteorClick: () => void;
   meteorBuffLeft: number;
   meteorSpawnIn: number;
 
-  // (необов’язково)
   meteorBonus?: number;
   meteorMultiplier?: number;
 };
@@ -34,13 +30,20 @@ export default function TapArea({
 
   return (
     <div className="tap-area">
-      {/* HERO: фон + титул (титул НЕ клікається) */}
+      {/* HERO */}
       <div className="hero" style={{ position: "relative", userSelect: "none" }}>
-        <div className="hero__bg" aria-hidden="true" />
+        {/* Водяний знак окремим <img> із фіксованим top */}
+        <img
+          src="/hero-hourglass.png?v=11"
+          alt=""
+          aria-hidden="true"
+          className="hero__img"
+          decoding="async"
+        />
+        {/* Заголовок завжди вище за водяний знак і не клікається */}
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
-        {/* TAP-оверлей тільки нижче тексту
-            координати керуються ТІЛЬКИ через CSS (.hero > button) */}
+        {/* TAP-оверлей починається нижче заголовка (позиція керується лише CSS) */}
         <button
           type="button"
           onClick={onTap}
@@ -54,13 +57,13 @@ export default function TapArea({
         />
       </div>
 
-      {/* CE — скляна картка */}
+      {/* CE — картка */}
       <section className="stat-card" aria-live="polite">
         <div className="stat-card__caption">Косм. Енергія</div>
         <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
       </section>
 
-      {/* Банер «Золотий Метеорит» */}
+      {/* «Золотий Метеорит» */}
       <button
         type="button"
         className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
@@ -84,7 +87,6 @@ export default function TapArea({
         </div>
       </button>
 
-      {/* Хінт під кнопкою */}
       <p className="tap-hint">
         Натискай, щоб збирати Часову Енергію
         {!meteorVisible && <> • Метеор через ~{spawnIn}s</>}
@@ -93,7 +95,6 @@ export default function TapArea({
   );
 }
 
-/** Формат чисел (1 234 567) */
 function formatNumber(n: number) {
   return Math.floor(n).toLocaleString("uk-UA");
 }
