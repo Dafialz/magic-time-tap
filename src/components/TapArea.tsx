@@ -30,18 +30,20 @@ export default function TapArea({
 
   return (
     <div className="tap-area">
-      {/* HERO: заголовок + окремий блок годинника */}
+      {/* HERO */}
       <div className="hero" style={{ position: "relative", userSelect: "none" }}>
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
+        {/* Годинник строго фіксованого розміру (не розширюється) */}
         <div className="hero__clock">
           <img
-            src="/hero-hourglass.png?v=12"
+            src="/hero-hourglass.png"
             alt=""
             aria-hidden="true"
             className="hero__img"
             decoding="async"
           />
+          {/* клікабельна зона рівно по годиннику */}
           <button
             type="button"
             className="hero__tap"
@@ -51,13 +53,13 @@ export default function TapArea({
         </div>
       </div>
 
-      {/* CE — скляна картка */}
+      {/* CE */}
       <section className="stat-card" aria-live="polite">
         <div className="stat-card__caption">Косм. Енергія</div>
         <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
       </section>
 
-      {/* Банер «Золотий Метеорит» */}
+      {/* Метеор */}
       <button
         type="button"
         className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
@@ -68,10 +70,10 @@ export default function TapArea({
 
         <div className="meteor-card__text">
           <div className="meteor-card__title">
-            {meteorVisible ? "Написати, щоб зібрати" : `Метеор через ~${spawnIn}s`}
+            {meteorVisible ? "Написати, щоб зібрати" : `Метеор через ~${Math.max(0, Math.floor(meteorSpawnIn))}s`}
           </div>
           <div className="meteor-card__subtitle">
-            Золотий Метеорит{meteorVisible && buffLeft > 0 ? ` • ${buffLeft}s` : ""}
+            Золотий Метеорит{meteorVisible && meteorBuffLeft > 0 ? ` • ${Math.max(0, Math.floor(meteorBuffLeft))}s` : ""}
           </div>
         </div>
 
@@ -83,7 +85,7 @@ export default function TapArea({
 
       <p className="tap-hint">
         Натискай, щоб збирати Часову Енергію
-        {!meteorVisible && <> • Метеор через ~{spawnIn}s</>}
+        {!meteorVisible && <> • Метеор через ~{Math.max(0, Math.floor(meteorSpawnIn))}s</>}
       </p>
     </div>
   );
