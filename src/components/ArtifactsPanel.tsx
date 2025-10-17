@@ -21,11 +21,6 @@ const BLUE_ICONS: string[] = [
   "/shop_icons/SapphireHonorCoin7.png",
   "/shop_icons/GlacialGloryMedal8.png",
   "/shop_icons/SapphireLaurelMedal9.png",
-  "/shop_icons/GlacialSunCoin10.png",
-  "/shop_icons/CeruleanValorMedal11.png",
-  "/shop_icons/SapphireHonorCoin12.png",
-  "/shop_icons/SapphireGloryMedal13.png",
-  "/shop_icons/SapphireLaurelMedal14.png",
   "/shop_icons/GlacialSunCoin20.png",
   "/shop_icons/AzureValorMedal21.png",
   "/shop_icons/GlacialHonorCoin22.png",
@@ -46,6 +41,11 @@ const BLUE_ICONS: string[] = [
 ];
 
 const PURPLE_ICONS: string[] = [
+  "/shop_icons/GlacialSunCoin10.png",
+  "/shop_icons/CeruleanValorMedal11.png",
+  "/shop_icons/SapphireHonorCoin12.png",
+  "/shop_icons/SapphireGloryMedal13.png",
+  "/shop_icons/SapphireLaurelMedal14.png",
   "/shop_icons/CeruleanSunCoin25.png",
   "/shop_icons/FrostValorMedal31.png",
   "/shop_icons/VioletLaurelMedal34.png",
