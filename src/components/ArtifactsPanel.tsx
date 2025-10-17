@@ -72,8 +72,8 @@ const GOLD_ICONS: string[] = [
 
 // Збираємо список у повній черзі і збережемо межі тiрів
 const ICONS_IN_ORDER = [...BLUE_ICONS, ...PURPLE_ICONS, ...GOLD_ICONS];
-const BLUE_END = BLUE_ICONS.length;                           // 33
-const PURPLE_END = BLUE_ICONS.length + PURPLE_ICONS.length;   // 43
+const BLUE_END = BLUE_ICONS.length;
+const PURPLE_END = BLUE_ICONS.length + PURPLE_ICONS.length;
 
 type Tier = "blue" | "purple" | "gold";
 const tierByIndex = (i: number): Tier =>
@@ -83,16 +83,16 @@ const tierByIndex = (i: number): Tier =>
 type ShopItem = { id: string; name: string; price: number; tier: Tier; icon: string };
 
 const NAMES: string[] = [
-  "Піщинка Часу","Іскорка Хроно","Міні-Годинник","Кварцовий Пісок","Тік-Модуль",
-  "Нанопісок","Хронопил","Мала Спіраль","Хвильовий Годинник","Потік Секунд",
-  "Серп Часу","Клинок Миті","Скляне Ядро","Геод Пульсу","Резонатор m1",
-  "Резонатор m2","Резонатор m3","Резонатор m4","Резонатор m5","Кристал Δ",
-  "Кристал Ω","Кристал Σ","Грань Епохи","Порталик","Хронокрапля",
-  "Хроноджерело","Вузол m7","Вузол m8","Вузол m9","Вузол m10",
-  "Синхроядро","Астральний Пісок","Кубок Миттєвості","Сфера Ритму","Квантовий Пил",
-  "Серце Годинника","Пружина Епохи","Ехо-Маяк","Цезієвий Ізотоп","Ротор V",
-  "Ротор VI","Ротор VII","Ротор VIII","Ротор IX","Ротор X",
-  "Сяйво Δ","Сяйво Ω","Сяйво Σ","Згортка Часу","Архіфлукс"
+  "Grain of Time","Chrono Spark","Mini Clock","Quartz Sand","Tick Module",
+  "Nanosand","Chrono Dust","Minor Spiral","Wave Clock","Stream of Seconds",
+  "Scythe of Time","Blade of the Moment","Glass Core","Pulse Geode","Resonator m1",
+  "Resonator m2","Resonator m3","Resonator m4","Resonator m5","Crystal Δ",
+  "Crystal Ω","Crystal Σ","Edge of Epoch","Portalite","Chrono Drop",
+  "Chrono Spring","Node m7","Node m8","Node m9","Node m10",
+  "Sync Core","Astral Sand","Chalice of Moments","Sphere of Rhythm","Quantum Dust",
+  "Heart of the Clock","Spring of Ages","Echo Beacon","Cesium Isotope","Rotor V",
+  "Rotor VI","Rotor VII","Rotor VIII","Rotor IX","Rotor X",
+  "Radiance Δ","Radiance Ω","Radiance Σ","Time Fold","Archiflux"
 ];
 
 const BASE = 500;
