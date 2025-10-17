@@ -7,55 +7,80 @@ type Props = {
   addToCraft: (levelToPlace?: number) => boolean;
 };
 
-/* ================= Пули іконок (з /public/shop_icons) =================
-   Вітрина: BLUE → PURPLE → GOLD.
-   Всі шляхи відносні (shop_icons/...), щоб коректно працювало під сабпутями. */
-const BLUE_ALL = [
-  "AzureValorMedal6.png","AzureLaurelMedal4.png","AzureLaurelMedal24.png","AzureLaurelMedal29.png",
-  "AzureGloryMedal33.png","AzureSunCoin5.png","AzureSunCoin15.png",
-  "CeruleanSunCoin25.png","CeruleanSunCoin30.png","CeruleanValorMedal21.png","CeruleanLaurelMedal24.png",
-  "FrostGloryMedal31.png","FrostHonorCoin27.png","FrostHonorCoin32.png",
-  "GlacialGloryMedal18.png","GlacialHonorCoin17.png","GlacialSunCoin10.png","GlacialSunCoin20.png","GlacialValorMedal26.png",
-  "SapphireGloryMedal13.png","SapphireGloryMedal28.png","SapphireHonorCoin7.png","SapphireLaurelMedal14.png","SapphireLaurelMedal19.png","SapphireValorMedal11.png",
-  // ще трохи синіх повторів, щоб довести до 30
-  "AzureLaurelMedal24.png","AzureSunCoin15.png","GlacialSunCoin20.png","SapphireGloryMedal28.png"
+/* ================= ІКОНКИ У ТОЧНІЙ ПОСЛІДОВНОСТІ =================
+   Порядок: спочатку всі BLUE (дешеві), далі PURPLE, вкінці GOLD (дорогі).
+   Шляхи абсолютні — /shop_icons/... з папки public/shop_icons.
+*/
+const BLUE_ICONS: string[] = [
+  "/shop_icons/SapphireValorMedal1.png",
+  "/shop_icons/SapphireHonorCoin2.png",
+  "/shop_icons/FrostGloryMedal3.png",
+  "/shop_icons/AzureLaurelMedal4.png",
+  "/shop_icons/AzureSunCoin5.png",
+  "/shop_icons/AzureValorMedal6.png",
+  "/shop_icons/SapphireHonorCoin7.png",
+  "/shop_icons/GlacialGloryMedal8.png",
+  "/shop_icons/SapphireLaurelMedal9.png",
+  "/shop_icons/GlacialSunCoin10.png",
+  "/shop_icons/CeruleanValorMedal11.png",
+  "/shop_icons/SapphireHonorCoin12.png",
+  "/shop_icons/SapphireGloryMedal13.png",
+  "/shop_icons/SapphireLaurelMedal14.png",
+  "/shop_icons/AzureSunCoin15.png",
+  "/shop_icons/AzureValorMedal16.png",
+  "/shop_icons/GlacialHonorCoin17.png",
+  "/shop_icons/GlacialGloryMedal18.png",
+  "/shop_icons/SapphireLaurelMedal19.png",
+  "/shop_icons/GlacialSunCoin20.png",
+  "/shop_icons/AzureValorMedal21.png",
+  "/shop_icons/GlacialHonorCoin22.png",
+  "/shop_icons/CeruleanGloryMedal23.png",
+  "/shop_icons/AzureLaurelMedal24.png",
+  "/shop_icons/CeruleanSunCoin25.png",
+  "/shop_icons/GlacialValorMedal26.png",
+  "/shop_icons/FrostHonorCoin27.png",
+  "/shop_icons/SapphireGloryMedal28.png",
+  "/shop_icons/AzureLaurelMedal29.png",
+  "/shop_icons/CeruleanSunCoin30.png",
+  "/shop_icons/FrostValorMedal31.png",
+  "/shop_icons/FrostHonorCoin32.png",
+  "/shop_icons/AzureGloryMedal33.png",
 ];
 
-const PURPLE_ALL = [
-  "AmethystHonorCoin37.png","AmethystLaurelMedal39.png","AmethystValorMedal36.png",
-  "ArcaneGloryMedal43.png","ArcaneSunCoin35.png","ArcaneSunCoin40.png","ArcaneValorMedal41.png",
-  "MysticGloryMedal38.png","RoyalHonorCoin42.png","VioletLaurelMedal34.png",
-  // добиваємо до 14 фіолетових
-  "AmethystValorMedal36.png","ArcaneSunCoin35.png","ArcaneValorMedal41.png","AmethystLaurelMedal39.png"
+const PURPLE_ICONS: string[] = [
+  "/shop_icons/VioletLaurelMedal34.png",
+  "/shop_icons/ArcaneSunCoin35.png",
+  "/shop_icons/AmethystValorMedal36.png",
+  "/shop_icons/AmethystHonorCoin37.png",
+  "/shop_icons/MysticGloryMedal38.png",
+  "/shop_icons/AmethystLaurelMedal39.png",
+  "/shop_icons/ArcaneSunCoin40.png",
+  "/shop_icons/ArcaneValorMedal41.png",
+  "/shop_icons/RoyalHonorCoin42.png",
+  "/shop_icons/ArcaneGloryMedal43.png",
 ];
 
-const GOLD_ALL = [
-  "GoldenLaurelMedal44.png","GoldenHonorCoin47.png","GoldenValorMedal49.png",
-  "GildedValorMedal46.png","SolarGloryMedal48.png","SunCoin45.png"
-  // SunCoin50.png лишив у запасі
+const GOLD_ICONS: string[] = [
+  "/shop_icons/GoldenLaurelMedal44.png",
+  "/shop_icons/SunCoin45.png",
+  "/shop_icons/GildedValorMedal46.png",
+  "/shop_icons/GoldenHonorCoin47.png",
+  "/shop_icons/SolarGloryMedal48.png",
+  "/shop_icons/GoldenLaurelMedal49.png",
+  "/shop_icons/SunCoin50.png",
 ];
 
-// перетворимо у повні шляхи
-const PATH = (n: string) => `shop_icons/${n}`;
-const BLUE = BLUE_ALL.map(PATH);
-const PURPLE = PURPLE_ALL.map(PATH);
-const GOLD = GOLD_ALL.map(PATH);
+// Збираємо список у повній черзі і збережемо межі тiрів
+const ICONS_IN_ORDER = [...BLUE_ICONS, ...PURPLE_ICONS, ...GOLD_ICONS];
+const BLUE_END = BLUE_ICONS.length;                           // 33
+const PURPLE_END = BLUE_ICONS.length + PURPLE_ICONS.length;   // 43
+
+type Tier = "blue" | "purple" | "gold";
+const tierByIndex = (i: number): Tier =>
+  i < BLUE_END ? "blue" : i < PURPLE_END ? "purple" : "gold";
 
 /* ================= Модель магазину ================= */
-type Tier = "blue" | "purple" | "gold";
-type ShopItem = {
-  id: string;
-  name: string;
-  price: number;
-  tier: Tier;
-  pool: string[];
-  startIdx: number;
-};
-
-const COUNT = 50;
-const BLUE_COUNT = 30;   // найдешевші — сині
-const PURPLE_COUNT = 14; // середні — фіолетові
-const GOLD_COUNT = COUNT - BLUE_COUNT - PURPLE_COUNT; // найдорожчі — золоті
+type ShopItem = { id: string; name: string; price: number; tier: Tier; icon: string };
 
 const NAMES: string[] = [
   "Піщинка Часу","Іскорка Хроно","Міні-Годинник","Кварцовий Пісок","Тік-Модуль",
@@ -73,48 +98,22 @@ const NAMES: string[] = [
 const BASE = 500;
 const MULT = 1.28;
 
-const SHOP_ITEMS: ShopItem[] = Array.from({ length: COUNT }, (_, i) => {
-  let tier: Tier, pool: string[], startIdx: number;
+const SHOP_ITEMS: ShopItem[] = NAMES.map((name, i) => ({
+  id: `shop_${i + 1}`,
+  name,
+  price: Math.round(BASE * Math.pow(MULT, i)),
+  tier: tierByIndex(i),
+  icon: ICONS_IN_ORDER[i] || "",
+}));
 
-  if (i < BLUE_COUNT) { tier = "blue"; pool = BLUE; startIdx = i; }
-  else if (i < BLUE_COUNT + PURPLE_COUNT) { tier = "purple"; pool = PURPLE; startIdx = i - BLUE_COUNT; }
-  else { tier = "gold"; pool = GOLD; startIdx = i - BLUE_COUNT - PURPLE_COUNT; }
-
-  const price = Math.round(BASE * Math.pow(MULT, i));
-  return {
-    id: `shop_${i + 1}`,
-    name: NAMES[i] || `Товар ${i + 1}`,
-    price,
-    tier,
-    pool,
-    startIdx
-  };
-});
-
-/* ===== Іконка з автоперебором у межах тиру (без DOM-хаків) ===== */
-function IconWithTierFallback({
-  pool, startIdx, name, tier
-}: { pool: string[]; startIdx: number; name: string; tier: Tier }) {
-  const [idx, setIdx] = React.useState(startIdx % Math.max(pool.length, 1));
-  const [tries, setTries] = React.useState(0);
-
-  if (!pool.length || tries >= pool.length) {
+/* ====== Іконка з простим fallback (без DOM-маніпуляцій) ====== */
+function IconWithFallback({ src, name, tier }: { src?: string; name: string; tier: Tier }) {
+  const [broken, setBroken] = React.useState(false);
+  if (!src || broken) {
     const ch = (name || "?").trim().charAt(0).toUpperCase() || "•";
     return <div className={`badge-fallback tier-${tier}`}>{ch}</div>;
   }
-
-  const src = pool[idx];
-  return (
-    <img
-      src={src}
-      alt={name}
-      className="shop-icon-img"
-      onError={() => {
-        setIdx((v) => (v + 1) % pool.length);
-        setTries((t) => t + 1);
-      }}
-    />
-  );
+  return <img src={src} alt={name} className="shop-icon-img" onError={() => setBroken(true)} />;
 }
 
 export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
@@ -136,7 +135,7 @@ export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
           return (
             <div key={it.id} className={`shop-item ${enough ? "can" : ""} tier-${it.tier}`}>
               <div className="shop-left">
-                <IconWithTierFallback pool={it.pool} startIdx={it.startIdx} name={it.name} tier={it.tier} />
+                <IconWithFallback src={it.icon} name={it.name} tier={it.tier} />
                 <div className="shop-text">
                   <div className="shop-title">{it.name}</div>
                   <div className="shop-sub">Ціна: {it.price.toLocaleString("uk-UA")} mgp</div>
@@ -170,7 +169,7 @@ export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
         .shop-buy{ padding:10px 14px; border-radius:12px; border:0; font-weight:800; cursor:pointer; }
         .shop-buy:disabled{ opacity:.5; cursor:default; }
 
-        /* Візуальний ореол по тiрах */
+        /* Оріоли по тiрах */
         .tier-blue .shop-icon-img, .tier-blue .badge-fallback{ box-shadow: 0 0 0 2px rgba(80,200,255,.35), inset 0 0 18px rgba(80,200,255,.15); }
         .tier-purple .shop-icon-img, .tier-purple .badge-fallback{ box-shadow: 0 0 0 2px rgba(185,120,255,.35), inset 0 0 18px rgba(185,120,255,.18); }
         .tier-gold .shop-icon-img, .tier-gold .badge-fallback{ box-shadow: 0 0 0 2px rgba(255,210,90,.45), inset 0 0 18px rgba(255,210,90,.25); }
