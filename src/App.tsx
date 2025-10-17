@@ -203,10 +203,11 @@ export default function App() {
     return base * mgpPrestigeMult(prestiges);
   }, [craftSlots, prestiges]);
 
-  // TAP
+  // TAP: тепер додаємо **і MGP**, щоб можна було відразу купувати в "Артефактах"
   const onClickTap = () => {
     const inc = clickPower * effectiveClickMult;
-    setCe(prev => prev + inc);
+    setCe(prev => prev + inc);        // CE лишаємо як було (для інших систем)
+    setMgp(prev => prev + inc);       // <-- головне: додаємо MGP за тап
     setTotalEarned(te => te + inc);
     if (bossActive) setBossHP(hp => Math.max(0, hp - clickPower));
   };
