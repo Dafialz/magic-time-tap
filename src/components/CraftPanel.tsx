@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { buildCraftItems } from "../systems/economy";
+import { iconByLevel } from "../systems/shop_icons";
 
 /**
  * CraftPanel 3×7 (21 слот):
@@ -187,6 +188,8 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
           const dropClass =
             isDragOver ? (ok ? (reason === "merge" ? "drop-ok-merge" : "drop-ok-move") : "drop-bad") : "";
 
+          const icon = lvl > 0 ? iconByLevel(lvl) : "";
+
           return (
             <button
               key={i}
@@ -207,25 +210,63 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
               onDragLeave={(e) => onCellDragLeave(e, i)}
               onDrop={(e) => onCellDrop(e, i)}
             >
-              <div className="cell-icon">{maxed ? "MAX" : (lvl ? `L${lvl}` : "+")}</div>
-              <div className="cell-title">{curDef?.name ?? "Порожньо"}</div>
-              <div className="cell-sub">
-                {lvl > 0
-                  ? `${coin(curDef!.income_per_hour_mgp)}/год`
-                  : nextDef ? `L1: ${coin(nextDef.price_mgp)} mgp` : ""}
+              <div className="cell-row">
+                <div className="cell-icon">
+                  {icon ? (
+                    <img src={icon} alt={`L${lvl}`} className="cell-icon-img" />
+                  ) : (
+                    <span className="cell-icon-badge">+</span>
+                  )}
+                </div>
+
+                <div className="cell-texts">
+                  <div className="cell-title">{curDef?.name ?? "Порожньо"}</div>
+                  <div className="cell-sub">
+                    {lvl > 0
+                      ? `${coin(curDef!.income_per_hour_mgp)}/год`
+                      : nextDef ? `L1: ${coin(nextDef.price_mgp)} mgp` : ""}
+                  </div>
+                </div>
+
+                <div className="cell-level">{maxed ? "MAX" : (lvl ? `L${lvl}` : "")}</div>
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* Бірюзовий значок $ — ціль для дропа (продаж 70%) */}
+      {/* Ціль для дропа продажу */}
       <button
         className={`craft-dollar ${dragOverDollar ? "drag-over" : ""}`}
         title="Перетягни сюди предмет, щоб продати за 70% ціни рівня"
-        onDragOver={onDollarDragOver}
-        onDragLeave={onDollarDragLeave}
-        onDrop={onDollarDrop}
+        onDragOver={(e) => { e.preventDefault(); setDragOverDollar(true); }}
+        onDragLeave={() => setDragOverDollar(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOverDollar(false);
+          const txt = e.dataTransfer.getData("text/plain");
+          if (!txt) return;
+
+          let data: any = null;
+          try { data = JSON.parse(txt); } catch {}
+          if (!data || typeof data.index !== "number" || typeof data.level !== "number") return;
+
+          const idx = data.index as number;
+          const lvl = data.level as number;
+          if (idx < 0 || idx >= slots.length) return;
+          if (slots[idx] !== lvl || lvl <= 0) return;
+
+          const curDef = defOf(lvl);
+          if (!curDef) return;
+
+          const sellGain = round2(curDef.price_mgp * 0.7);
+          setMgp(v => round2(v + sellGain));
+          setSlots(prev => {
+            const copy = [...prev];
+            copy[idx] = 0;
+            return copy;
+          });
+        }}
       >
         $
       </button>
@@ -239,15 +280,24 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
           padding:10px; border-radius:14px; text-align:left;
           background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
           min-height:76px; cursor:pointer; user-select:none;
-          display:flex; flex-direction:column; justify-content:center; gap:4px;
           transition: box-shadow .15s ease, transform .1s ease, background .15s ease;
         }
         .cell.has{ background: rgba(255,255,255,.06); }
         .cell:disabled{ opacity:.55; cursor:default; }
 
-        .cell-icon{ font-weight:800; }
+        .cell-row{ display:flex; align-items:center; gap:10px; }
+        .cell-icon{
+          width:44px; height:44px; border-radius:10px; display:grid; place-items:center; flex:0 0 44px;
+          background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+        }
+        .cell-icon-img{ width:100%; height:100%; object-fit:contain; border-radius:10px;
+          box-shadow: 0 0 0 2px rgba(255,255,255,.06), inset 0 0 18px rgba(255,255,255,.04);
+        }
+        .cell-icon-badge{ font-weight:900; font-size:18px; opacity:.8; }
+        .cell-texts{ min-width:0; flex:1 1 auto; }
         .cell-title{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .cell-sub{ opacity:.85; font-size:12px; }
+        .cell-level{ font-weight:800; opacity:.85; }
 
         /* Drop feedback */
         .cell.drop-ok-move{ box-shadow: 0 0 0 2px rgba(80,200,255,.4) inset; }

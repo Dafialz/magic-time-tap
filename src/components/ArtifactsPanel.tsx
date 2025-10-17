@@ -1,6 +1,7 @@
 // src/components/ArtifactsPanel.tsx
 import React from "react";
 import { shopPriceAt } from "../systems/economy";
+import { BLUE_ICONS, PURPLE_ICONS, ICONS_IN_ORDER } from "../systems/shop_icons";
 
 type Props = {
   mgp: number;
@@ -8,71 +9,9 @@ type Props = {
   addToCraft: (levelToPlace?: number) => boolean;
 };
 
-/* ================= ІКОНКИ У ТОЧНІЙ ПОСЛІДОВНОСТІ =================
-   Порядок: спочатку всі BLUE (дешеві), далі PURPLE, вкінці GOLD (дорогі).
-   Шляхи абсолютні — /shop_icons/... з папки public/shop_icons.
+/* ================= ІКОНКИ ТЕПЕР ІЗ systems/shop_icons.ts =================
+   Порядок: BLUE (дешеві) → PURPLE → GOLD (дорогі).
 */
-const BLUE_ICONS: string[] = [
-  "/shop_icons/SapphireValorMedal1.png",
-  "/shop_icons/SapphireHonorCoin2.png",
-  "/shop_icons/FrostGloryMedal3.png",
-  "/shop_icons/AzureLaurelMedal4.png",
-  "/shop_icons/AzureSunCoin5.png",
-  "/shop_icons/AzureValorMedal6.png",
-  "/shop_icons/SapphireHonorCoin7.png",
-  "/shop_icons/GlacialGloryMedal8.png",
-  "/shop_icons/SapphireLaurelMedal9.png",
-  "/shop_icons/GlacialSunCoin20.png",
-  "/shop_icons/AzureValorMedal21.png",
-  "/shop_icons/GlacialHonorCoin22.png",
-  "/shop_icons/CeruleanGloryMedal23.png",
-  "/shop_icons/AzureLaurelMedal24.png",
-  "/shop_icons/GlacialValorMedal26.png",
-  "/shop_icons/FrostHonorCoin27.png",
-  "/shop_icons/SapphireGloryMedal28.png",
-  "/shop_icons/AzureLaurelMedal29.png",
-  "/shop_icons/CeruleanSunCoin30.png",
-  "/shop_icons/FrostHonorCoin32.png",
-  "/shop_icons/AzureGloryMedal33.png",
-  "/shop_icons/AzureSunCoin15.png",
-  "/shop_icons/AzureValorMedal16.png",
-  "/shop_icons/GlacialHonorCoin17.png",
-  "/shop_icons/GlacialGloryMedal18.png",
-  "/shop_icons/SapphireLaurelMedal19.png",
-];
-
-const PURPLE_ICONS: string[] = [
-  "/shop_icons/RoyalHonorCoin42.png",
-  "/shop_icons/GlacialSunCoin10.png",
-  "/shop_icons/CeruleanValorMedal11.png",
-  "/shop_icons/SapphireHonorCoin12.png",
-  "/shop_icons/SapphireGloryMedal13.png",
-  "/shop_icons/SapphireLaurelMedal14.png",
-  "/shop_icons/CeruleanSunCoin25.png",
-  "/shop_icons/FrostValorMedal31.png",
-  "/shop_icons/VioletLaurelMedal34.png",
-  "/shop_icons/ArcaneSunCoin35.png",
-  "/shop_icons/AmethystValorMedal36.png",
-  "/shop_icons/AmethystHonorCoin37.png",
-  "/shop_icons/MysticGloryMedal38.png",
-  "/shop_icons/AmethystLaurelMedal39.png",
-  "/shop_icons/ArcaneSunCoin40.png",
-  "/shop_icons/ArcaneValorMedal41.png",
-  "/shop_icons/ArcaneGloryMedal43.png",
-];
-
-const GOLD_ICONS: string[] = [
-  "/shop_icons/GoldenLaurelMedal44.png",
-  "/shop_icons/SunCoin45.png",
-  "/shop_icons/GildedValorMedal46.png",
-  "/shop_icons/GoldenHonorCoin47.png",
-  "/shop_icons/SolarGloryMedal48.png",
-  "/shop_icons/GoldenLaurelMedal49.png",
-  "/shop_icons/SunCoin50.png",
-];
-
-// Збираємо список у повній черзі і збережемо межі тiрів
-const ICONS_IN_ORDER = [...BLUE_ICONS, ...PURPLE_ICONS, ...GOLD_ICONS];
 const BLUE_END = BLUE_ICONS.length;
 const PURPLE_END = BLUE_ICONS.length + PURPLE_ICONS.length;
 
@@ -96,7 +35,7 @@ const NAMES: string[] = [
   "Radiance Δ","Radiance Ω","Radiance Σ","Time Fold","Archiflux"
 ];
 
-// ↓↓↓ ЦІНА ТЕПЕР ІЗ systems/economy.ts (калібровано під 270 днів) ↓↓↓
+// ↓↓↓ Ціни з systems/economy.ts (налаштовано під 270 днів) ↓↓↓
 const SHOP_ITEMS: ShopItem[] = NAMES.map((name, i) => ({
   id: `shop_${i + 1}`,
   name,

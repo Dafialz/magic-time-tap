@@ -53,9 +53,9 @@ export default function TapArea({
         </div>
       </div>
 
-      {/* CE */}
+      {/* MTP */}
       <section className="stat-card" aria-live="polite">
-        <div className="stat-card__caption">Космічна енергія</div>
+        <div className="stat-card__caption">MegicTimePoint</div>
         <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
       </section>
 
