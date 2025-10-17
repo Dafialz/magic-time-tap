@@ -41,6 +41,7 @@ const BLUE_ICONS: string[] = [
 ];
 
 const PURPLE_ICONS: string[] = [
+  "/shop_icons/RoyalHonorCoin42.png",
   "/shop_icons/GlacialSunCoin10.png",
   "/shop_icons/CeruleanValorMedal11.png",
   "/shop_icons/SapphireHonorCoin12.png",
@@ -56,7 +57,6 @@ const PURPLE_ICONS: string[] = [
   "/shop_icons/AmethystLaurelMedal39.png",
   "/shop_icons/ArcaneSunCoin40.png",
   "/shop_icons/ArcaneValorMedal41.png",
-  "/shop_icons/RoyalHonorCoin42.png",
   "/shop_icons/ArcaneGloryMedal43.png",
 ];
 
