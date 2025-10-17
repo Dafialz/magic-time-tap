@@ -38,16 +38,16 @@ const BLUE_ICONS: string[] = [
   "/shop_icons/CeruleanSunCoin30.png",
   "/shop_icons/FrostHonorCoin32.png",
   "/shop_icons/AzureGloryMedal33.png",
-];
-
-const PURPLE_ICONS: string[] = [
-  "/shop_icons/CeruleanSunCoin25.png",
-  "/shop_icons/FrostValorMedal31.png",
   "/shop_icons/AzureSunCoin15.png",
   "/shop_icons/AzureValorMedal16.png",
   "/shop_icons/GlacialHonorCoin17.png",
   "/shop_icons/GlacialGloryMedal18.png",
   "/shop_icons/SapphireLaurelMedal19.png",
+];
+
+const PURPLE_ICONS: string[] = [
+  "/shop_icons/CeruleanSunCoin25.png",
+  "/shop_icons/FrostValorMedal31.png",
   "/shop_icons/VioletLaurelMedal34.png",
   "/shop_icons/ArcaneSunCoin35.png",
   "/shop_icons/AmethystValorMedal36.png",
