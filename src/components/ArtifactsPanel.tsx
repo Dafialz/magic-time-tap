@@ -1,5 +1,6 @@
 // src/components/ArtifactsPanel.tsx
 import React from "react";
+import { shopPriceAt } from "../systems/economy";
 
 type Props = {
   mgp: number;
@@ -95,13 +96,11 @@ const NAMES: string[] = [
   "Radiance Δ","Radiance Ω","Radiance Σ","Time Fold","Archiflux"
 ];
 
-const BASE = 500;
-const MULT = 1.28;
-
+// ↓↓↓ ЦІНА ТЕПЕР ІЗ systems/economy.ts (калібровано під 270 днів) ↓↓↓
 const SHOP_ITEMS: ShopItem[] = NAMES.map((name, i) => ({
   id: `shop_${i + 1}`,
   name,
-  price: Math.round(BASE * Math.pow(MULT, i)),
+  price: shopPriceAt(i + 1),
   tier: tierByIndex(i),
   icon: ICONS_IN_ORDER[i] || "",
 }));
