@@ -3,12 +3,12 @@ import { buildCraftItems } from "../systems/economy";
 import { iconByLevel } from "../systems/shop_icons";
 
 /**
- * CraftPanel 3×7 (21 слот):
+ * CraftPanel (21 слот):
  * - Клік по слоту: купити L1 або апґрейд до L+1 (за mgp)
  * - Drag & Drop:
- *    • перетяг на порожній слот → перенесення
- *    • перетяг на такий самий рівень → злиття L + L = L+1 (безкоштовно)
- *    • перетяг на $ → продаж за 70% ціни поточного рівня
+ *    • на порожній → перемістити
+ *    • на такий самий рівень → злиття L + L = L+1
+ *    • на $ → продаж за 70% ціни поточного рівня
  */
 
 type CraftItem = {
@@ -85,13 +85,13 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
 
     const srcIdx = data.index as number;
     const lvl = data.level as number;
-    if (srcIdx === targetIdx) return; // дропнули в себе
+    if (srcIdx === targetIdx) return; // у себе
 
     const srcLevelNow = slots[srcIdx] || 0;
     const dstLevelNow = slots[targetIdx] || 0;
-    if (srcLevelNow !== lvl || lvl <= 0) return; // захист від розсинхрону
+    if (srcLevelNow !== lvl || lvl <= 0) return; // захист
 
-    // 1) Переміщення на порожній слот
+    // 1) Переміщення на порожній
     if (dstLevelNow === 0) {
       setSlots(prev => {
         const copy = [...prev];
@@ -102,9 +102,9 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       return;
     }
 
-    // 2) Злиття однакових рівнів → L+1 (безкоштовно)
+    // 2) Злиття однакових рівнів → L+1
     if (dstLevelNow === srcLevelNow) {
-      if (dstLevelNow >= 50) return; // максимум
+      if (dstLevelNow >= 50) return;
       setSlots(prev => {
         const copy = [...prev];
         copy[targetIdx] = Math.min(dstLevelNow + 1, 50);
@@ -113,14 +113,11 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       });
       return;
     }
-
-    // 3) Інакше — нічого (рівні різні)
   };
 
   // ---- Drag & Sell (на «$»)
   const onDollarDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOverDollar(true); };
   const onDollarDragLeave = () => setDragOverDollar(false);
-
   const onDollarDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverDollar(false);
@@ -139,6 +136,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     const curDef = defOf(lvl);
     if (!curDef) return;
 
+    // 70% від вартості поточного рівня
     const sellGain = round2(curDef.price_mgp * 0.7);
     setMgp(v => round2(v + sellGain));
     setSlots(prev => {
@@ -193,12 +191,12 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
           return (
             <button
               key={i}
-              className={`cell ${lvl ? "has" : ""} ${dropClass}`}
+              className={`cell tile ${lvl ? "has" : ""} ${dropClass}`}
               onClick={() => !maxed && handleClick(i)}
               disabled={maxed || !nextDef || mgp < (nextDef?.price_mgp ?? Infinity)}
               title={
                 maxed
-                  ? "Максимальний рівень"
+                  ? "MAX"
                   : lvl
                   ? `L${lvl} → L${next} • ${coin(nextDef!.price_mgp)} mgp`
                   : `Купити L1 • ${coin(nextDef!.price_mgp)} mgp`
@@ -210,25 +208,18 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
               onDragLeave={(e) => onCellDragLeave(e, i)}
               onDrop={(e) => onCellDrop(e, i)}
             >
-              <div className="cell-row">
-                <div className="cell-icon">
-                  {icon ? (
-                    <img src={icon} alt={`L${lvl}`} className="cell-icon-img" />
-                  ) : (
-                    <span className="cell-icon-badge">+</span>
-                  )}
+              <div className="tile-fig">
+                {icon ? (
+                  <img src={icon} alt={`L${lvl}`} className="tile-img" />
+                ) : (
+                  <span className="tile-plus">+</span>
+                )}
+                <span className="tile-lvl">{maxed ? "MAX" : (lvl ? `L${lvl}` : `L1`)}</span>
+                <div className="tile-sub">
+                  {lvl > 0
+                    ? `${coin(curDef!.income_per_hour_mgp)}/год`
+                    : nextDef ? `${coin(nextDef.price_mgp)} mgp` : ""}
                 </div>
-
-                <div className="cell-texts">
-                  <div className="cell-title">{curDef?.name ?? "Порожньо"}</div>
-                  <div className="cell-sub">
-                    {lvl > 0
-                      ? `${coin(curDef!.income_per_hour_mgp)}/год`
-                      : nextDef ? `L1: ${coin(nextDef.price_mgp)} mgp` : ""}
-                  </div>
-                </div>
-
-                <div className="cell-level">{maxed ? "MAX" : (lvl ? `L${lvl}` : "")}</div>
               </div>
             </button>
           );

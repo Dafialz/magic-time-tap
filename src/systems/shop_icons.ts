@@ -1,5 +1,6 @@
-// Порядок іконок 1..50: спочатку BLUE, потім PURPLE, вкінці GOLD.
-// Шляхи абсолютні з /public/shop_icons
+// ===== Magic Time — Shop & Craft icons =====
+// Шляхи абсолютні з /public: /shop_icons/...
+
 export const BLUE_ICONS: string[] = [
   "/shop_icons/SapphireValorMedal1.png",
   "/shop_icons/SapphireHonorCoin2.png",
@@ -59,10 +60,8 @@ export const GOLD_ICONS: string[] = [
   "/shop_icons/SunCoin50.png",
 ];
 
-export const ICONS_IN_ORDER = [...BLUE_ICONS, ...PURPLE_ICONS, ...GOLD_ICONS];
-
-// Повертає іконку для рівня L (1..50). Якщо немає — порожній рядок.
-export function iconByLevel(level: number): string {
-  const idx = Math.max(1, Math.min(50, level)) - 1;
-  return ICONS_IN_ORDER[idx] || "";
-}
+export const ICONS_IN_ORDER: string[] = [
+  ...BLUE_ICONS,
+  ...PURPLE_ICONS,
+  ...GOLD_ICONS,
+];
