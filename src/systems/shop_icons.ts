@@ -1,5 +1,6 @@
+// src/systems/shop_icons.ts
 // ===== Magic Time — Shop & Craft icons =====
-// Шляхи абсолютні з /public: /shop_icons/...
+// Абсолютні шляхи з /public: /shop_icons/...
 
 export const BLUE_ICONS: string[] = [
   "/shop_icons/SapphireValorMedal1.png",
@@ -60,8 +61,23 @@ export const GOLD_ICONS: string[] = [
   "/shop_icons/SunCoin50.png",
 ];
 
+/** Іконки в правильному порядку: BLUE → PURPLE → GOLD (50 шт.) */
 export const ICONS_IN_ORDER: string[] = [
   ...BLUE_ICONS,
   ...PURPLE_ICONS,
   ...GOLD_ICONS,
 ];
+
+/** Дати шлях до іконки для рівня (1..50). Якщо рівень > 50 — йдемо по колу. */
+export function iconByLevel(level: number): string {
+  if (!ICONS_IN_ORDER.length) return "";
+  const idx = Math.max(1, Math.floor(level)) - 1;
+  return ICONS_IN_ORDER[idx % ICONS_IN_ORDER.length];
+}
+
+/** Зручно для магазину: повертає масив іконок заданої довжини. */
+export function iconsForShop(count = 50): string[] {
+  const out: string[] = [];
+  for (let i = 1; i <= count; i++) out.push(iconByLevel(i));
+  return out;
+}
