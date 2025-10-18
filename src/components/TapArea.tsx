@@ -84,7 +84,7 @@ export default function TapArea({
       </button>
 
       <p className="tap-hint">
-        Натискай, щоб збирати Часову Енергію
+        Натискай, щоб збирати <b>MTP</b>
         {!meteorVisible && <> • Метеор через ~{spawnIn}s</>}
       </p>
     </div>

@@ -203,11 +203,11 @@ export default function App() {
     return base * mgpPrestigeMult(prestiges);
   }, [craftSlots, prestiges]);
 
-  // TAP: тепер додаємо **і MGP**, щоб можна було відразу купувати в "Артефактах"
+  // TAP: додаємо **і MGP**
   const onClickTap = () => {
     const inc = clickPower * effectiveClickMult;
-    setCe(prev => prev + inc);        // CE лишаємо як було (для інших систем)
-    setMgp(prev => prev + inc);       // <-- головне: додаємо MGP за тап
+    setCe(prev => prev + inc);        // CE лишаємо як було
+    setMgp(prev => prev + inc);       // MTP (MGP) зростає від тапу
     setTotalEarned(te => te + inc);
     if (bossActive) setBossHP(hp => Math.max(0, hp - clickPower));
   };
@@ -349,7 +349,7 @@ export default function App() {
         {activeTab === "tap" && (
           <TapArea
             onTap={onClickTap}
-            currentEnergy={ce}
+            currentEnergy={mgp}           
             meteorVisible={meteorVisible}
             onMeteorClick={onMeteorClick}
             meteorBuffLeft={meteorBuffLeft}
@@ -401,7 +401,6 @@ export default function App() {
         )}
       </main>
 
-      {/* футер тепер лише на головній */}
       {activeTab === "tap" && (
         <footer style={{ paddingBottom: 80 }}>
           <small>Білд: артефакти, крафт, інвентар, скіни, епохи, метеорит, боси, офлайн-доход.</small>
