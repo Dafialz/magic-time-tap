@@ -13,7 +13,7 @@ export type Upgrade = {
 
 type Props = {
   upgrades: Upgrade[];
-  ce: number;
+  ce: number;                 // лишаємо як є, щоб не ламати пропси
   getCost: (u: Upgrade) => number;
   buyUpgrade: (u: Upgrade) => void;
 };
@@ -30,7 +30,7 @@ export default function UpgradesList({ upgrades, ce, getCost, buyUpgrade }: Prop
             <div key={u.id} className="upgrade">
               <div className="u-info">
                 <div className="u-name">{u.name} (рів. {u.level})</div>
-                <div className="u-cost">Вартість: {formatNum(cost)} CE</div>
+                <div className="u-cost">Вартість: {formatNum(cost)} MTP</div>
               </div>
               <button onClick={() => buyUpgrade(u)} disabled={disabled}>Купити</button>
             </div>
