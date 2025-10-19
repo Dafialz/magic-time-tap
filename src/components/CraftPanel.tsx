@@ -8,7 +8,7 @@ import { iconByLevel } from "../systems/shop_icons";
  * - Drag & Drop:
  *    • на порожній → перемістити
  *    • на такий самий рівень → злиття L + L = L+1
- *    • на $ → продаж за 70% від СУМИ цін L1..L(поточний)
+ *    • на $ → продаж за 70% від СУМИ цін L1..L
  */
 
 type CraftItem = {
@@ -47,7 +47,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     let sum = 0;
     for (let k = 1; k <= lvl; k++) {
       const d = defOf(k);
-      if (d) sum += d.price_mgp;
+      if (d) sum += d!.price_mgp;
     }
     return sum;
   };

@@ -70,22 +70,11 @@ body{
   background: color-mix(in oklab, var(--mtp-bg) 80%, transparent);
   border:1px solid color-mix(in oklab, #fff 7%, var(--mtp-border));
   box-shadow: 0 8px 18px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.03);
-
-  /* >>> центрування картки та тексту <<< */
-  justify-items:center;           /* по центру по горизонталі */
-  text-align:center;              /* заголовок + баланс по центру */
-}
-.stat-card__caption{
-  font-weight:900; letter-spacing:.2px; opacity:.95;
-
-  /* >>> бірюзовий заголовок <<< */
-  color:#66ffd8;
-}
-.stat-card__value{
-  font-size:clamp(26px,7.6vw,42px); font-weight:900;
-  /* теж по центру (на випадок спадкування деінде) */
+  justify-items:center; /* по центру */
   text-align:center;
 }
+.stat-card__caption{ font-weight:900; letter-spacing:.2px; opacity:.95; color:#66ffd8; }
+.stat-card__value{ font-size:clamp(26px,7.6vw,42px); font-weight:900; text-align:center; }
 
 /* ===== Метеор ===== */
 .meteor-card{
@@ -145,16 +134,29 @@ body{
 @media (max-width: 360px){ .bottom-nav{ gap:6px; padding:10px 10px calc(10px + env(safe-area-inset-bottom)); } .bn-card{ height:46px; } .bn-label{ font-size:10.5px; } }
 
 /* ===== CRAFT (квадратні плитки) ===== */
+
+/* зробили розділ довшим — запас під довгий тап */
+.craft{
+  padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px));
+}
+
 .craft .craft-grid{
   display:grid;
   grid-template-columns: repeat(4, 1fr); /* 4 колонки — компактно */
   gap:8px; width:100%; max-width:560px; margin:8px auto 12px;
 }
+
 .craft .cell{
   appearance:none; border:1px solid color-mix(in oklab, #fff 7%, var(--mtp-border));
   background: color-mix(in oklab, var(--mtp-bg) 78%, transparent);
   box-shadow: 0 6px 14px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.03);
   border-radius:12px; color:var(--mtp-text); cursor:pointer;
+
+  /* анти long-press/контекстне меню */
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  touch-action: manipulation;
 }
 .craft .cell.tile{
   position:relative; padding:6px; aspect-ratio: 1 / 1; min-height:0; overflow:hidden;
