@@ -21,6 +21,11 @@ body{
   background-attachment:fixed,fixed;
   min-height:100dvh;
   overflow-y:auto;
+
+  /* анти long-press меню */
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
 }
 
 #root{
@@ -49,7 +54,44 @@ body{
 }
 .hero__img{ width:100%; height:100%; object-fit:contain; opacity:.9;
   filter: drop-shadow(0 0 14px rgba(40,231,168,.55)) drop-shadow(0 0 32px rgba(111,82,255,.35))
-          saturate(1.15) brightness(1.08); }
+          saturate(1.15) brightness(1.08);
+  pointer-events:none;  /* щоб довгий тап по зображенню не відкривав меню */
+}
+.hero__tap{
+  position:absolute; inset:0; border:0; background:transparent; cursor:pointer;
+  -webkit-tap-highlight-color:transparent; outline:none;
+}
+
+/* ===== Статистика (MegicTimePoint) ===== */
+.stat-card{
+  margin:6px auto 10px; width:100%; max-width:560px;
+  display:grid; grid-template-columns:1fr; gap:6px;
+  padding:10px 12px; border-radius:14px;
+  background: color-mix(in oklab, var(--mtp-bg) 80%, transparent);
+  border:1px solid color-mix(in oklab, #fff 7%, var(--mtp-border));
+  box-shadow: 0 8px 18px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.03);
+}
+.stat-card__caption{ font-weight:900; letter-spacing:.2px; opacity:.9; }
+.stat-card__value{ font-size:clamp(26px,7.6vw,42px); font-weight:900; }
+
+/* ===== Метеор ===== */
+.meteor-card{
+  width:100%; max-width:560px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px;
+  padding:12px; border-radius:14px; margin:4px auto 10px;
+  border:1px solid color-mix(in oklab, #fff 7%, var(--mtp-border));
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--mtp-grad-b) 10%, transparent),
+    color-mix(in oklab, var(--mtp-bg) 86%, transparent));
+  color:inherit; text-align:left;
+  box-shadow: 0 10px 26px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.03);
+  appearance:none; cursor:pointer; border:0;
+  -webkit-tap-highlight-color:transparent;
+}
+.meteor-card__icon{ font-size:20px; filter: drop-shadow(0 0 8px rgba(255,255,255,.25)); }
+.meteor-card__title{ font-weight:900; }
+.meteor-card__subtitle{ opacity:.9; font-size:14px; }
+.meteor-card__bonus{ font-weight:900; display:grid; justify-items:end; gap:2px; }
+.meteor-card__bonus small{ opacity:.8; }
 
 /* ===== BottomNav ===== */
 .bottom-nav{

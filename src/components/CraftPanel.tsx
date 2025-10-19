@@ -3,12 +3,12 @@ import { buildCraftItems } from "../systems/economy";
 import { iconByLevel } from "../systems/shop_icons";
 
 /**
- * CraftPanel (21 слот):
+ * CraftPanel (20 слотів):
  * - Клік по слоту: купити L1 або апґрейд до L+1 (за mgp)
  * - Drag & Drop:
  *    • на порожній → перемістити
  *    • на такий самий рівень → злиття L + L = L+1
- *    • на $ → продаж за 70% ціни поточного рівня
+ *    • на $ → продаж за 70% від СУМИ цін L1..L(поточний)
  */
 
 type CraftItem = {
@@ -22,10 +22,12 @@ type CraftItem = {
 type Props = {
   mgp: number;
   setMgp: React.Dispatch<React.SetStateAction<number>>;
-  slots: number[]; // 21 елемент (0..50)
+  slots: number[]; // 20 елементів (0..50)
   setSlots: React.Dispatch<React.SetStateAction<number[]>>;
   items?: CraftItem[];
 };
+
+const SLOTS_COUNT = 20;
 
 function round2(n: number) { return Math.round(n * 100) / 100; }
 const coin = (n: number) => n.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
@@ -39,6 +41,16 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
 
   const defOf = (lvl: number | undefined) =>
     typeof lvl === "number" && lvl >= 1 && lvl <= 50 ? defs[lvl - 1] : undefined;
+
+  // підрахунок інвестованої вартості у предмет L: сума цін L1..L
+  const investedIntoLevel = (lvl: number) => {
+    let sum = 0;
+    for (let k = 1; k <= lvl; k++) {
+      const d = defOf(k);
+      if (d) sum += d.price_mgp;
+    }
+    return sum;
+  };
 
   // ==== Клік-купівля/апґрейд (за mgp)
   const handleClick = (index: number) => {
@@ -133,11 +145,10 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     if (idx < 0 || idx >= slots.length) return;
     if (slots[idx] !== lvl || lvl <= 0) return;
 
-    const curDef = defOf(lvl);
-    if (!curDef) return;
+    // 70% від СУМИ цін L1..L
+    const invested = investedIntoLevel(lvl);
+    const sellGain = round2(invested * 0.7);
 
-    // 70% від вартості поточного рівня
-    const sellGain = round2(curDef.price_mgp * 0.7);
     setMgp(v => round2(v + sellGain));
     setSlots(prev => {
       const copy = [...prev];
@@ -164,9 +175,9 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     <section className="craft">
       <h2>Крафт артефактів</h2>
       <p>
-        Сітка <b>3×7</b>. Клік — купити/апгрейд за mgp. Перетягни:
-        <b> на порожній</b> — перемістити; <b>на такий самий рівень</b> — злиття <b>L+L= L+1</b>;
-        на <b>$</b> — продати (70%).
+        <b>20 слотів.</b> Клік — купити/апгрейд за mgp. Перетягни:
+        <b> на порожній</b> — перемістити; <b>на такий самий рівень</b> — злиття <b>L+L = L+1</b>;
+        на <b>$</b> — продати (70% від суми цін L1..L).
       </p>
 
       <div className="row" style={{ opacity: .9, marginBottom: 8 }}>
@@ -174,7 +185,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       </div>
 
       <div className="craft-grid">
-        {Array.from({ length: 21 }).map((_, i) => {
+        {Array.from({ length: SLOTS_COUNT }).map((_, i) => {
           const lvl = slots[i] || 0;
           const next = Math.min(lvl + 1 || 1, 50);
           const curDef = defOf(lvl);
@@ -229,7 +240,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       {/* Ціль для дропа продажу */}
       <button
         className={`craft-dollar ${dragOverDollar ? "drag-over" : ""}`}
-        title="Перетягни сюди предмет, щоб продати за 70% ціни рівня"
+        title="Перетягни сюди предмет, щоб продати за 70% від суми інвестицій"
         onDragOver={(e) => { e.preventDefault(); setDragOverDollar(true); }}
         onDragLeave={() => setDragOverDollar(false)}
         onDrop={onDollarDrop}

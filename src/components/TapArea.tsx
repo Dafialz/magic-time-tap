@@ -29,9 +29,12 @@ export default function TapArea({
   const buffLeft = Math.max(0, Math.floor(meteorBuffLeft));
 
   return (
-    <div className="tap-area">
+    <div
+      className="tap-area"
+      onContextMenu={(e) => e.preventDefault()} // блокуємо контекстне меню (long-press)
+    >
       {/* HERO */}
-      <div className="hero" style={{ position: "relative", userSelect: "none" }}>
+      <div className="hero" style={{ position: "relative" }}>
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
         {/* Годинник фіксованого розміру */}
@@ -83,10 +86,7 @@ export default function TapArea({
         </div>
       </button>
 
-      <p className="tap-hint">
-        Натискай, щоб збирати <b>MTP</b>
-        {!meteorVisible && <> • Метеор через ~{spawnIn}s</>}
-      </p>
+      {/* підказку знизу прибрано за твоїм проханням */}
     </div>
   );
 }
