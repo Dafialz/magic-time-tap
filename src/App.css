@@ -70,9 +70,22 @@ body{
   background: color-mix(in oklab, var(--mtp-bg) 80%, transparent);
   border:1px solid color-mix(in oklab, #fff 7%, var(--mtp-border));
   box-shadow: 0 8px 18px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.03);
+
+  /* >>> центрування картки та тексту <<< */
+  justify-items:center;           /* по центру по горизонталі */
+  text-align:center;              /* заголовок + баланс по центру */
 }
-.stat-card__caption{ font-weight:900; letter-spacing:.2px; opacity:.9; }
-.stat-card__value{ font-size:clamp(26px,7.6vw,42px); font-weight:900; }
+.stat-card__caption{
+  font-weight:900; letter-spacing:.2px; opacity:.95;
+
+  /* >>> бірюзовий заголовок <<< */
+  color:#66ffd8;
+}
+.stat-card__value{
+  font-size:clamp(26px,7.6vw,42px); font-weight:900;
+  /* теж по центру (на випадок спадкування деінде) */
+  text-align:center;
+}
 
 /* ===== Метеор ===== */
 .meteor-card{

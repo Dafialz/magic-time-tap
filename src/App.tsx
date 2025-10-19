@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect, useMemo, useState } from "react";
 import { loadState, scheduleSave, wipeSave } from "./core/storage";
 import type { SaveState, ArtifactInstance } from "./core/storage";
@@ -206,8 +207,8 @@ export default function App() {
   // TAP: додаємо **і MGP**
   const onClickTap = () => {
     const inc = clickPower * effectiveClickMult;
-    setCe(prev => prev + inc);        // CE лишаємо як було
-    setMgp(prev => prev + inc);       // MTP (MGP) зростає від тапу
+    setCe(prev => prev + inc);
+    setMgp(prev => prev + inc);
     setTotalEarned(te => te + inc);
     if (bossActive) setBossHP(hp => Math.max(0, hp - clickPower));
   };
@@ -349,7 +350,7 @@ export default function App() {
         {activeTab === "tap" && (
           <TapArea
             onTap={onClickTap}
-            currentEnergy={mgp}           
+            currentEnergy={mgp}            // показуємо MGP як MegicTimePoint
             meteorVisible={meteorVisible}
             onMeteorClick={onMeteorClick}
             meteorBuffLeft={meteorBuffLeft}
@@ -400,15 +401,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {activeTab === "tap" && (
-        <footer style={{ paddingBottom: 80 }}>
-          <small>Білд: артефакти, крафт, інвентар, скіни, епохи, метеорит, боси, офлайн-доход.</small>
-          <div style={{ marginTop: 8 }}>
-            <button onClick={() => { wipeSave(); window.location.reload(); }}>Новий початок (очистити сейв)</button>
-          </div>
-        </footer>
-      )}
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
