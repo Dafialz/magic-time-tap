@@ -149,13 +149,15 @@ export default function App() {
     setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
     setEquippedSkinId(sAny.equippedSkinId ?? "classic");
 
+    // ОФЛАЙН-ДОХІД: додаємо і в CE (для апгрейдів), і в MTP (mgp), але повідомляємо як MTP
     if (sAny.lastSeenAt && sAny.autoPerSec) {
       const secsAway = Math.min(12 * 3600, Math.floor((now - sAny.lastSeenAt) / 1000));
       const gain = sAny.autoPerSec * epochByLevel(sAny.level ?? 1).mult * sAny.farmMult * secsAway;
       if (gain > 0) {
         setCe(v => v + gain);
+        setMgp(v => v + gain);
         setTotalEarned(te => te + gain);
-        setTimeout(() => alert(`Поки тебе не було: +${formatNum(gain)} CE`), 60);
+        setTimeout(() => alert(`Поки тебе не було: +${formatNum(gain)} MTP`), 60);
       }
     }
   }, []);
@@ -207,8 +209,8 @@ export default function App() {
   // TAP: додаємо **і MGP**
   const onClickTap = () => {
     const inc = clickPower * effectiveClickMult;
-    setCe(prev => prev + inc);
-    setMgp(prev => prev + inc);
+    setCe(prev => prev + inc);   // лишаємо CE для апгрейдів
+    setMgp(prev => prev + inc);  // головна валюта на головному екрані
     setTotalEarned(te => te + inc);
     if (bossActive) setBossHP(hp => Math.max(0, hp - clickPower));
   };
@@ -222,7 +224,7 @@ export default function App() {
         setTotalEarned(te => te + inc);
         if (bossActive) setBossHP(hp => Math.max(0, hp - autoPerSec));
       }
-      // MGP: додаємо щосекунди
+      // MGP: додаємо щосекунди з крафт-сітки
       if (mgpIncomePerHour > 0) {
         setMgp(v => v + mgpIncomePerHour / 3600);
       }
@@ -350,7 +352,7 @@ export default function App() {
         {activeTab === "tap" && (
           <TapArea
             onTap={onClickTap}
-            currentEnergy={mgp}            // показуємо MGP як MegicTimePoint
+            currentEnergy={mgp}            // показуємо MTP (mgp)
             meteorVisible={meteorVisible}
             onMeteorClick={onMeteorClick}
             meteorBuffLeft={meteorBuffLeft}
