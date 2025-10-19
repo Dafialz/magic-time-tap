@@ -9,9 +9,7 @@ type Props = {
   addToCraft: (levelToPlace?: number) => boolean;
 };
 
-/* ================= ІКОНКИ ТЕПЕР ІЗ systems/shop_icons.ts =================
-   Порядок: BLUE (дешеві) → PURPLE → GOLD (дорогі).
-*/
+/* ================= ІКОНИ І ТІРИ ================= */
 const BLUE_END = BLUE_ICONS.length;
 const PURPLE_END = BLUE_ICONS.length + PURPLE_ICONS.length;
 
@@ -35,7 +33,7 @@ const NAMES: string[] = [
   "Radiance Δ","Radiance Ω","Radiance Σ","Time Fold","Archiflux"
 ];
 
-// ↓↓↓ Ціни з systems/economy.ts (налаштовано під 270 днів) ↓↓↓
+// ціни з economy
 const SHOP_ITEMS: ShopItem[] = NAMES.map((name, i) => ({
   id: `shop_${i + 1}`,
   name,
@@ -44,7 +42,7 @@ const SHOP_ITEMS: ShopItem[] = NAMES.map((name, i) => ({
   icon: ICONS_IN_ORDER[i] || "",
 }));
 
-/* ====== Іконка з простим fallback (без DOM-маніпуляцій) ====== */
+/* ====== Іконка з простим fallback ====== */
 function IconWithFallback({ src, name, tier }: { src?: string; name: string; tier: Tier }) {
   const [broken, setBroken] = React.useState(false);
   if (!src || broken) {
@@ -54,10 +52,14 @@ function IconWithFallback({ src, name, tier }: { src?: string; name: string; tie
   return <img src={src} alt={name} className="shop-icon-img" onError={() => setBroken(true)} />;
 }
 
+/* ====== Мапа “позиція в магазині → рівень у крафті” ====== */
+const levelFromShopIndex = (index: number) => index + 1;
+
 export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
-  const tryBuy = (item: ShopItem) => {
+  const tryBuy = (item: ShopItem, index: number) => {
     if (mgp < item.price) { alert("Не вистачає MGP"); return; }
-    const placed = addToCraft(1);
+    const levelToPlace = levelFromShopIndex(index);
+    const placed = addToCraft(levelToPlace);
     if (!placed) return;
     setMgp(v => v - item.price);
   };
@@ -68,7 +70,7 @@ export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
       <div className="shop-balance">Баланс: <b>{Math.floor(mgp).toLocaleString("uk-UA")}</b> mgp</div>
 
       <div className="shop-list">
-        {SHOP_ITEMS.map((it) => {
+        {SHOP_ITEMS.map((it, idx) => {
           const enough = mgp >= it.price;
           return (
             <div key={it.id} className={`shop-item ${enough ? "can" : ""} tier-${it.tier}`}>
@@ -79,7 +81,11 @@ export default function ArtifactsPanel({ mgp, setMgp, addToCraft }: Props) {
                   <div className="shop-sub">Ціна: {it.price.toLocaleString("uk-UA")} mgp</div>
                 </div>
               </div>
-              <button className="shop-buy" disabled={!enough} onClick={() => tryBuy(it)}>
+              <button
+                className="shop-buy"
+                disabled={!enough}
+                onClick={() => tryBuy(it, idx)}
+              >
                 {enough ? "КУПИТИ" : "Не вистачає"}
               </button>
             </div>
