@@ -371,6 +371,8 @@ export default function App() {
             meteorSpawnIn={meteorSpawnIn}
             meteorBonus={0}
             meteorMultiplier={GOLDEN_METEOR.mult}
+            // NEW: зарахування щоденного бонусу
+            onDailyBonusClaim={(amount) => setMgp(v => v + amount)}
           />
         )}
 
