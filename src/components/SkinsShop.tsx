@@ -2,7 +2,7 @@
 import React from "react";
 import { iconByLevel } from "../systems/shop_icons";
 
-/* ===== Пули іконок (залишені про запас; іконку лута показуємо через iconByLevel(level)) ===== */
+/* ===== Пули іконок (колірні набори) ===== */
 const BLUE_POOL = [
   "/shop_icons/SapphireValorMedal1.png",
   "/shop_icons/SapphireHonorCoin2.png",
@@ -69,11 +69,21 @@ type Chest = {
   priceTon: number;
   chestImg: string;
   pool: string[];
-  weights: number[]; // поки не використовуємо для іконки
+  weights: number[]; // (залишено на майбутнє)
 };
 
 function powerWeights(poolLen: number, k: number): number[] {
   return Array.from({ length: poolLen }, (_, i) => 1 / Math.pow(i + 1, k));
+}
+
+/** Витягаємо рівні з імен файлів …NN.png */
+function levelsFromFilenames(pool: string[]): number[] {
+  const set = new Set<number>();
+  for (const p of pool) {
+    const m = p.match(/(\d+)\.png$/);
+    if (m) set.add(parseInt(m[1], 10));
+  }
+  return Array.from(set).sort((a, b) => a - b);
 }
 
 const CHESTS: Chest[] = [
@@ -82,20 +92,17 @@ const CHESTS: Chest[] = [
   { tier: "gold",   title: "Gilded Chest",   priceTon: 3, chestImg: "/chests/GildedChest.png",   pool: GOLD_POOL,   weights: powerWeights(GOLD_POOL.length, 1.8)   },
 ];
 
-function rndInt(a: number, b: number) {
-  return Math.floor(Math.random() * (b - a + 1)) + a;
-}
-function rollLevelForTier(tier: Tier) {
-  if (tier === "blue")   return rndInt(1, 5);
-  if (tier === "purple") return rndInt(6, 10);
-  return rndInt(11, 15); // gold
-}
+const LEVELS_BY_TIER: Record<Tier, number[]> = {
+  blue:   levelsFromFilenames(BLUE_POOL),
+  purple: levelsFromFilenames(PURPLE_POOL),
+  gold:   levelsFromFilenames(GOLD_POOL),
+};
 
 type Props = {
   ownedSkins?: string[];
   equippedSkinId?: string;
   buySkin?: (id: string, price: number) => void;
-  /** Подія лута — App кладе предмет у крафт */
+  /** Коли випадає лут — App кладе предмет у крафт */
   onLoot?: (payload: { level: number; icon: string; chest: Chest }) => void;
 };
 
@@ -103,16 +110,16 @@ export default function SkinsShop(props: Props) {
   const [openState, setOpenState] = React.useState<{ chest?: Chest; icon?: string }>({});
 
   const openChest = (chest: Chest) => {
-    // 1) Рівень визначаємо по тиру
-    const level = rollLevelForTier(chest.tier);
-    // 2) Іконку беремо ТІЛЬКИ з iconByLevel(level), як у крафті (гарантований збіг)
+    // 1) Обираємо рівень ТІЛЬКИ з дозволених для кольору скрині
+    const levels = LEVELS_BY_TIER[chest.tier];
+    if (!levels.length) return;
+    const level = levels[Math.floor(Math.random() * levels.length)];
+
+    // 2) Іконку показуємо через iconByLevel(level) — точно співпаде з крафтом
     const icon = iconByLevel(level);
 
-    // показати попап з тією ж іконкою, що буде в крафті
-    setOpenState({ chest, icon });
-
-    // повідомити додаток — хай кладе у сітку (без зміни вкладки)
-    props.onLoot?.({ level, icon, chest });
+    setOpenState({ chest, icon });            // попап
+    props.onLoot?.({ level, icon, chest });   // у крафт
   };
 
   const closeModal = () => setOpenState({});
