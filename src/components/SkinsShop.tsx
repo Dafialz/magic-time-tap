@@ -1,7 +1,9 @@
 // src/components/SkinsShop.tsx
 import React from "react";
+import { iconByLevel } from "../systems/shop_icons";
 
-/* ===== Пули іконок (як у магазині) ===== */
+/* ===== Пули іконок (залишаємо для майбутнього, але для відображення лута тепер
+   використовуємо iconByLevel(level), щоб збігалося з крафтом) ===== */
 const BLUE_POOL = [
   "/shop_icons/SapphireValorMedal1.png",
   "/shop_icons/SapphireHonorCoin2.png",
@@ -68,7 +70,7 @@ type Chest = {
   priceTon: number;
   chestImg: string;
   pool: string[];
-  weights: number[];
+  weights: number[]; // поки не використовуємо для іконки
 };
 
 function powerWeights(poolLen: number, k: number): number[] {
@@ -81,20 +83,9 @@ const CHESTS: Chest[] = [
   { tier: "gold",   title: "Gilded Chest",   priceTon: 3, chestImg: "/chests/GildedChest.png",   pool: GOLD_POOL,   weights: powerWeights(GOLD_POOL.length, 1.8)   },
 ];
 
-function pickWeighted(pool: string[], weights: number[]): string {
-  const sum = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * sum;
-  for (let i = 0; i < pool.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return pool[i];
-  }
-  return pool[pool.length - 1];
-}
-
 function rndInt(a: number, b: number) {
   return Math.floor(Math.random() * (b - a + 1)) + a;
 }
-
 function rollLevelForTier(tier: Tier) {
   if (tier === "blue")   return rndInt(1, 5);
   if (tier === "purple") return rndInt(6, 10);
@@ -102,10 +93,12 @@ function rollLevelForTier(tier: Tier) {
 }
 
 type Props = {
+  // лишили сумісність із попереднім інтерфейсом
   ownedSkins?: string[];
   equippedSkinId?: string;
   buySkin?: (id: string, price: number) => void;
-  /** подія лута — повідомляємо App, який кладе предмет у крафт */
+
+  /** Подія лута — App кладе предмет у крафт */
   onLoot?: (payload: { level: number; icon: string; chest: Chest }) => void;
 };
 
@@ -113,13 +106,15 @@ export default function SkinsShop(props: Props) {
   const [openState, setOpenState] = React.useState<{ chest?: Chest; icon?: string }>({});
 
   const openChest = (chest: Chest) => {
-    const icon = pickWeighted(chest.pool, chest.weights);
+    // 1) Рівень визначаємо по тиру
     const level = rollLevelForTier(chest.tier);
+    // 2) Іконку беремо ТІЛЬКИ з iconByLevel(level), як у крафті
+    const icon = iconByLevel(level);
 
-    // показати локальний лут-попап
+    // показати попап з тією ж іконкою, що буде в крафті
     setOpenState({ chest, icon });
 
-    // і дати знати додатку (додати у крафт)
+    // повідомити додаток — хай кладе у сітку
     props.onLoot?.({ level, icon, chest });
   };
 
