@@ -33,6 +33,8 @@ import BottomNav, { TabKey } from "./components/BottomNav";
 import AppModal from "./components/AppModal";
 
 const CRAFT_SLOT_COUNT = 21;
+// NEW: ліміт офлайн-фарму — 3 години
+const OFFLINE_CAP_SECS = 3 * 3600;
 
 export default function App() {
   // ===== Tabs
@@ -154,9 +156,9 @@ export default function App() {
     setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
     setEquippedSkinId(sAny.equippedSkinId ?? "classic");
 
-    // ОФЛАЙН-ДОХІД → показуємо КРАСИВИЙ попап (AppModal)
+    // ОФЛАЙН-ДОХІД → ліміт 3 години
     if (sAny.lastSeenAt && sAny.autoPerSec) {
-      const secsAway = Math.min(12 * 3600, Math.floor((now - sAny.lastSeenAt) / 1000));
+      const secsAway = Math.min(OFFLINE_CAP_SECS, Math.floor((now - sAny.lastSeenAt) / 1000));
       const gain = sAny.autoPerSec * epochByLevel(sAny.level ?? 1).mult * sAny.farmMult * secsAway;
       if (gain > 0) {
         setCe(v => v + gain);
