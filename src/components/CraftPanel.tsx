@@ -8,7 +8,7 @@ import { iconByLevel } from "../systems/shop_icons";
  * - Drag & Drop:
  *    • на порожній → перемістити
  *    • на такий самий рівень → злиття L + L = L+1
- *    • на $ → продаж за 70% від СУМИ цін L1..L
+ *    • на $ → продаж за 70% від ЦІНИ поточного рівня
  */
 
 type CraftItem = {
@@ -42,14 +42,10 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
   const defOf = (lvl: number | undefined) =>
     typeof lvl === "number" && lvl >= 1 && lvl <= 50 ? defs[lvl - 1] : undefined;
 
-  // підрахунок інвестованої вартості у предмет L: сума цін L1..L
-  const investedIntoLevel = (lvl: number) => {
-    let sum = 0;
-    for (let k = 1; k <= lvl; k++) {
-      const d = defOf(k);
-      if (d) sum += d!.price_mgp;
-    }
-    return sum;
+  // 70% від ціни поточного рівня (універсально для L1..L50)
+  const sellValueForLevel = (lvl: number) => {
+    const d = defOf(lvl);
+    return d ? d.price_mgp * 0.7 : 0;
   };
 
   // ==== Клік-купівля/апґрейд (за mgp)
@@ -145,9 +141,8 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     if (idx < 0 || idx >= slots.length) return;
     if (slots[idx] !== lvl || lvl <= 0) return;
 
-    // 70% від СУМИ цін L1..L
-    const invested = investedIntoLevel(lvl);
-    const sellGain = round2(invested * 0.7);
+    // 70% від ціни поточного рівня
+    const sellGain = round2(sellValueForLevel(lvl));
 
     setMgp(v => round2(v + sellGain));
     setSlots(prev => {
@@ -177,7 +172,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       <p>
         <b>20 слотів.</b> Клік — купити/апгрейд за mgp. Перетягни:
         <b> на порожній</b> — перемістити; <b>на такий самий рівень</b> — злиття <b>L+L = L+1</b>;
-        на <b>$</b> — продати (70% від суми цін L1..L).
+        на <b>$</b> — продати (70% від ціни рівня).
       </p>
 
       <div className="row" style={{ opacity: .9, marginBottom: 8 }}>
@@ -240,7 +235,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       {/* Ціль для дропа продажу */}
       <button
         className={`craft-dollar ${dragOverDollar ? "drag-over" : ""}`}
-        title="Перетягни сюди предмет, щоб продати за 70% від суми інвестицій"
+        title="Перетягни сюди предмет, щоб продати за 70% від ціни рівня"
         onDragOver={(e) => { e.preventDefault(); setDragOverDollar(true); }}
         onDragLeave={() => setDragOverDollar(false)}
         onDrop={onDollarDrop}
