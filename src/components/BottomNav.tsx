@@ -7,15 +7,19 @@ type Props = {
   onChange: (tab: TabKey) => void;
 };
 
-// SVG-іконки
+// Іконка: рука з піднятим пальцем (тач)
 const HandIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M7 11v3c0 1.8-1.1 3.3-2.3 4.2" strokeLinecap="round"/>
-    <path d="M11 16c0 2 1.6 3.5 3.5 3.5h.5a3 3 0 0 0 3-3v-3a2 2 0 0 0-4 0" strokeLinecap="round"/>
-    <path d="M11 6v7" strokeLinecap="round"/>
-    <path d="M13.5 6v5" strokeLinecap="round"/>
-    <path d="M9.5 8v5" strokeLinecap="round"/>
-    <path d="M7.5 9v2" strokeLinecap="round"/>
+    {/* точка-ціль для тапу */}
+    <circle cx="18" cy="6" r="1.6" />
+    {/* вказівний палець */}
+    <path d="M12 12V6a2 2 0 1 1 4 0v6" strokeLinecap="round" strokeLinejoin="round" />
+    {/* долоня та долучені пальці */}
+    <path d="M8.5 12v-2.2a1.5 1.5 0 0 1 3 0V12" strokeLinecap="round" />
+    <path d="M6.8 13.2v-.9a1.2 1.2 0 0 1 2.4 0v.9" strokeLinecap="round" />
+    {/* кисть/ладонь і зап’ястя */}
+    <path d="M12 12l2 6h4a2 2 0 0 0 2-2v-3a3 3 0 0 0-5-2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 20h6" strokeLinecap="round" />
   </svg>
 );
 
@@ -56,19 +60,14 @@ const TrophyIcon = () => (
   </svg>
 );
 
-const CrownIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M3 7l4 4 5-6 5 6 4-4v10H3V7z" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
+// Лідери не показуємо в навігації, але ключ лишаємо у типі TabKey
 const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
-  { key: "tap",       label: "Тапати",     icon: <HandIcon/> },
-  { key: "upgrades",  label: "Апгрейди",   icon: <HourglassIcon/> },
-  { key: "artifacts", label: "Артефакти",  icon: <ObeliskIcon/> },
-  { key: "craft",     label: "Крафт",      icon: <FlaskIcon/> },
-  { key: "skins",     label: "СКІНИ",      icon: <TrophyIcon/> },
-  { key: "leaders",   label: "Лідери",     icon: <CrownIcon/> },
+  { key: "tap",       label: "Тапати",   icon: <HandIcon/> },
+  { key: "upgrades",  label: "Друзі",    icon: <HourglassIcon/> },
+  { key: "artifacts", label: "Артефакти",icon: <ObeliskIcon/> },
+  { key: "craft",     label: "Крафт",    icon: <FlaskIcon/> },
+  { key: "skins",     label: "Сундуки",  icon: <TrophyIcon/> },
+  // { key: "leaders", label: "Лідери", icon: <CrownIcon/> }, // приховано
 ];
 
 export default function BottomNav({ active, onChange }: Props) {
