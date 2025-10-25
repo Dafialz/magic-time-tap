@@ -31,9 +31,10 @@ import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
 import BottomNav, { TabKey } from "./components/BottomNav";
 import AppModal from "./components/AppModal";
+import LeadersPanel from "./components/LeadersPanel";
 
 const CRAFT_SLOT_COUNT = 21;
-// NEW: ліміт офлайн-фарму — 3 години
+// Ліміт офлайн-фарму — 3 години
 const OFFLINE_CAP_SECS = 3 * 3600;
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
   // ===== Telegram WebApp
+  const [username, setUsername] = useState<string>("Гість");
   useEffect(() => {
     const tg = (window as any)?.Telegram?.WebApp;
     if (!tg) return;
@@ -49,6 +51,14 @@ export default function App() {
     try {
       tg.setHeaderColor?.("#0b1220");
       tg.setBackgroundColor?.("#0b1220");
+    } catch {}
+    try {
+      const u = tg?.initDataUnsafe?.user;
+      const name =
+        u?.username ||
+        [u?.first_name, u?.last_name].filter(Boolean).join(" ") ||
+        "Гість";
+      setUsername(name);
     } catch {}
   }, []);
 
@@ -105,11 +115,11 @@ export default function App() {
   const [artifacts, setArtifacts] = useState<ArtifactInstance[]>([]);
   const [equippedIds, setEquippedIds] = useState<string[]>([]); // <= 3
 
-  // Skins (історично лишилися поля — можуть знадобитися далі)
+  // Skins
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["classic"]);
   const [equippedSkinId, setEquippedSkinId] = useState<string>("classic");
 
-  // ===== Економіка крафту (формули з однієї точки)
+  // ===== Економіка крафту
   const craftItems = useMemo(() => buildCraftItems(), []);
 
   // ===== LOAD SAVE (+ офлайн-доход, + міграція під нові поля)
@@ -128,7 +138,7 @@ export default function App() {
     setLevel(sAny.level ?? 1);
     setPrestiges(sAny.prestiges ?? 0);
 
-    // нове: mgp + craftSlots (м’яка міграція + підгін до 21 слота)
+    // mgp + craftSlots
     setMgp(sAny.mgp ?? 0);
     if (Array.isArray(sAny.craftSlots)) {
       const arr = [...sAny.craftSlots];
@@ -172,7 +182,7 @@ export default function App() {
     }
   }, []);
 
-  // ===== AUTOSAVE (включно з mgp та craftSlots)
+  // ===== AUTOSAVE
   useEffect(() => {
     const payload: SaveState = {
       ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
@@ -182,7 +192,6 @@ export default function App() {
       equippedArtifactIds: equippedIds,
       ownedSkins,
       equippedSkinId,
-      // нове
       mgp,
       craftSlots,
     };
@@ -301,11 +310,15 @@ export default function App() {
         });
       }
 
-      // інфо без alert, щоб не перебивати наші кастомні модалки
+      // інфо без alert
       setOfflineModalText(`💥 Боса подолано! Farm x${ceMult.toFixed(2)}; MM +${mmDrop}.${dropMsg}`);
       setOfflineModalOpen(true);
 
-      setBossActive(false); setBossHP(0); setBossMaxHP(0); setBossTimeLeft(0); setBossData(null);
+      setBossActive(false);
+      setBossHP(0);
+      setBossMaxHP(0);
+      setBossTimeLeft(0);
+      setBossData(null); // ✅ виправлено
       setLevel(l => l + 1);
       return;
     }
@@ -313,7 +326,11 @@ export default function App() {
     if (bossTimeLeft <= 0 && bossHP > 0 && bossData) {
       setOfflineModalText(`⏳ ${bossData.name} утік. Повтор через ${bossData.fleeCooldownSec}s.`);
       setOfflineModalOpen(true);
-      setBossActive(false); setBossHP(0); setBossMaxHP(0); setBossData(null);
+      setBossActive(false);
+      setBossHP(0);
+      setBossMaxHP(0);
+      setBossTimeLeft(0);   // ⬅ додано для симетрії
+      setBossData(null);    // ✅ виправлено
       setBossRetryCooldown(bossData.fleeCooldownSec);
       return;
     }
@@ -340,7 +357,7 @@ export default function App() {
     });
   };
 
-  // ==== Додати предмет у крафт (L1 за замовчуванням або заданий рівень)
+  // ==== Додати предмет у крафт
   const addToCraft = (levelToPlace = 1): boolean => {
     const idx = craftSlots.findIndex(v => v === 0);
     if (idx === -1) { setOfflineModalText("Немає вільних слотів у крафті"); setOfflineModalOpen(true); return false; }
@@ -373,8 +390,10 @@ export default function App() {
             meteorSpawnIn={meteorSpawnIn}
             meteorBonus={0}
             meteorMultiplier={GOLDEN_METEOR.mult}
-            // NEW: зарахування щоденного бонусу
+            // зарахування щоденного бонусу
             onDailyBonusClaim={(amount) => setMgp(v => v + amount)}
+            // відкриття вкладки Лідерів
+            onOpenLeaders={() => setActiveTab("leaders")}
           />
         )}
 
@@ -407,7 +426,6 @@ export default function App() {
 
         {activeTab === "skins" && (
           <SkinsShop
-            // (старі пропси лишилися – не використовуються)
             ownedSkins={ownedSkins}
             equippedSkinId={equippedSkinId}
             buySkin={(id: string, price: number) => {
@@ -417,11 +435,14 @@ export default function App() {
               setOwnedSkins(list => [...list, id]);
               setEquippedSkinId(id);
             }}
-            // головне: додавання випавшого предмета у крафт БЕЗ зміни вкладки
             onLoot={({ level }) => {
-              addToCraft(level);     // ❗ без setActiveTab("craft")
+              addToCraft(level);     // без перемикання на craft
             }}
           />
+        )}
+
+        {activeTab === "leaders" && (
+          <LeadersPanel nickname={username} currentScore={mgp} />
         )}
       </main>
 

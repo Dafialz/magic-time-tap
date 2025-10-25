@@ -1,16 +1,15 @@
 import React from "react";
 
-export type TabKey = "tap" | "upgrades" | "artifacts" | "craft" | "skins";
+export type TabKey = "tap" | "upgrades" | "artifacts" | "craft" | "skins" | "leaders";
 
 type Props = {
   active: TabKey;
   onChange: (tab: TabKey) => void;
 };
 
-// SVG-іконки під дизайн (mint line icons)
+// SVG-іконки
 const HandIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    {/* долоня з піднятим вказівним */}
     <path d="M7 11v3c0 1.8-1.1 3.3-2.3 4.2" strokeLinecap="round"/>
     <path d="M11 16c0 2 1.6 3.5 3.5 3.5h.5a3 3 0 0 0 3-3v-3a2 2 0 0 0-4 0" strokeLinecap="round"/>
     <path d="M11 6v7" strokeLinecap="round"/>
@@ -57,12 +56,19 @@ const TrophyIcon = () => (
   </svg>
 );
 
+const CrownIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M3 7l4 4 5-6 5 6 4-4v10H3V7z" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
   { key: "tap",       label: "Тапати",     icon: <HandIcon/> },
   { key: "upgrades",  label: "Апгрейди",   icon: <HourglassIcon/> },
   { key: "artifacts", label: "Артефакти",  icon: <ObeliskIcon/> },
   { key: "craft",     label: "Крафт",      icon: <FlaskIcon/> },
   { key: "skins",     label: "СКІНИ",      icon: <TrophyIcon/> },
+  { key: "leaders",   label: "Лідери",     icon: <CrownIcon/> },
 ];
 
 export default function BottomNav({ active, onChange }: Props) {

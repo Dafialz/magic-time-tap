@@ -14,8 +14,11 @@ type Props = {
   meteorBonus?: number;
   meteorMultiplier?: number;
 
-  // NEW: опційний колбек — додати бонус у баланс (mgp/MTP)
+  // щоденний бонус → App додає в баланс
   onDailyBonusClaim?: (amount: number) => void;
+
+  // NEW: відкрити вкладку Лідерів
+  onOpenLeaders?: () => void;
 };
 
 /* ===== ЩОДЕННИЙ БОНУС ===== */
@@ -32,7 +35,6 @@ function todayLocalISO(): string {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
 }
 function dateDiffDays(aISO: string, bISO: string): number {
-  // різниця календарних днів у локальному часовому поясі
   const [ay, am, ad] = aISO.split("-").map(Number);
   const [by, bm, bd] = bISO.split("-").map(Number);
   const a = new Date(ay, (am || 1) - 1, ad || 1).setHours(0, 0, 0, 0);
@@ -57,11 +59,9 @@ function computeDay(state: DailyState, todayISO: string): { day: number; claimed
   if (state.lastClaimLocalISO === todayISO) return { day: state.day, claimedToday: true };
   const diff = dateDiffDays(state.lastClaimLocalISO, todayISO);
   if (diff === 1) return { day: state.day >= 30 ? 1 : state.day + 1, claimedToday: false };
-  // пропуск більше ніж на день → скидання
   return { day: 1, claimedToday: false };
 }
 function dailyReward(day: number): number {
-  // День 1…29: 500 + 2264 × (день − 1); День 30: +160 (разом 66 316)
   return Math.floor(500 + 2264 * (day - 1) + (day === 30 ? 160 : 0));
 }
 /* ===== /ЩОДЕННИЙ БОНУС ===== */
@@ -76,6 +76,7 @@ export default function TapArea({
   meteorBonus = 0,
   meteorMultiplier = 10,
   onDailyBonusClaim,
+  onOpenLeaders,
 }: Props) {
   const spawnIn = Math.max(0, Math.floor(meteorSpawnIn));
   const buffLeft = Math.max(0, Math.floor(meteorBuffLeft));
@@ -89,7 +90,7 @@ export default function TapArea({
 
   const claimDaily = () => {
     if (dayInfo.claimedToday) return;
-    onDailyBonusClaim?.(reward); // прокинути у App
+    onDailyBonusClaim?.(reward);
     const next: DailyState = { day: dayInfo.day, lastClaimLocalISO: todayISO };
     setDailyState(next);
     saveDaily(next);
@@ -97,46 +98,45 @@ export default function TapArea({
   };
 
   return (
-    <div
-      className="tap-area"
-      onContextMenu={(e) => e.preventDefault()} // блокуємо контекстне меню (long-press)
-    >
+    <div className="tap-area" onContextMenu={(e) => e.preventDefault()}>
       {/* HERO */}
       <div className="hero" style={{ position: "relative" }}>
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
-        {/* Кругла FAB-кнопка з календарем */}
+        {/* NEW: кнопка ЛІДЕРІВ (зліва вгорі) */}
+        <button
+          type="button"
+          aria-label="Список лідерів"
+          onClick={onOpenLeaders}
+          style={leadersFabStyle}
+        >
+          {/* трофей */}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 5h8v3a4 4 0 0 1-8 0V5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M6 5H3v2a4 4 0 0 0 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M18 5h3v2a4 4 0 0 1-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M12 12v4M9 20h6M8 20l1-4h6l1 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {/* Кругла FAB-кнопка з календарем (праворуч) */}
         <button
           type="button"
           aria-label="Щоденний бонус"
           onClick={() => setDailyOpen(true)}
-          style={fabStyle}
+          style={dailyFabStyle}
         >
-          {/* Іконка календаря */}
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"
               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {/* бейдж із номером дня */}
           <span style={fabBadgeStyle}>{dayInfo.day}</span>
         </button>
 
-        {/* Годинник фіксованого розміру */}
+        {/* Годинник */}
         <div className="hero__clock">
-          <img
-            src="/hero-hourglass.png"
-            alt=""
-            aria-hidden="true"
-            className="hero__img"
-            decoding="async"
-          />
-          {/* клікабельна зона рівно по годиннику */}
-          <button
-            type="button"
-            className="hero__tap"
-            onClick={onTap}
-            aria-label="Tap"
-          />
+          <img src="/hero-hourglass.png" alt="" aria-hidden="true" className="hero__img" decoding="async" />
+          <button type="button" className="hero__tap" onClick={onTap} aria-label="Tap" />
         </div>
       </div>
 
@@ -157,7 +157,7 @@ export default function TapArea({
 
         <div className="meteor-card__text">
           <div className="meteor-card__title">
-            {meteorVisible ? "Написати, щоб зібрати" : `Метеор через ~${spawnIn}s`}
+            {meteorVisible ? "Написати, щоб зібрати" : `Метеор через ~${Math.max(0, Math.floor(meteorSpawnIn))}s`}
           </div>
           <div className="meteor-card__subtitle">
             Золотий Метеорит{meteorVisible && buffLeft > 0 ? ` • ${buffLeft}s` : ""}
@@ -178,7 +178,7 @@ export default function TapArea({
             <div style={modalIconStyle}>
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
             <h3 style={modalTitleStyle}>Щоденний бонус</h3>
@@ -205,15 +205,25 @@ export default function TapArea({
   );
 }
 
-/* ===== styles (inline, щоб не чіпати App.css) ===== */
-const fabStyle: React.CSSProperties = {
-  position: "absolute", top: 10, right: 14,
-  width: 52, height: 52, borderRadius: 9999,
-  border: 0, cursor: "pointer",
+/* ===== styles ===== */
+const baseFab: React.CSSProperties = {
+  position: "absolute",
+  top: 10,
+  width: 52,
+  height: 52,
+  borderRadius: 9999,
+  border: 0,
+  cursor: "pointer",
   background: "radial-gradient(55% 55% at 50% 50%, rgba(46,255,204,.25), rgba(111,82,255,.18))",
-  color: "#84ffe0", display: "grid", placeItems: "center",
-  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)"
+  color: "#84ffe0",
+  display: "grid",
+  placeItems: "center",
+  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
 };
+
+const leadersFabStyle: React.CSSProperties = { ...baseFab, left: 14 };
+const dailyFabStyle: React.CSSProperties = { ...baseFab, right: 14 };
+
 const fabBadgeStyle: React.CSSProperties = {
   position: "absolute", bottom: -2, right: -2,
   background: "#15d3c0", color: "#041d17", borderRadius: 10,
@@ -239,7 +249,6 @@ const modalIconStyle: React.CSSProperties = {
 const modalTitleStyle: React.CSSProperties = { margin: "0 0 8px", fontWeight: 900, fontSize: 20, letterSpacing: .3 };
 const modalTextStyle: React.CSSProperties = { opacity: .9, marginBottom: 6 };
 
-/* ===== утиліти ===== */
 function formatNumber(n: number) {
   return Math.floor(n).toLocaleString("uk-UA");
 }
