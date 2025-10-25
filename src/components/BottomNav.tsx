@@ -7,34 +7,41 @@ type Props = {
   onChange: (tab: TabKey) => void;
 };
 
-// Іконка "Тапати": максимально наближена 1-в-1 до зразка —
-// єдиний гладкий контур долоні з піднятим вказівним пальцем і округлими краями.
-// Залишено stroke="currentColor", щоб колір контролювався темою/класами.
+/* ТАПАТИ — контур руки 1-в-1 */
 const HandIcon = () => (
-  <svg
-    width="22"
-    height="22"
-    viewBox="0 0 48 48"
-    fill="none"
-    aria-hidden="true"
-  >
-    <defs>
-      <linearGradient id="handGrad48" x1="10" y1="44" x2="32" y2="4" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#2EE7F0"/>
-        <stop offset="1" stopColor="#46FF8A"/>
-      </linearGradient>
-    </defs>
-
-    {/* М'яке свічення під контуром (товщий напівпрозорий штрих позаду) */}
-    <g opacity="0.28">
-      <path d="M14.5 40.5c-3.4 0-6.5-2.7-6.5-6.7V22.2c0-2.5 1.9-4.5 4.4-4.5 2.5 0 4.4 2 4.4 4.5v6.1h4.1V12.6c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.7h4.1V18.1c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.6c0 6.4-5.2 11.8-11.6 11.8H18.6c-1.9 0-3.8-.4-4.1-.7z" stroke="url(#handGrad48)" strokeWidth="6.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M18 40.5h14" stroke="url(#handGrad48)" strokeWidth="6.8" strokeLinecap="round" strokeLinejoin="round" />
-    </g>
-
-    {/* Основний контур руки з піднятим пальцем */}
-    <path d="M14.5 40.5c-3.4 0-6.5-2.7-6.5-6.7V22.2c0-2.5 1.9-4.5 4.4-4.5 2.5 0 4.4 2 4.4 4.5v6.1h4.1V12.6c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.7h4.1V18.1c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.6c0 6.4-5.2 11.8-11.6 11.8H18.6c-1.9 0-3.8-.4-4.1-.7z" stroke="url(#handGrad48)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-    {/* Невелика основа зап'ястя */}
-    <path d="M18 40.5h14" stroke="url(#handGrad48)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    {/* суцільний замкнений контур; лінії скруглені */}
+    <path
+      d="
+        M7.1 18.6
+        C7.1 20.2 8.3 21.5 10.0 21.5
+        H16.3
+        C18.9 21.5 20.9 19.6 20.9 17.0
+        V11.2
+        C20.9 10.3 20.2 9.6 19.3 9.6
+        C18.4 9.6 17.7 10.3 17.7 11.2
+        V13.0
+        H15.9
+        V6.1
+        C15.9 4.9 14.9 4.0 13.7 4.0
+        C12.5 4.0 11.6 4.9 11.6 6.1
+        V12.8
+        H9.9
+        V9.5
+        C9.9 8.3 8.9 7.3 7.7 7.3
+        C6.5 7.3 5.5 8.3 5.5 9.5
+        V15.0
+        C5.5 16.7 6.3 17.8 7.1 18.6
+        Z
+      "
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+    {/* невелика база-зап’ястя — як у зразку */}
+    <path d="M8 21.5H16.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 
