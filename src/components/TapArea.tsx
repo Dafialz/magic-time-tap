@@ -185,12 +185,6 @@ export default function TapArea({
             <div style={modalTextStyle}>День <b>{dayInfo.day}</b> із 30</div>
             <div style={{ ...modalTextStyle, fontSize: 18 }}>Нагорода: <b>{formatNumber(reward)}</b> mgp</div>
 
-            <div style={{ ...modalTextStyle, fontSize: 13, opacity: 0.85, lineHeight: 1.35, marginTop: 8 }}>
-              Формула:<br />
-              День 1…29: <b>500 + 2264 × (день − 1)</b><br />
-              День 30: <b>500 + 2264 × 29 + 160 = 66&nbsp;316</b>
-            </div>
-
             <button
               type="button"
               onClick={claimDaily}
