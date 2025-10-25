@@ -30,6 +30,7 @@ import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
 import BottomNav, { TabKey } from "./components/BottomNav";
+import AppModal from "./components/AppModal"; // <<< додано
 
 const CRAFT_SLOT_COUNT = 21;
 
@@ -105,6 +106,10 @@ export default function App() {
   // ===== Економіка крафту (формули з однієї точки)
   const craftItems = useMemo(() => buildCraftItems(), []);
 
+  // ====== MODAL (універсальний попап)
+  const [modal, setModal] = useState<{ title?: string; text?: string } | null>(null);
+  const closeModal = () => setModal(null);
+
   // ===== LOAD SAVE (+ офлайн-доход, + міграція під нові поля)
   useEffect(() => {
     const sAny = loadState() as any;
@@ -149,7 +154,7 @@ export default function App() {
     setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
     setEquippedSkinId(sAny.equippedSkinId ?? "classic");
 
-    // ОФЛАЙН-ДОХІД: додаємо і в CE (для апгрейдів), і в MTP (mgp), але повідомляємо як MTP
+    // ОФЛАЙН-ДОХІД: показуємо красивий попап (MTP)
     if (sAny.lastSeenAt && sAny.autoPerSec) {
       const secsAway = Math.min(12 * 3600, Math.floor((now - sAny.lastSeenAt) / 1000));
       const gain = sAny.autoPerSec * epochByLevel(sAny.level ?? 1).mult * sAny.farmMult * secsAway;
@@ -157,7 +162,7 @@ export default function App() {
         setCe(v => v + gain);
         setMgp(v => v + gain);
         setTotalEarned(te => te + gain);
-        setTimeout(() => alert(`Поки тебе не було: +${formatNum(gain)} MTP`), 60);
+        setTimeout(() => setModal({ title: "Magic Time", text: `Поки тебе не було: +${formatNum(gain)} MTP` }), 60);
       }
     }
   }, []);
@@ -405,6 +410,15 @@ export default function App() {
       </main>
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
+
+      {/* Універсальний попап */}
+      <AppModal
+        open={!!modal}
+        title={modal?.title}
+        text={modal?.text}
+        icon="/ui/popap.png"
+        onClose={closeModal}
+      />
 
       <style>{`
         .page-content{ padding-bottom: 92px; }
