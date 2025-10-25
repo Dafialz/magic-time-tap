@@ -16,16 +16,25 @@ const HandIcon = () => (
     height="22"
     viewBox="0 0 48 48"
     fill="none"
-    stroke="currentColor"
-    strokeWidth="3.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
     aria-hidden="true"
   >
-    {/* Контур руки з піднятим пальцем */}
-    <path d="M14.5 40.5c-3.4 0-6.5-2.7-6.5-6.7V22.2c0-2.5 1.9-4.5 4.4-4.5 2.5 0 4.4 2 4.4 4.5v6.1h4.1V12.6c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.7h4.1V18.1c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.6c0 6.4-5.2 11.8-11.6 11.8H18.6c-1.9 0-3.8-.4-4.1-.7z" />
-    {/* Невелика основа зап'ястя для стабільності візу */}
-    <path d="M18 40.5h14" />
+    <defs>
+      <linearGradient id="handGrad48" x1="10" y1="44" x2="32" y2="4" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#2EE7F0"/>
+        <stop offset="1" stopColor="#46FF8A"/>
+      </linearGradient>
+    </defs>
+
+    {/* М'яке свічення під контуром (товщий напівпрозорий штрих позаду) */}
+    <g opacity="0.28">
+      <path d="M14.5 40.5c-3.4 0-6.5-2.7-6.5-6.7V22.2c0-2.5 1.9-4.5 4.4-4.5 2.5 0 4.4 2 4.4 4.5v6.1h4.1V12.6c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.7h4.1V18.1c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.6c0 6.4-5.2 11.8-11.6 11.8H18.6c-1.9 0-3.8-.4-4.1-.7z" stroke="url(#handGrad48)" strokeWidth="6.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 40.5h14" stroke="url(#handGrad48)" strokeWidth="6.8" strokeLinecap="round" strokeLinejoin="round" />
+    </g>
+
+    {/* Основний контур руки з піднятим пальцем */}
+    <path d="M14.5 40.5c-3.4 0-6.5-2.7-6.5-6.7V22.2c0-2.5 1.9-4.5 4.4-4.5 2.5 0 4.4 2 4.4 4.5v6.1h4.1V12.6c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.7h4.1V18.1c0-2.6 2-4.6 4.6-4.6s4.6 2 4.6 4.6v15.6c0 6.4-5.2 11.8-11.6 11.8H18.6c-1.9 0-3.8-.4-4.1-.7z" stroke="url(#handGrad48)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+    {/* Невелика основа зап'ястя */}
+    <path d="M18 40.5h14" stroke="url(#handGrad48)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
