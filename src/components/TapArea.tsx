@@ -14,10 +14,7 @@ type Props = {
   meteorBonus?: number;
   meteorMultiplier?: number;
 
-  // щоденний бонус → App додає в баланс
   onDailyBonusClaim?: (amount: number) => void;
-
-  // NEW: відкрити вкладку Лідерів
   onOpenLeaders?: () => void;
 };
 
@@ -26,7 +23,7 @@ const DAILY_KEY = "mt_daily_v1";
 
 type DailyState = {
   day: number;                // 1..30
-  lastClaimLocalISO: string | null; // YYYY-MM-DD (локальна дата)
+  lastClaimLocalISO: string | null; // YYYY-MM-DD
 };
 
 function two(n: number) { return String(n).padStart(2, "0"); }
@@ -103,35 +100,37 @@ export default function TapArea({
       <div className="hero" style={{ position: "relative" }}>
         <h1 className="hero__title" style={{ pointerEvents: "none" }}>MAGIC TIME</h1>
 
-        {/* NEW: кнопка ЛІДЕРІВ (зліва вгорі) */}
-        <button
-          type="button"
-          aria-label="Список лідерів"
-          onClick={onOpenLeaders}
-          style={leadersFabStyle}
-        >
-          {/* трофей */}
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M8 5h8v3a4 4 0 0 1-8 0V5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M6 5H3v2a4 4 0 0 0 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M18 5h3v2a4 4 0 0 1-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M12 12v4M9 20h6M8 20l1-4h6l1 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
+        {/* ПРАВА РЕЙКА: Лідери + Календар (вертикально) */}
+        <div style={sideRailStyle}>
+          {/* Лідери */}
+          <button
+            type="button"
+            aria-label="Список лідерів"
+            onClick={onOpenLeaders}
+            style={sideFabStyle}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M8 5h8v3a4 4 0 0 1-8 0V5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M6 5H3v2a4 4 0 0 0 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M18 5h3v2a4 4 0 0 1-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M12 12v4M9 20h6M8 20l1-4h6l1 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
 
-        {/* Кругла FAB-кнопка з календарем (праворуч) */}
-        <button
-          type="button"
-          aria-label="Щоденний бонус"
-          onClick={() => setDailyOpen(true)}
-          style={dailyFabStyle}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span style={fabBadgeStyle}>{dayInfo.day}</span>
-        </button>
+          {/* Календар (з бейджем дня) */}
+          <button
+            type="button"
+            aria-label="Щоденний бонус"
+            onClick={() => setDailyOpen(true)}
+            style={sideFabStyle}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span style={fabBadgeStyle}>{dayInfo.day}</span>
+          </button>
+        </div>
 
         {/* Годинник */}
         <div className="hero__clock">
@@ -206,9 +205,18 @@ export default function TapArea({
 }
 
 /* ===== styles ===== */
-const baseFab: React.CSSProperties = {
+
+// вертикальна рейка праворуч
+const sideRailStyle: React.CSSProperties = {
   position: "absolute",
-  top: 10,
+  right: 14,
+  top: "28%",             // близько до позицій з твого скріна
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+};
+
+const sideFabStyle: React.CSSProperties = {
   width: 52,
   height: 52,
   borderRadius: 9999,
@@ -219,15 +227,20 @@ const baseFab: React.CSSProperties = {
   display: "grid",
   placeItems: "center",
   boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
+  position: "relative",
 };
 
-const leadersFabStyle: React.CSSProperties = { ...baseFab, left: 14 };
-const dailyFabStyle: React.CSSProperties = { ...baseFab, right: 14 };
-
 const fabBadgeStyle: React.CSSProperties = {
-  position: "absolute", bottom: -2, right: -2,
-  background: "#15d3c0", color: "#041d17", borderRadius: 10,
-  fontWeight: 900, padding: "1px 6px", fontSize: 12, lineHeight: 1.4,
+  position: "absolute",
+  bottom: -2,
+  right: -2,
+  background: "#15d3c0",
+  color: "#041d17",
+  borderRadius: 10,
+  fontWeight: 900,
+  padding: "1px 6px",
+  fontSize: 12,
+  lineHeight: 1.4,
   boxShadow: "0 2px 6px rgba(0,0,0,.35)"
 };
 
