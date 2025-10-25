@@ -30,15 +30,13 @@ import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
 import BottomNav, { TabKey } from "./components/BottomNav";
-import AppModal from "./components/AppModal"; // <<< додано
+import AppModal from "./components/AppModal";
 
 const CRAFT_SLOT_COUNT = 21;
 
 export default function App() {
-  // ===== Tabs
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
-  // ===== Telegram WebApp
   useEffect(() => {
     const tg = (window as any)?.Telegram?.WebApp;
     if (!tg) return;
@@ -50,24 +48,21 @@ export default function App() {
     } catch {}
   }, []);
 
-  // ===== Currencies / state
-  const [ce, setCe] = useState<number>(0);
-  const [mm, setMm] = useState<number>(0);
-  const [totalEarned, setTotalEarned] = useState<number>(0);
-  const [clickPower, setClickPower] = useState<number>(1);
-  const [autoPerSec, setAutoPerSec] = useState<number>(0);
-  const [farmMult, setFarmMult] = useState<number>(1);
-  const [hc, setHc] = useState<number>(0);
-  const [level, setLevel] = useState<number>(1);
-  const [prestiges, setPrestiges] = useState<number>(0);
+  const [ce, setCe] = useState(0);
+  const [mm, setMm] = useState(0);
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [clickPower, setClickPower] = useState(1);
+  const [autoPerSec, setAutoPerSec] = useState(0);
+  const [farmMult, setFarmMult] = useState(1);
+  const [hc, setHc] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [prestiges, setPrestiges] = useState(0);
 
-  // ===== Магазин/крафт (MGP + 21 слот)
-  const [mgp, setMgp] = useState<number>(0);
+  const [mgp, setMgp] = useState(0);
   const [craftSlots, setCraftSlots] = useState<number[]>(
     () => Array(CRAFT_SLOT_COUNT).fill(0)
   );
 
-  // Upgrades
   const initialUpgrades: Upgrade[] = [
     { id: "u1", name: "Пісочний Годинник", level: 0, baseCost: 10, costMult: 1.15, clickPowerBonus: 1 },
     { id: "u2", name: "Міні Вежа", level: 0, baseCost: 100, costMult: 1.18, autoPerSecBonus: 0.5 },
@@ -75,42 +70,35 @@ export default function App() {
   ];
   const [upgrades, setUpgrades] = useState<Upgrade[]>(initialUpgrades);
 
-  // Epoch
   const epoch: Epoch = useMemo(() => epochByLevel(level), [level]);
   const epochMult = epoch.mult;
 
-  // Boss flags
   const bossTier: BossTier | 0 = useMemo(() => Math.floor(level / 10) as BossTier | 0, [level]);
   const isBossLevel = level >= 10 && level % 10 === 0;
 
   const [bossActive, setBossActive] = useState(false);
-  const [bossHP, setBossHP] = useState<number>(0);
-  const [bossMaxHP, setBossMaxHP] = useState<number>(0);
+  const [bossHP, setBossHP] = useState(0);
+  const [bossMaxHP, setBossMaxHP] = useState(0);
   const [bossData, setBossData] = useState<BossDef | null>(null);
-  const [bossTimeLeft, setBossTimeLeft] = useState<number>(0);
-  const [bossRetryCooldown, setBossRetryCooldown] = useState<number>(0);
+  const [bossTimeLeft, setBossTimeLeft] = useState(0);
+  const [bossRetryCooldown, setBossRetryCooldown] = useState(0);
 
-  // Meteor
   const [meteorVisible, setMeteorVisible] = useState(false);
   const [meteorBuffLeft, setMeteorBuffLeft] = useState(0);
-  const [meteorSpawnIn, setMeteorSpawnIn] = useState<number>(() => nextMeteorIn(GOLDEN_METEOR));
+  const [meteorSpawnIn, setMeteorSpawnIn] = useState(() => nextMeteorIn(GOLDEN_METEOR));
 
-  // Артефакти (дроп із босів)
   const [artifacts, setArtifacts] = useState<ArtifactInstance[]>([]);
-  const [equippedIds, setEquippedIds] = useState<string[]>([]); // <= 3
+  const [equippedIds, setEquippedIds] = useState<string[]>([]);
 
-  // Skins
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["classic"]);
   const [equippedSkinId, setEquippedSkinId] = useState<string>("classic");
 
-  // ===== Економіка крафту (формули з однієї точки)
   const craftItems = useMemo(() => buildCraftItems(), []);
 
-  // ====== MODAL (універсальний попап)
-  const [modal, setModal] = useState<{ title?: string; text?: string } | null>(null);
+  // Глобальний попап (офлайн/системні повідомлення)
+  const [modal, setModal] = useState<{ title?: string; text?: string; icon?: string } | null>(null);
   const closeModal = () => setModal(null);
 
-  // ===== LOAD SAVE (+ офлайн-доход, + міграція під нові поля)
   useEffect(() => {
     const sAny = loadState() as any;
     const now = Date.now();
@@ -126,16 +114,11 @@ export default function App() {
     setLevel(sAny.level ?? 1);
     setPrestiges(sAny.prestiges ?? 0);
 
-    // нове: mgp + craftSlots (м’яка міграція + підгін до 21 слота)
     setMgp(sAny.mgp ?? 0);
     if (Array.isArray(sAny.craftSlots)) {
       const arr = [...sAny.craftSlots];
-      if (arr.length < CRAFT_SLOT_COUNT) {
-        while (arr.length < CRAFT_SLOT_COUNT) arr.push(0);
-        setCraftSlots(arr);
-      } else {
-        setCraftSlots(arr.slice(0, CRAFT_SLOT_COUNT));
-      }
+      while (arr.length < CRAFT_SLOT_COUNT) arr.push(0);
+      setCraftSlots(arr.slice(0, CRAFT_SLOT_COUNT));
     } else {
       setCraftSlots(Array(CRAFT_SLOT_COUNT).fill(0));
     }
@@ -154,7 +137,6 @@ export default function App() {
     setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
     setEquippedSkinId(sAny.equippedSkinId ?? "classic");
 
-    // ОФЛАЙН-ДОХІД: показуємо красивий попап (MTP)
     if (sAny.lastSeenAt && sAny.autoPerSec) {
       const secsAway = Math.min(12 * 3600, Math.floor((now - sAny.lastSeenAt) / 1000));
       const gain = sAny.autoPerSec * epochByLevel(sAny.level ?? 1).mult * sAny.farmMult * secsAway;
@@ -162,12 +144,11 @@ export default function App() {
         setCe(v => v + gain);
         setMgp(v => v + gain);
         setTotalEarned(te => te + gain);
-        setTimeout(() => setModal({ title: "Magic Time", text: `Поки тебе не було: +${formatNum(gain)} MTP` }), 60);
+        setTimeout(() => setModal({ title: "Magic Time", text: `Поки тебе не було: +${formatNum(gain)} MTP`, icon: "/ui/popap.png" }), 60);
       }
     }
   }, []);
 
-  // ===== AUTOSAVE (включно з mgp та craftSlots)
   useEffect(() => {
     const payload: SaveState = {
       ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
@@ -177,7 +158,6 @@ export default function App() {
       equippedArtifactIds: equippedIds,
       ownedSkins,
       equippedSkinId,
-      // нове
       mgp,
       craftSlots,
     };
@@ -188,7 +168,6 @@ export default function App() {
     mgp, craftSlots
   ]);
 
-  // ==== Артефакти → агреговані бонуси
   const artifactLevels: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
     for (const a of artifacts) map[a.id] = a.level;
@@ -200,27 +179,23 @@ export default function App() {
     [equippedIds, artifactLevels]
   );
 
-  // Ефективні множники
   const meteorMult = meteorBuffLeft > 0 ? GOLDEN_METEOR.mult : 1;
   const effectiveClickMult = (1 + artAgg.click) * meteorMult * epochMult * farmMult;
   const effectiveAutoMult  = (1 + artAgg.auto)  * meteorMult * epochMult * farmMult;
 
-  // ====== Дохід MGP від сітки (g=1.20, L1=1 mgp/год) з урахуванням престиж-множника
   const mgpIncomePerHour = useMemo(() => {
     const base = craftSlots.reduce((sum, lvl) => sum + (lvl > 0 ? incomePerHourAtLevel(lvl) : 0), 0);
     return base * mgpPrestigeMult(prestiges);
   }, [craftSlots, prestiges]);
 
-  // TAP: додаємо **і MGP**
   const onClickTap = () => {
     const inc = clickPower * effectiveClickMult;
-    setCe(prev => prev + inc);   // лишаємо CE для апгрейдів
-    setMgp(prev => prev + inc);  // головна валюта на головному екрані
+    setCe(prev => prev + inc);
+    setMgp(prev => prev + inc);
     setTotalEarned(te => te + inc);
     if (bossActive) setBossHP(hp => Math.max(0, hp - clickPower));
   };
 
-  // автофарм + таймери + MGP нарахування
   useEffect(() => {
     const id = window.setInterval(() => {
       if (autoPerSec > 0) {
@@ -229,10 +204,7 @@ export default function App() {
         setTotalEarned(te => te + inc);
         if (bossActive) setBossHP(hp => Math.max(0, hp - autoPerSec));
       }
-      // MGP: додаємо щосекунди з крафт-сітки
-      if (mgpIncomePerHour > 0) {
-        setMgp(v => v + mgpIncomePerHour / 3600);
-      }
+      if (mgpIncomePerHour > 0) setMgp(v => v + mgpIncomePerHour / 3600);
 
       if (bossActive && bossTimeLeft > 0) setBossTimeLeft(t => Math.max(0, t - 1));
       if (bossRetryCooldown > 0) setBossRetryCooldown(t => Math.max(0, t - 1));
@@ -256,7 +228,6 @@ export default function App() {
     setMeteorSpawnIn(nextMeteorIn(GOLDEN_METEOR));
   };
 
-  // ==== Boss start / finish
   const startBossFight = () => {
     if (bossRetryCooldown > 0) return;
     const tier = bossTier as BossTier;
@@ -272,7 +243,6 @@ export default function App() {
 
   useEffect(() => {
     if (!bossActive) return;
-
     if (bossHP <= 0 && bossData) {
       const { ceMult, mmDrop, artifactChance } = calcRewards(bossData.tier, prestiges);
       setFarmMult(m => m * ceMult);
@@ -310,7 +280,6 @@ export default function App() {
     }
   }, [bossActive, bossHP, bossTimeLeft, bossData, prestiges]);
 
-  // ==== Upgrades
   const buyUpgrade = (u: Upgrade) => {
     const cost = Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
     if (ce < cost) return;
@@ -322,7 +291,6 @@ export default function App() {
   };
   const getCost = (u: Upgrade) => Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
 
-  // ==== Equip
   const toggleEquip = (id: string) => {
     setEquippedIds(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
@@ -331,10 +299,9 @@ export default function App() {
     });
   };
 
-  // ==== Додати предмет у крафт (L1 за замовчуванням)
   const addToCraft = (levelToPlace = 1): boolean => {
     const idx = craftSlots.findIndex(v => v === 0);
-    if (idx === -1) { alert("Немає вільних слотів у крафті"); return false; }
+    if (idx === -1) return false;
     setCraftSlots(prev => {
       const copy = [...prev];
       copy[idx] = Math.max(1, levelToPlace);
@@ -357,7 +324,7 @@ export default function App() {
         {activeTab === "tap" && (
           <TapArea
             onTap={onClickTap}
-            currentEnergy={mgp}            // показуємо MTP (mgp)
+            currentEnergy={mgp}
             meteorVisible={meteorVisible}
             onMeteorClick={onMeteorClick}
             meteorBuffLeft={meteorBuffLeft}
@@ -405,24 +372,31 @@ export default function App() {
               setOwnedSkins(list => [...list, id]);
               setEquippedSkinId(id);
             }}
+            onLoot={({ level, icon, chest }) => {
+              const ok = addToCraft(level);
+              if (!ok) {
+                setModal({
+                  title: "Крафт заповнений",
+                  text: "Немає вільних слотів у крафті. Звільни місце та спробуй ще раз.",
+                  icon: icon || "/ui/popap.png",
+                });
+              }
+            }}
           />
         )}
       </main>
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
-      {/* Універсальний попап */}
       <AppModal
         open={!!modal}
         title={modal?.title}
         text={modal?.text}
-        icon="/ui/popap.png"
+        icon={modal?.icon || "/ui/popap.png"}
         onClose={closeModal}
       />
 
-      <style>{`
-        .page-content{ padding-bottom: 92px; }
-      `}</style>
+      <style>{`.page-content{ padding-bottom: 92px; }`}</style>
     </div>
   );
 }
