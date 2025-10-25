@@ -2,8 +2,7 @@
 import React from "react";
 import { iconByLevel } from "../systems/shop_icons";
 
-/* ===== Пули іконок (залишаємо для майбутнього, але для відображення лута тепер
-   використовуємо iconByLevel(level), щоб збігалося з крафтом) ===== */
+/* ===== Пули іконок (залишені про запас; іконку лута показуємо через iconByLevel(level)) ===== */
 const BLUE_POOL = [
   "/shop_icons/SapphireValorMedal1.png",
   "/shop_icons/SapphireHonorCoin2.png",
@@ -93,11 +92,9 @@ function rollLevelForTier(tier: Tier) {
 }
 
 type Props = {
-  // лишили сумісність із попереднім інтерфейсом
   ownedSkins?: string[];
   equippedSkinId?: string;
   buySkin?: (id: string, price: number) => void;
-
   /** Подія лута — App кладе предмет у крафт */
   onLoot?: (payload: { level: number; icon: string; chest: Chest }) => void;
 };
@@ -108,13 +105,13 @@ export default function SkinsShop(props: Props) {
   const openChest = (chest: Chest) => {
     // 1) Рівень визначаємо по тиру
     const level = rollLevelForTier(chest.tier);
-    // 2) Іконку беремо ТІЛЬКИ з iconByLevel(level), як у крафті
+    // 2) Іконку беремо ТІЛЬКИ з iconByLevel(level), як у крафті (гарантований збіг)
     const icon = iconByLevel(level);
 
     // показати попап з тією ж іконкою, що буде в крафті
     setOpenState({ chest, icon });
 
-    // повідомити додаток — хай кладе у сітку
+    // повідомити додаток — хай кладе у сітку (без зміни вкладки)
     props.onLoot?.({ level, icon, chest });
   };
 
@@ -159,27 +156,60 @@ export default function SkinsShop(props: Props) {
 
       <style>{`
         .chests h2 { margin-bottom: 12px; }
-        .ton-hint{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
-        .ton-btn{ display:inline-flex; align-items:center; gap:8px; background:#161f2b; color:#37a6ff; border:1px solid #1f2d3d; padding:8px 12px; border-radius:10px; font-weight:800; text-decoration:none; }
+
+        .ton-hint{
+          display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+          margin-bottom:14px;
+        }
+        .ton-btn{
+          display:inline-flex; align-items:center; gap:8px;
+          background:#161f2b; color:#37a6ff; border:1px solid #1f2d3d;
+          padding:8px 12px; border-radius:10px; font-weight:800; text-decoration:none;
+        }
         .ton-btn:hover{ filter:brightness(1.08); }
         .ton-sub{ opacity:.7; font-size:13px; }
 
-        .chest-grid{ display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-        .chest-card{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:14px; text-align:center; box-shadow: inset 0 0 18px rgba(255,255,255,.03); }
+        .chest-grid{
+          display:grid; gap:14px;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+        .chest-card{
+          background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+          border-radius:16px; padding:14px; text-align:center;
+          box-shadow: inset 0 0 18px rgba(255,255,255,.03);
+        }
         .chest-img{ width:120px; height:120px; object-fit:contain; margin:6px auto 10px; display:block; }
         .chest-title{ font-weight:900; margin-bottom:4px; letter-spacing:.2px; }
         .chest-price{ opacity:.9; margin-bottom:10px; }
-        .open-btn{ padding:10px 14px; border-radius:12px; border:0; cursor:pointer; font-weight:900; background:linear-gradient(180deg, #53ffa6 0%, #15d3c0 100%); color:#042018; }
+
+        .open-btn{
+          padding:10px 14px; border-radius:12px; border:0; cursor:pointer; font-weight:900;
+          background:linear-gradient(180deg, #53ffa6 0%, #15d3c0 100%); color:#042018;
+        }
 
         .chest-card.tier-blue   { box-shadow: inset 0 0 18px rgba(80,200,255,.14); }
         .chest-card.tier-purple { box-shadow: inset 0 0 18px rgba(185,120,255,.16); }
         .chest-card.tier-gold   { box-shadow: inset 0 0 18px rgba(255,210,90,.20); }
 
-        .loot-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:grid; place-items:center; z-index:50; }
-        .loot-box{ width:min(92vw, 420px); background:rgba(25,30,40,.95); border:1px solid rgba(255,255,255,.1); border-radius:16px; padding:18px; text-align:center; }
+        .loot-modal{
+          position:fixed; inset:0; background:rgba(0,0,0,.55);
+          display:grid; place-items:center; z-index:50;
+        }
+        .loot-box{
+          width:min(92vw, 420px);
+          background:rgba(25,30,40,.95); border:1px solid rgba(255,255,255,.1);
+          border-radius:16px; padding:18px; text-align:center;
+        }
         .loot-title{ font-weight:800; margin-bottom:10px; }
-        .loot-icon{ width:96px; height:96px; object-fit:contain; border-radius:12px; box-shadow: 0 0 0 2px rgba(255,255,255,.06), inset 0 0 18px rgba(255,255,255,.04); margin:10px auto 14px; display:block; }
-        .close-btn{ padding:10px 14px; border-radius:10px; border:0; cursor:pointer; font-weight:800; background:rgba(255,255,255,.1); color:#fff; }
+        .loot-icon{
+          width:96px; height:96px; object-fit:contain;
+          border-radius:12px; box-shadow: 0 0 0 2px rgba(255,255,255,.06), inset 0 0 18px rgba(255,255,255,.04);
+          margin:10px auto 14px; display:block;
+        }
+        .close-btn{
+          padding:10px 14px; border-radius:10px; border:0; cursor:pointer; font-weight:800;
+          background:rgba(255,255,255,.1); color:#fff;
+        }
       `}</style>
     </section>
   );
