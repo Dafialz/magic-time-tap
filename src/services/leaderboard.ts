@@ -1,8 +1,19 @@
 // src/services/leaderboard.ts
-// Реальний лідерборд через Firestore (опціонально).
+// Firestore: leaderboard + users/admin helpers.
 // Якщо Firebase не налаштований — функції тихо нічого не роблять.
 
 export type LBEntry = { name: string; score: number };
+
+export type UserProfile = {
+  name?: string;
+  score?: number;
+  lastSeenAt?: any; // serverTimestamp
+  banned?: boolean;
+  banReason?: string;
+  bannedAt?: any; // serverTimestamp
+  bannedBy?: string;
+  // можна розширювати далі (inventory, purchases, flags...)
+};
 
 let _inited = false;
 let _app: any = null;
@@ -14,8 +25,6 @@ function env() {
 
 /**
  * Мінімальний набір для ініціалізації Firebase.
- * (appId не завжди критичний для Firestore, але часто потрібен у реальних конфігах,
- * тому підхоплюємо його якщо є)
  */
 function hasFirebaseEnv() {
   const e = env();
@@ -24,13 +33,12 @@ function hasFirebaseEnv() {
 
 async function ensureFirebase() {
   if (_db) return _db;
-  if (_inited) return _db; // вже пробували ініт — повторно не спамимо
+  if (_inited) return _db;
   _inited = true;
 
   if (!hasFirebaseEnv()) return null;
 
   try {
-    // динамічні імпорти
     const appMod: any = await import("firebase/app");
     const fsMod: any = await import("firebase/firestore");
 
@@ -40,7 +48,7 @@ async function ensureFirebase() {
       projectId: e.VITE_FB_PROJECT_ID,
     };
 
-    // optional (але корисно)
+    // optional
     if (e.VITE_FB_AUTH_DOMAIN) cfg.authDomain = e.VITE_FB_AUTH_DOMAIN;
     if (e.VITE_FB_APP_ID) cfg.appId = e.VITE_FB_APP_ID;
     if (e.VITE_FB_STORAGE_BUCKET) cfg.storageBucket = e.VITE_FB_STORAGE_BUCKET;
@@ -54,34 +62,30 @@ async function ensureFirebase() {
     _db = db;
     return db;
   } catch {
-    // якщо щось пішло не так — дозволимо повторну спробу після reload
     _db = null;
     _app = null;
     return null;
   }
 }
 
+/** Доступ до db (для інших сервісів/адмінки) */
+export async function getDb() {
+  return await ensureFirebase();
+}
+
 /**
- * ВАЖЛИВО: попередня версія робила id тільки з [a-z0-9_-],
- * через що кириличні/emoji імена перетворювались у "-" і всі перезаписували один документ.
- * Тут робимо docId, який зберігає unicode (Firestore це дозволяє), лише прибираємо "/" і керуючі.
+ * ВАЖЛИВО: docId не може містити "/"
  */
 export function nameToId(name: string) {
   const raw = (name || "guest").trim().toLowerCase();
-
-  // прибираємо слеші, бо Firestore doc id не може містити "/"
-  // і прибираємо керуючі символи
-  const safe = raw
-    .replace(/\//g, "_")
-    .replace(/[\u0000-\u001F\u007F]/g, "")
-    .trim();
-
-  // на випадок якщо ім'я стало пустим
+  const safe = raw.replace(/\//g, "_").replace(/[\u0000-\u001F\u007F]/g, "").trim();
   const base = safe.length ? safe : "guest";
-
-  // обмеження по довжині (щоб не було дуже довгих docId)
   return base.slice(0, 64);
 }
+
+/* =========================
+   LEADERBOARD
+========================= */
 
 export async function upsertScore(userId: string, name: string, score: number): Promise<void> {
   try {
@@ -100,9 +104,7 @@ export async function upsertScore(userId: string, name: string, score: number): 
       },
       { merge: true }
     );
-  } catch {
-    // no-op
-  }
+  } catch {}
 }
 
 export function subscribeTopN(n: number, cb: (rows: LBEntry[]) => void): () => void {
@@ -129,21 +131,15 @@ export function subscribeTopN(n: number, cb: (rows: LBEntry[]) => void): () => v
           });
           cb(list);
         },
-        () => {
-          // якщо snapshot падає — не ламаємо UI
-        }
+        () => {}
       );
-    } catch {
-      // no-op
-    }
+    } catch {}
   })();
 
   return () => {
     try {
       if (typeof unsub === "function") unsub();
-    } catch {
-      // no-op
-    }
+    } catch {}
   };
 }
 
@@ -164,6 +160,117 @@ export async function getTopN(n: number): Promise<LBEntry[]> {
       const data = d.data() || {};
       return { name: data.name || d.id, score: Number(data.score) || 0 };
     });
+  } catch {
+    return [];
+  }
+}
+
+/* =========================
+   USERS (профіль, бан, адмінка)
+========================= */
+
+/** Оновити профіль юзера (name/score/lastSeenAt/...) */
+export async function upsertUserProfile(userId: string, patch: Partial<UserProfile>): Promise<void> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return;
+
+    const fs: any = await import("firebase/firestore");
+    const ref = fs.doc(db, "users_v1", userId);
+
+    await fs.setDoc(ref, patch, { merge: true });
+  } catch {}
+}
+
+/** Підписка на users_v1/{userId} */
+export function subscribeUser(userId: string, cb: (profile: UserProfile | null) => void): () => void {
+  let unsub: any = () => {};
+
+  (async () => {
+    try {
+      const db = await ensureFirebase();
+      if (!db) return;
+
+      const fs: any = await import("firebase/firestore");
+      const ref = fs.doc(db, "users_v1", userId);
+
+      unsub = fs.onSnapshot(
+        ref,
+        (snap: any) => cb(snap.exists() ? (snap.data() as UserProfile) : null),
+        () => cb(null)
+      );
+    } catch {
+      cb(null);
+    }
+  })();
+
+  return () => {
+    try { if (typeof unsub === "function") unsub(); } catch {}
+  };
+}
+
+/** Адмін: бан/анбан */
+export async function setUserBan(
+  userId: string,
+  banned: boolean,
+  banReason: string,
+  bannedBy: string
+): Promise<void> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return;
+
+    const fs: any = await import("firebase/firestore");
+    const ref = fs.doc(db, "users_v1", userId);
+
+    await fs.setDoc(
+      ref,
+      {
+        banned: !!banned,
+        banReason: banned ? String(banReason || "").slice(0, 200) : "",
+        bannedBy: banned ? String(bannedBy || "").slice(0, 64) : "",
+        bannedAt: banned ? fs.serverTimestamp() : fs.deleteField(),
+      },
+      { merge: true }
+    );
+  } catch {}
+}
+
+/** Адмін: список останніх активних (потрібен index по lastSeenAt) */
+export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; data: UserProfile }>> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return [];
+
+    const fs: any = await import("firebase/firestore");
+    const q = fs.query(
+      fs.collection(db, "users_v1"),
+      fs.orderBy("lastSeenAt", "desc"),
+      fs.limit(Math.max(1, Math.min(200, Math.floor(limit) || 50)))
+    );
+
+    const snap = await fs.getDocs(q);
+    return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+  } catch {
+    return [];
+  }
+}
+
+/** Адмін: топ по score з users_v1 (альтернатива leaderboard) */
+export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data: UserProfile }>> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return [];
+
+    const fs: any = await import("firebase/firestore");
+    const q = fs.query(
+      fs.collection(db, "users_v1"),
+      fs.orderBy("score", "desc"),
+      fs.limit(Math.max(1, Math.min(200, Math.floor(limit) || 100)))
+    );
+
+    const snap = await fs.getDocs(q);
+    return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
   } catch {
     return [];
   }

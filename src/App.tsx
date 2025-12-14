@@ -27,6 +27,7 @@ import SkinsShop from "./components/SkinsShop";
 import BottomNav, { TabKey } from "./components/BottomNav";
 import AppModal from "./components/AppModal";
 import LeadersPanel from "./components/LeadersPanel";
+import AdminPanel from "./components/AdminPanel";
 
 // сервіс лідерборду
 import { upsertScore } from "./services/leaderboard";
@@ -48,7 +49,6 @@ function getOrCreateAnonId(): string {
 }
 
 /* ===== Firebase helpers (для ban + users_v1 профілю) ===== */
-
 function env() {
   return ((import.meta as any)?.env ?? {}) as Record<string, string>;
 }
@@ -108,7 +108,6 @@ export default function App() {
     try {
       const u = tg?.initDataUnsafe?.user;
 
-      // унікальний id для лідерборду/профілю (Telegram user id)
       const tgId = u?.id;
       if (tgId) setLeaderUserId(`tg_${String(tgId)}`);
 
@@ -147,7 +146,6 @@ export default function App() {
   const epochMult = epoch.mult;
 
   const bossTier: BossTier | 0 = useMemo(() => Math.floor(level / 10) as BossTier | 0, [level]);
-  const isBossLevel = level >= 10 && level % 10 === 0;
 
   const [bossActive, setBossActive] = useState(false);
   const [bossHP, setBossHP] = useState<number>(0);
@@ -161,7 +159,7 @@ export default function App() {
   const [meteorSpawnIn, setMeteorSpawnIn] = useState<number>(() => nextMeteorIn(GOLDEN_METEOR));
 
   const [artifacts, setArtifacts] = useState<ArtifactInstance[]>([]);
-  const [equippedIds, setEquippedIds] = useState<string[]>([]); // <= 3
+  const [equippedIds, setEquippedIds] = useState<string[]>([]);
 
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["classic"]);
   const [equippedSkinId, setEquippedSkinId] = useState<string>("classic");
@@ -172,7 +170,6 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
-  // читаємо users_v1/{leaderUserId} і беремо banned/banReason
   useEffect(() => {
     let alive = true;
 
@@ -180,7 +177,6 @@ export default function App() {
       const uid = leaderUserId;
       const res = await withFirestore(async (db, fs) => {
         const ref = fs.doc(db, "users_v1", uid);
-        // realtime, щоб бан спрацьовував одразу
         return fs.onSnapshot(ref, (snap: any) => {
           if (!alive) return;
           const d = snap?.data?.() || {};
@@ -189,7 +185,6 @@ export default function App() {
         });
       });
 
-      // якщо немає firebase — просто нічого
       if (!res) return;
       const unsub = res as unknown as () => void;
 
@@ -202,7 +197,6 @@ export default function App() {
     return () => { alive = false; };
   }, [leaderUserId]);
 
-  // heartbeat: оновлюємо профіль (name/score/lastSeenAt) раз на 20с
   useEffect(() => {
     if (!hasFirebaseEnv()) return;
 
@@ -285,15 +279,7 @@ export default function App() {
 
   useEffect(() => {
     const payload: SaveState = {
-      ce,
-      mm,
-      totalEarned,
-      clickPower,
-      autoPerSec,
-      farmMult,
-      hc,
-      level,
-      prestiges,
+      ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
       upgrades: upgrades.map((u) => ({ id: u.id, level: u.level })),
       lastSeenAt: Date.now(),
       artifacts,
@@ -375,71 +361,6 @@ export default function App() {
     setMeteorSpawnIn(nextMeteorIn(GOLDEN_METEOR));
   };
 
-  const startBossFight = () => {
-    if (isBanned) return;
-    if (bossRetryCooldown > 0) return;
-    const tier = bossTier as BossTier;
-    const def = getBossByTier(tier);
-    if (!def) return;
-    const hp = calcBossHP(def.baseHP, def.epochBonus, prestiges);
-    setBossData(def);
-    setBossActive(true);
-    setBossHP(hp);
-    setBossMaxHP(hp);
-    setBossTimeLeft(def.durationSec);
-  };
-
-  useEffect(() => {
-    if (!bossActive) return;
-
-    if (bossHP <= 0 && bossData) {
-      const { ceMult, mmDrop, artifactChance } = calcRewards(bossData.tier, prestiges);
-      setFarmMult((m) => m * ceMult);
-      setMm((prev) => prev + mmDrop);
-
-      const rolled = Math.random() < artifactChance;
-      let dropMsg = "";
-      if (rolled) {
-        const id = rollArtifactId(bossData.tier);
-        setArtifacts((prev) => {
-          const idx = prev.findIndex((a) => a.id === id);
-          if (idx >= 0) {
-            const copy = [...prev];
-            copy[idx] = { ...copy[idx], level: copy[idx].level + 1 };
-            dropMsg = ` Випав дуплікат: ${getArtifactById(id)?.name} → рівень ${copy[idx].level}.`;
-            return copy;
-          } else {
-            dropMsg = ` Новий артефакт: ${getArtifactById(id)?.name}!`;
-            return [...prev, { id, level: 1 }];
-          }
-        });
-      }
-
-      setOfflineModalText(`💥 Боса подолано! Farm x${ceMult.toFixed(2)}; MM +${mmDrop}.${dropMsg}`);
-      setOfflineModalOpen(true);
-
-      setBossActive(false);
-      setBossHP(0);
-      setBossMaxHP(0);
-      setBossTimeLeft(0);
-      setBossData(null);
-      setLevel((l) => l + 1);
-      return;
-    }
-
-    if (bossTimeLeft <= 0 && bossHP > 0 && bossData) {
-      setOfflineModalText(`⏳ ${bossData.name} утік. Повтор через ${bossData.fleeCooldownSec}s.`);
-      setOfflineModalOpen(true);
-      setBossActive(false);
-      setBossHP(0);
-      setBossMaxHP(0);
-      setBossTimeLeft(0);
-      setBossData(null);
-      setBossRetryCooldown(bossData.fleeCooldownSec);
-      return;
-    }
-  }, [bossActive, bossHP, bossTimeLeft, bossData, prestiges]);
-
   const buyUpgrade = (u: Upgrade) => {
     if (isBanned) return;
     const cost = Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
@@ -451,19 +372,6 @@ export default function App() {
     setLevel((l) => l + 1);
   };
   const getCost = (u: Upgrade) => Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
-
-  const toggleEquip = (id: string) => {
-    if (isBanned) return;
-    setEquippedIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 3) {
-        setOfflineModalText("Макс. 3 артефакти одночасно");
-        setOfflineModalOpen(true);
-        return prev;
-      }
-      return [...prev, id];
-    });
-  };
 
   const addToCraft = (levelToPlace = 1): boolean => {
     const idx = craftSlots.findIndex((v) => v === 0);
@@ -480,7 +388,6 @@ export default function App() {
     return true;
   };
 
-  // пуш у лідерборд (тротлінг)
   const lastPush = useRef<{ t: number; s: number }>({ t: 0, s: 0 });
   useEffect(() => {
     if (isBanned) return;
@@ -489,7 +396,6 @@ export default function App() {
     if (!leaderUserId || score <= 0) return;
 
     const displayName = (username || "Гість").trim();
-
     const now = Date.now();
     const dt = now - lastPush.current.t;
     const ds = score - lastPush.current.s;
@@ -500,11 +406,11 @@ export default function App() {
     lastPush.current = { t: now, s: score };
   }, [mgp, username, leaderUserId, isBanned]);
 
-  /* ===== hidden admin overlay (тільки allowlist) ===== */
+  /* ===== admin ===== */
   const [adminOpen, setAdminOpen] = useState(false);
   const isAdmin = useMemo(() => isAdminId(leaderUserId), [leaderUserId]);
+
   useEffect(() => {
-    // відкривати тільки якщо ?admin=1 і ти адмін
     try {
       const q = new URLSearchParams(window.location.search);
       if (q.get("admin") === "1" && isAdmin) setAdminOpen(true);
@@ -538,7 +444,9 @@ export default function App() {
             textAlign: "center"
           }}>
             <div style={{ fontWeight: 900, marginBottom: 6 }}>⛔ Ви заблоковані</div>
-            {banReason ? <div style={{ opacity: .9 }}>Причина: <b>{banReason}</b></div> : <div style={{ opacity: .9 }}>Зверніться до адміністратора.</div>}
+            {banReason
+              ? <div style={{ opacity: .9 }}>Причина: <b>{banReason}</b></div>
+              : <div style={{ opacity: .9 }}>Зверніться до адміністратора.</div>}
           </div>
         ) : null}
 
@@ -590,9 +498,7 @@ export default function App() {
               setOwnedSkins((list) => [...list, id]);
               setEquippedSkinId(id);
             }}
-            onLoot={({ level }) => {
-              addToCraft(level);
-            }}
+            onLoot={({ level }) => addToCraft(level)}
           />
         )}
 
@@ -623,16 +529,33 @@ export default function App() {
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
-      {/* простий “placeholder” модал під адмінку — сам AdminPanel додамо наступним файлом */}
       <AppModal
         open={adminOpen}
-        text={
-          isAdmin
-            ? "Адмін панель: наступним файлом додамо список юзерів, покупки (events_v1), інвентар (users_v1/*/inventory_v1) і кнопки BAN/UNBAN."
-            : "Недостатньо прав."
+        title="Адмін панель"
+        icon={null}
+        width={"min(94vw, 920px)"}
+        maxBodyHeight={"66vh"}
+        footer={
+          <button
+            onClick={() => setAdminOpen(false)}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,.12)",
+              background: "rgba(255,255,255,.06)",
+              color: "#fff",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Закрити
+          </button>
         }
         onClose={() => setAdminOpen(false)}
-      />
+      >
+        {isAdmin ? <AdminPanel adminId={leaderUserId} /> : <div>Недостатньо прав.</div>}
+      </AppModal>
 
       <AppModal open={offlineModalOpen} text={offlineModalText} onClose={() => setOfflineModalOpen(false)} />
 
