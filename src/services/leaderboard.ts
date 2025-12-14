@@ -7,7 +7,7 @@ export type LBEntry = { name: string; score: number };
 export type UserProfile = {
   name?: string;
   score?: number;
-  lastSeenAt?: any; // serverTimestamp
+  lastSeenAt?: any; // serverTimestamp (Firestore Timestamp)
   banned?: boolean;
   banReason?: string;
   bannedAt?: any; // serverTimestamp
@@ -25,6 +25,7 @@ function env() {
 
 /**
  * Мінімальний набір для ініціалізації Firebase.
+ * Для Firestore достатньо apiKey + projectId (authDomain бажано, але не обов'язково).
  */
 function hasFirebaseEnv() {
   const e = env();
@@ -87,24 +88,47 @@ export function nameToId(name: string) {
    LEADERBOARD
 ========================= */
 
+/**
+ * ✅ Головний апдейт: тепер кожен апдейт лідерборду
+ * паралельно "heartbeat-ить" профіль у users_v1/{userId}.
+ * Завдяки цьому адмінка (яка читає users_v1) одразу бачить гравців.
+ */
 export async function upsertScore(userId: string, name: string, score: number): Promise<void> {
   try {
     const db = await ensureFirebase();
     if (!db) return;
 
     const fs: any = await import("firebase/firestore");
-    const ref = fs.doc(fs.collection(db, "leaderboard_v1"), userId);
 
+    const cleanName = (name || userId || "guest").trim();
+    const cleanScore = Math.max(0, Math.floor(score) || 0);
+
+    // 1) leaderboard_v1
+    const lbRef = fs.doc(fs.collection(db, "leaderboard_v1"), userId);
     await fs.setDoc(
-      ref,
+      lbRef,
       {
-        name: (name || userId || "guest").trim(),
-        score: Math.max(0, Math.floor(score) || 0),
+        name: cleanName,
+        score: cleanScore,
         ts: fs.serverTimestamp(),
       },
       { merge: true }
     );
-  } catch {}
+
+    // 2) users_v1 (профіль/heartbeat для адмінки)
+    const userRef = fs.doc(db, "users_v1", userId);
+    await fs.setDoc(
+      userRef,
+      {
+        name: cleanName,
+        score: cleanScore,
+        lastSeenAt: fs.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch {
+    // no-op
+  }
 }
 
 export function subscribeTopN(n: number, cb: (rows: LBEntry[]) => void): () => void {
@@ -205,7 +229,9 @@ export function subscribeUser(userId: string, cb: (profile: UserProfile | null) 
   })();
 
   return () => {
-    try { if (typeof unsub === "function") unsub(); } catch {}
+    try {
+      if (typeof unsub === "function") unsub();
+    } catch {}
   };
 }
 
@@ -236,21 +262,25 @@ export async function setUserBan(
   } catch {}
 }
 
-/** Адмін: список останніх активних (потрібен index по lastSeenAt) */
+/** Адмін: список останніх активних (може попросити індекс по lastSeenAt) */
 export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; data: UserProfile }>> {
   try {
     const db = await ensureFirebase();
     if (!db) return [];
 
     const fs: any = await import("firebase/firestore");
-    const q = fs.query(
-      fs.collection(db, "users_v1"),
-      fs.orderBy("lastSeenAt", "desc"),
-      fs.limit(Math.max(1, Math.min(200, Math.floor(limit) || 50)))
-    );
+    const lim = Math.max(1, Math.min(200, Math.floor(limit) || 50));
 
-    const snap = await fs.getDocs(q);
-    return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    try {
+      const q = fs.query(fs.collection(db, "users_v1"), fs.orderBy("lastSeenAt", "desc"), fs.limit(lim));
+      const snap = await fs.getDocs(q);
+      return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    } catch {
+      // fallback (якщо orderBy потребує індексу/поле ще не всюди є)
+      const q2 = fs.query(fs.collection(db, "users_v1"), fs.limit(lim));
+      const snap2 = await fs.getDocs(q2);
+      return snap2.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    }
   } catch {
     return [];
   }
@@ -263,14 +293,18 @@ export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data
     if (!db) return [];
 
     const fs: any = await import("firebase/firestore");
-    const q = fs.query(
-      fs.collection(db, "users_v1"),
-      fs.orderBy("score", "desc"),
-      fs.limit(Math.max(1, Math.min(200, Math.floor(limit) || 100)))
-    );
+    const lim = Math.max(1, Math.min(200, Math.floor(limit) || 100));
 
-    const snap = await fs.getDocs(q);
-    return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    try {
+      const q = fs.query(fs.collection(db, "users_v1"), fs.orderBy("score", "desc"), fs.limit(lim));
+      const snap = await fs.getDocs(q);
+      return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    } catch {
+      // fallback
+      const q2 = fs.query(fs.collection(db, "users_v1"), fs.limit(lim));
+      const snap2 = await fs.getDocs(q2);
+      return snap2.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    }
   } catch {
     return [];
   }
