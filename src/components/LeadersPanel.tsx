@@ -11,6 +11,7 @@ type Props = {
 };
 
 const STORAGE_KEY = "mt_leaderboard_v1";
+const CLOUD_TIMEOUT_MS = 1800;
 
 function fmt(n: number) {
   return Math.floor(n).toLocaleString("uk-UA");
@@ -25,7 +26,7 @@ function loadLB(): LeaderEntry[] {
     const arr = JSON.parse(raw) as LeaderEntry[];
     if (Array.isArray(arr)) {
       return arr.filter(
-        x => x && typeof x.name === "string" && Number.isFinite(x.score)
+        (x) => x && typeof x.name === "string" && Number.isFinite(x.score)
       );
     }
   } catch {}
@@ -51,60 +52,85 @@ function seedDemo(): LeaderEntry[] {
   return list;
 }
 
+type CloudState = "entries" | "pending" | "active" | "fallback";
+
 export default function LeadersPanel({
   nickname,
   currentScore = 0,
   entries,
 }: Props) {
   const [lb, setLb] = useState<LeaderEntry[]>(() => {
+    // якщо передали entries — показуємо їх, без хмари/демо
     if (entries?.length) return entries;
+
+    // локал показуємо одразу (якщо є), щоб не було пустого екрану
     const local = loadLB();
-    return local.length ? local : seedDemo();
+    return local.length ? local : [];
   });
 
-  const [usingCloud, setUsingCloud] = useState(false);
+  const [cloudState, setCloudState] = useState<CloudState>(() =>
+    entries?.length ? "entries" : "pending"
+  );
+
+  const usingCloud = cloudState === "active";
 
   /* ===== init ===== */
   useEffect(() => {
+    // 1) якщо є entries — ніяких підписок/фолбеків
     if (entries?.length) {
       setLb(entries);
-      setUsingCloud(false);
+      setCloudState("entries");
       return;
     }
 
-    // спочатку локал / демо — щоб UI не був пустий
+    setCloudState("pending");
+
+    // беремо локал (але НЕ сідаємо демо одразу — щоб не блимало)
     const local = loadLB();
     if (local.length) setLb(local);
-    else {
-      const demo = seedDemo();
-      setLb(demo);
-      saveLB(demo);
-    }
+    else setLb([]); // покажемо "Завантаження..." замість Hero-демо
 
-    // пробуємо cloud
-    const unsub = subscribeTopN(100, (rows) => {
-      if (rows && rows.length > 0) {
-        setLb(rows);
-        setUsingCloud(true);
+    // якщо хмара не відповіла — робимо fallback
+    const t = window.setTimeout(() => {
+      const curLocal = loadLB();
+      if (curLocal.length) {
+        setLb(curLocal);
+      } else {
+        const demo = seedDemo();
+        setLb(demo);
+        saveLB(demo);
       }
+      setCloudState("fallback");
+    }, CLOUD_TIMEOUT_MS);
+
+    // пробуємо cloud: перший snapshot фіксує режим (навіть якщо пусто)
+    const unsub = subscribeTopN(100, (rows) => {
+      window.clearTimeout(t);
+      setCloudState("active");
+      setLb(Array.isArray(rows) ? rows : []);
     });
 
-    return () => unsub();
+    return () => {
+      window.clearTimeout(t);
+      unsub();
+    };
   }, [entries]);
 
-  /* ===== local update (коли без cloud) ===== */
+  /* ===== local update (тільки коли НЕ cloud і не entries) ===== */
   useEffect(() => {
-    if (usingCloud || !nickname || currentScore <= 0) return;
+    if (usingCloud) return;
+    if (cloudState === "entries") return;
+    if (!nickname || currentScore <= 0) return;
 
-    setLb(prev => {
-      const without = prev.filter(e => e.name !== nickname);
+    setLb((prev) => {
+      const without = prev.filter((e) => e.name !== nickname);
       const merged = [...without, { name: nickname, score: currentScore }];
       merged.sort((a, b) => b.score - a.score);
       const top100 = merged.slice(0, 100);
       saveLB(top100);
       return top100;
     });
-  }, [nickname, currentScore, usingCloud]);
+  }, [nickname, currentScore, usingCloud, cloudState]);
 
   /* ===== computed ===== */
   const rows = useMemo(() => {
@@ -115,14 +141,24 @@ export default function LeadersPanel({
   }, [lb]);
 
   const myRank = useMemo(
-    () => rows.find(r => r.name === nickname)?.rank ?? null,
+    () => rows.find((r) => r.name === nickname)?.rank ?? null,
     [rows, nickname]
   );
+
+  const subtitle = useMemo(() => {
+    if (cloudState === "pending") return "Завантаження рейтингу…";
+    if (cloudState === "active") return "Онлайн рейтинг (хмара)";
+    if (cloudState === "entries") return "Рейтинг (передані дані)";
+    return "Демо / локальний режим";
+  }, [cloudState]);
 
   /* ===== render ===== */
   return (
     <section className="leaders" aria-labelledby="leaders-title">
-      <h2 id="leaders-title" style={{ textAlign: "center", margin: "12px 0 8px" }}>
+      <h2
+        id="leaders-title"
+        style={{ textAlign: "center", margin: "12px 0 8px" }}
+      >
         Список лідерів
       </h2>
 
@@ -136,62 +172,66 @@ export default function LeadersPanel({
             Місце: <b>#{myRank}</b>.
           </>
         )}
-        {!usingCloud && (
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            Демо / локальний режим
-          </div>
-        )}
+        <div style={{ fontSize: 12, opacity: 0.7 }}>{subtitle}</div>
       </div>
 
       <div style={tableWrap}>
-        <table style={table}>
-          <thead>
-            <tr>
-              <th style={{ width: 56, textAlign: "right", paddingRight: 8 }}>#</th>
-              <th style={{ textAlign: "left" }}>Гравець</th>
-              <th style={{ textAlign: "right" }}>Монети</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ rank, name, score }) => {
-              const isMe = nickname && name === nickname;
-              const isTop1 = rank === 1;
-              return (
-                <tr
-                  key={name}
-                  style={{
-                    background: isMe
-                      ? "rgba(40,231,168,.12)"
-                      : isTop1
-                      ? "rgba(255,215,64,.10)"
-                      : "transparent",
-                  }}
-                >
-                  <td
+        {cloudState === "pending" && rows.length === 0 ? (
+          <div style={loadingBox}>Завантаження…</div>
+        ) : rows.length === 0 ? (
+          <div style={loadingBox}>Поки що немає записів</div>
+        ) : (
+          <table style={table}>
+            <thead>
+              <tr>
+                <th style={{ width: 56, textAlign: "right", paddingRight: 8 }}>
+                  #
+                </th>
+                <th style={{ textAlign: "left" }}>Гравець</th>
+                <th style={{ textAlign: "right" }}>Монети</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ rank, name, score }) => {
+                const isMe = nickname && name === nickname;
+                const isTop1 = rank === 1;
+                return (
+                  <tr
+                    key={`${name}-${rank}`}
                     style={{
-                      textAlign: "right",
-                      paddingRight: 8,
-                      fontWeight: isTop1 ? 900 : 600,
+                      background: isMe
+                        ? "rgba(40,231,168,.12)"
+                        : isTop1
+                        ? "rgba(255,215,64,.10)"
+                        : "transparent",
                     }}
                   >
-                    {rank}
-                  </td>
-                  <td style={{ fontWeight: isMe ? 800 : 600 }}>
-                    {name} {isTop1 ? " 👑" : isMe ? " (ви)" : ""}
-                  </td>
-                  <td
-                    style={{
-                      textAlign: "right",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {fmt(score)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <td
+                      style={{
+                        textAlign: "right",
+                        paddingRight: 8,
+                        fontWeight: isTop1 ? 900 : 600,
+                      }}
+                    >
+                      {rank}
+                    </td>
+                    <td style={{ fontWeight: isMe ? 800 : 600 }}>
+                      {name} {isTop1 ? " 👑" : isMe ? " (ви)" : ""}
+                    </td>
+                    <td
+                      style={{
+                        textAlign: "right",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {fmt(score)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </section>
   );
@@ -211,4 +251,10 @@ const table: React.CSSProperties = {
   width: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
+};
+
+const loadingBox: React.CSSProperties = {
+  padding: "18px 12px",
+  textAlign: "center",
+  opacity: 0.8,
 };

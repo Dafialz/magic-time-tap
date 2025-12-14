@@ -87,21 +87,146 @@ function levelsFromFilenames(pool: string[]): number[] {
 }
 
 const CHESTS: Chest[] = [
-  { tier: "blue",   title: "Azure Chest",    priceTon: 1, chestImg: "/chests/AzureChest.png",    pool: BLUE_POOL,   weights: powerWeights(BLUE_POOL.length, 1.3)  },
+  { tier: "blue", title: "Azure Chest", priceTon: 1, chestImg: "/chests/AzureChest.png", pool: BLUE_POOL, weights: powerWeights(BLUE_POOL.length, 1.3) },
   { tier: "purple", title: "Amethyst Chest", priceTon: 2, chestImg: "/chests/AmethystChest.png", pool: PURPLE_POOL, weights: powerWeights(PURPLE_POOL.length, 1.55) },
-  { tier: "gold",   title: "Gilded Chest",   priceTon: 3, chestImg: "/chests/GildedChest.png",   pool: GOLD_POOL,   weights: powerWeights(GOLD_POOL.length, 1.8)   },
+  { tier: "gold", title: "Gilded Chest", priceTon: 3, chestImg: "/chests/GildedChest.png", pool: GOLD_POOL, weights: powerWeights(GOLD_POOL.length, 1.8) },
 ];
 
 const LEVELS_BY_TIER: Record<Tier, number[]> = {
-  blue:   levelsFromFilenames(BLUE_POOL),
+  blue: levelsFromFilenames(BLUE_POOL),
   purple: levelsFromFilenames(PURPLE_POOL),
-  gold:   levelsFromFilenames(GOLD_POOL),
+  gold: levelsFromFilenames(GOLD_POOL),
 };
+
+/* ===== Firestore lightweight logger (без окремих файлів) ===== */
+
+const LOCAL_ID_KEY = "mt_local_id_v1";
+
+function env() {
+  return ((import.meta as any)?.env ?? {}) as Record<string, string>;
+}
+
+function hasFirebaseEnv() {
+  const e = env();
+  return !!(e.VITE_FB_API_KEY && e.VITE_FB_PROJECT_ID && e.VITE_FB_AUTH_DOMAIN);
+}
+
+function getOrCreateLocalId() {
+  try {
+    const existing = localStorage.getItem(LOCAL_ID_KEY);
+    if (existing) return existing;
+    const id = Math.random().toString(16).slice(2) + Date.now().toString(16);
+    localStorage.setItem(LOCAL_ID_KEY, id);
+    return id;
+  } catch {
+    return Math.random().toString(16).slice(2);
+  }
+}
+
+async function withFirestore<T>(fn: (db: any, fs: any) => Promise<T>) {
+  try {
+    if (!hasFirebaseEnv()) return null as any;
+
+    const appMod: any = await import("firebase/app");
+    const fsMod: any = await import("firebase/firestore");
+
+    const e = env();
+    const cfg = {
+      apiKey: e.VITE_FB_API_KEY,
+      authDomain: e.VITE_FB_AUTH_DOMAIN,
+      projectId: e.VITE_FB_PROJECT_ID,
+      appId: e.VITE_FB_APP_ID,
+    };
+
+    const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(cfg);
+    const db = fsMod.getFirestore(app);
+    return await fn(db, fsMod);
+  } catch {
+    return null as any;
+  }
+}
+
+async function logChestEvent(params: {
+  userId: string;
+  name: string;
+  type: "open_chest";
+  chestTier: Tier;
+  chestTitle: string;
+  priceTon: number;
+  lootLevel: number;
+  lootIcon: string;
+}) {
+  // пишемо:
+  // 1) events_v1 (аудит)
+  // 2) users_v1/{userId} (профіль)
+  // 3) users_v1/{userId}/inventory_v1/{itemKey} (інвентар)
+  await withFirestore(async (db, fs) => {
+    const now = fs.serverTimestamp();
+    const uid = params.userId;
+
+    // events_v1
+    await fs.addDoc(fs.collection(db, "events_v1"), {
+      userId: uid,
+      name: params.name,
+      type: params.type,
+      chestTier: params.chestTier,
+      chestTitle: params.chestTitle,
+      priceTon: params.priceTon,
+      lootLevel: params.lootLevel,
+      lootIcon: params.lootIcon,
+      ts: now,
+    });
+
+    // users_v1/{uid}
+    await fs.setDoc(
+      fs.doc(db, "users_v1", uid),
+      {
+        name: params.name,
+        lastSeenAt: now,
+        lastChest: {
+          tier: params.chestTier,
+          title: params.chestTitle,
+          priceTon: params.priceTon,
+          lootLevel: params.lootLevel,
+          lootIcon: params.lootIcon,
+        },
+      },
+      { merge: true }
+    );
+
+    // inventory агреговано по ключу
+    const itemKey = `loot_level_${params.lootLevel}`;
+    const invRef = fs.doc(db, "users_v1", uid, "inventory_v1", itemKey);
+
+    // increment qty
+    await fs.setDoc(
+      invRef,
+      {
+        kind: "loot_level",
+        level: params.lootLevel,
+        icon: params.lootIcon,
+        qty: fs.increment(1),
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+
+    return true as any;
+  });
+}
 
 type Props = {
   ownedSkins?: string[];
   equippedSkinId?: string;
   buySkin?: (id: string, price: number) => void;
+
+  /** (опціонально) стабільний userId, краще tg_<telegramId> */
+  userId?: string;
+  /** (опціонально) нік для логів */
+  nickname?: string;
+  /** (опціонально) якщо забанений — блокуємо дії */
+  isBanned?: boolean;
+
   /** Коли випадає лут — App кладе предмет у крафт */
   onLoot?: (payload: { level: number; icon: string; chest: Chest }) => void;
 };
@@ -109,7 +234,20 @@ type Props = {
 export default function SkinsShop(props: Props) {
   const [openState, setOpenState] = React.useState<{ chest?: Chest; icon?: string }>({});
 
-  const openChest = (chest: Chest) => {
+  const effectiveUserId = React.useMemo(() => {
+    if (props.userId && props.userId.trim()) return props.userId.trim();
+    return `anon_${getOrCreateLocalId()}`;
+  }, [props.userId]);
+
+  const effectiveName = React.useMemo(() => {
+    const n = props.nickname?.trim();
+    if (n) return n;
+    return "Гість";
+  }, [props.nickname]);
+
+  const openChest = async (chest: Chest) => {
+    if (props.isBanned) return;
+
     // 1) Обираємо рівень ТІЛЬКИ з дозволених для кольору скрині
     const levels = LEVELS_BY_TIER[chest.tier];
     if (!levels.length) return;
@@ -118,8 +256,20 @@ export default function SkinsShop(props: Props) {
     // 2) Іконку показуємо через iconByLevel(level) — точно співпаде з крафтом
     const icon = iconByLevel(level);
 
-    setOpenState({ chest, icon });            // попап
-    props.onLoot?.({ level, icon, chest });   // у крафт
+    setOpenState({ chest, icon });          // попап
+    props.onLoot?.({ level, icon, chest }); // у крафт
+
+    // 3) Лог у Firestore (якщо підключено env)
+    logChestEvent({
+      userId: effectiveUserId,
+      name: effectiveName,
+      type: "open_chest",
+      chestTier: chest.tier,
+      chestTitle: chest.title,
+      priceTon: chest.priceTon,
+      lootLevel: level,
+      lootIcon: icon,
+    }).catch(() => {});
   };
 
   const closeModal = () => setOpenState({});
@@ -129,13 +279,24 @@ export default function SkinsShop(props: Props) {
       <h2>Сундуки</h2>
 
       <div className="ton-hint">
-        <a className="ton-btn" href="https://ton.org/wallets" target="_blank" rel="noreferrer" title="Офіційні гаманці TON">
+        <a
+          className="ton-btn"
+          href="https://ton.org/wallets"
+          target="_blank"
+          rel="noreferrer"
+          title="Офіційні гаманці TON"
+        >
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
-            <path d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2zm0 2C7.59 4 4 7.59 4 12c0 4.08 3.06 7.44 7 7.93V13H8l4-7 4 7h-3v6.93c3.94-.49 7-3.85 7-7.93 0-4.41-3.59-8-8-8z" fill="currentColor" />
+            <path
+              d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2zm0 2C7.59 4 4 7.59 4 12c0 4.08 3.06 7.44 7 7.93V13H8l4-7 4 7h-3v6.93c3.94-.49 7-3.85 7-7.93 0-4.41-3.59-8-8-8z"
+              fill="currentColor"
+            />
           </svg>
           <span>TON Wallet</span>
         </a>
-        <div className="ton-sub">Демо-режим: оплати ще нема, показує лише випадковий лут.</div>
+        <div className="ton-sub">
+          Демо-режим: оплати ще нема, показує лише випадковий лут.
+        </div>
       </div>
 
       <div className="chest-grid">
@@ -144,7 +305,15 @@ export default function SkinsShop(props: Props) {
             <img className="chest-img" src={c.chestImg} alt={c.title} />
             <div className="chest-title">{c.title}</div>
             <div className="chest-price">{c.priceTon} TON</div>
-            <button className="open-btn" onClick={() => openChest(c)}>Відкрити</button>
+            <button
+              className="open-btn"
+              onClick={() => openChest(c)}
+              disabled={!!props.isBanned}
+              title={props.isBanned ? "Ви заблоковані" : undefined}
+              style={props.isBanned ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+            >
+              Відкрити
+            </button>
           </div>
         ))}
       </div>
@@ -152,11 +321,17 @@ export default function SkinsShop(props: Props) {
       {openState.chest && (
         <div className="loot-modal" onClick={closeModal}>
           <div className="loot-box" onClick={(e) => e.stopPropagation()}>
-            <div className="loot-title">Випало зі {openState.chest?.title}:</div>
-            {openState.icon
-              ? <img className="loot-icon" src={openState.icon} alt="loot" />
-              : <div className="loot-placeholder">—</div>}
-            <button className="close-btn" onClick={closeModal}>Гаразд</button>
+            <div className="loot-title">
+              Випало зі {openState.chest?.title}:
+            </div>
+            {openState.icon ? (
+              <img className="loot-icon" src={openState.icon} alt="loot" />
+            ) : (
+              <div className="loot-placeholder">—</div>
+            )}
+            <button className="close-btn" onClick={closeModal}>
+              Гаразд
+            </button>
           </div>
         </div>
       )}
