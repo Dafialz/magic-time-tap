@@ -25,7 +25,7 @@ function env() {
 
 /**
  * Мінімальний набір для ініціалізації Firebase.
- * Для Firestore достатньо apiKey + projectId (authDomain бажано, але не обов'язково).
+ * Для Firestore достатньо apiKey + projectId. (authDomain бажано)
  */
 function hasFirebaseEnv() {
   const e = env();
@@ -44,12 +44,13 @@ async function ensureFirebase() {
     const fsMod: any = await import("firebase/firestore");
 
     const e = env();
+
+    // ✅ КРАЩЕ: підставляємо optional поля, щоб конфіг був “нормальний”
+    // (інколи без authDomain/appId бувають дивні кейси в деяких оточеннях)
     const cfg: any = {
       apiKey: e.VITE_FB_API_KEY,
       projectId: e.VITE_FB_PROJECT_ID,
     };
-
-    // optional
     if (e.VITE_FB_AUTH_DOMAIN) cfg.authDomain = e.VITE_FB_AUTH_DOMAIN;
     if (e.VITE_FB_APP_ID) cfg.appId = e.VITE_FB_APP_ID;
     if (e.VITE_FB_STORAGE_BUCKET) cfg.storageBucket = e.VITE_FB_STORAGE_BUCKET;
@@ -89,9 +90,9 @@ export function nameToId(name: string) {
 ========================= */
 
 /**
- * ✅ Головний апдейт: тепер кожен апдейт лідерборду
- * паралельно "heartbeat-ить" профіль у users_v1/{userId}.
- * Завдяки цьому адмінка (яка читає users_v1) одразу бачить гравців.
+ * ✅ B: кожен апдейт лідерборду
+ * паралельно “heartbeat-ить” users_v1/{userId}.
+ * => адмінка (яка читає users_v1) одразу бачить гравців.
  */
 export async function upsertScore(userId: string, name: string, score: number): Promise<void> {
   try {
@@ -100,12 +101,16 @@ export async function upsertScore(userId: string, name: string, score: number): 
 
     const fs: any = await import("firebase/firestore");
 
-    const cleanName = (name || userId || "guest").trim();
+    const cleanName = String((name || userId || "guest").trim()).slice(0, 64);
     const cleanScore = Math.max(0, Math.floor(score) || 0);
 
-    // 1) leaderboard_v1
-    const lbRef = fs.doc(fs.collection(db, "leaderboard_v1"), userId);
-    await fs.setDoc(
+    const lbRef = fs.doc(db, "leaderboard_v1", userId);
+    const userRef = fs.doc(db, "users_v1", userId);
+
+    // ✅ атомарніше: одним батчем пишемо у 2 колекції
+    const batch = fs.writeBatch(db);
+
+    batch.set(
       lbRef,
       {
         name: cleanName,
@@ -115,9 +120,7 @@ export async function upsertScore(userId: string, name: string, score: number): 
       { merge: true }
     );
 
-    // 2) users_v1 (профіль/heartbeat для адмінки)
-    const userRef = fs.doc(db, "users_v1", userId);
-    await fs.setDoc(
+    batch.set(
       userRef,
       {
         name: cleanName,
@@ -126,6 +129,8 @@ export async function upsertScore(userId: string, name: string, score: number): 
       },
       { merge: true }
     );
+
+    await batch.commit();
   } catch {
     // no-op
   }
@@ -213,7 +218,10 @@ export function subscribeUser(userId: string, cb: (profile: UserProfile | null) 
   (async () => {
     try {
       const db = await ensureFirebase();
-      if (!db) return;
+      if (!db) {
+        cb(null);
+        return;
+      }
 
       const fs: any = await import("firebase/firestore");
       const ref = fs.doc(db, "users_v1", userId);
