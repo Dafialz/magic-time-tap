@@ -29,56 +29,21 @@ import AppModal from "./components/AppModal";
 import LeadersPanel from "./components/LeadersPanel";
 import AdminPanel from "./components/AdminPanel";
 
-// сервіс лідерборду
-import { upsertScore } from "./services/leaderboard";
+// сервіс лідерборду + auth/users
+import {
+  upsertScore,
+  ensureAuth,
+  subscribeUser,
+  upsertUserProfile,
+} from "./services/leaderboard";
 
 const CRAFT_SLOT_COUNT = 21;
 const OFFLINE_CAP_SECS = 3 * 3600;
 
-const ANON_ID_KEY = "mt_anon_id_v1";
-function getOrCreateAnonId(): string {
-  try {
-    const existing = localStorage.getItem(ANON_ID_KEY);
-    if (existing) return existing;
-    const id = Math.random().toString(16).slice(2) + Date.now().toString(16);
-    localStorage.setItem(ANON_ID_KEY, id);
-    return id;
-  } catch {
-    return Math.random().toString(16).slice(2) + Date.now().toString(16);
-  }
-}
-
-/* ===== Firebase helpers (для ban + users_v1 профілю) ===== */
+/** allowlist адмінів через env: VITE_ADMIN_IDS="UID1,UID2" */
 function env() {
   return ((import.meta as any)?.env ?? {}) as Record<string, string>;
 }
-function hasFirebaseEnv() {
-  const e = env();
-  return !!(e.VITE_FB_API_KEY && e.VITE_FB_PROJECT_ID && e.VITE_FB_AUTH_DOMAIN);
-}
-async function withFirestore<T>(fn: (db: any, fs: any) => Promise<T>): Promise<T | null> {
-  try {
-    if (!hasFirebaseEnv()) return null;
-    const appMod: any = await import("firebase/app");
-    const fsMod: any = await import("firebase/firestore");
-
-    const e = env();
-    const cfg = {
-      apiKey: e.VITE_FB_API_KEY,
-      authDomain: e.VITE_FB_AUTH_DOMAIN,
-      projectId: e.VITE_FB_PROJECT_ID,
-      appId: e.VITE_FB_APP_ID,
-    };
-
-    const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(cfg);
-    const db = fsMod.getFirestore(app);
-    return await fn(db, fsMod);
-  } catch {
-    return null;
-  }
-}
-
-/** allowlist адмінів через env: VITE_ADMIN_IDS="tg_123,tg_456,anon_xxx" */
 function isAdminId(userId: string): boolean {
   const list = (env().VITE_ADMIN_IDS || "")
     .split(",")
@@ -91,9 +56,16 @@ function isAdminId(userId: string): boolean {
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
-  const [username, setUsername] = useState<string>("Гість");
-  const [leaderUserId, setLeaderUserId] = useState<string>(() => `anon_${getOrCreateAnonId()}`);
+  // 🔑 тепер це буде Auth UID
+  const [leaderUserId, setLeaderUserId] = useState<string>(""); // "" = ще не готово
 
+  // Telegram display name (як було)
+  const [username, setUsername] = useState<string>("Гість");
+
+  // Telegram meta (збережемо в users_v1)
+  const [tgMeta, setTgMeta] = useState<{ tgId?: number; tgUsername?: string; first?: string; last?: string }>({});
+
+  // 1) Підтягуємо Telegram user (для імені в UI + мета в профіль)
   useEffect(() => {
     const tg = (window as any)?.Telegram?.WebApp;
     if (!tg) return;
@@ -107,16 +79,32 @@ export default function App() {
 
     try {
       const u = tg?.initDataUnsafe?.user;
-
-      const tgId = u?.id;
-      if (tgId) setLeaderUserId(`tg_${String(tgId)}`);
-
       const name =
         u?.username ||
         [u?.first_name, u?.last_name].filter(Boolean).join(" ") ||
         "Гість";
       setUsername(name);
+
+      setTgMeta({
+        tgId: u?.id,
+        tgUsername: u?.username,
+        first: u?.first_name,
+        last: u?.last_name,
+      });
     } catch {}
+  }, []);
+
+  // 2) Стартуємо Firebase Auth (Anonymous) і ставимо leaderUserId = uid
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const uid = await ensureAuth();
+      if (!alive) return;
+      if (uid) setLeaderUserId(uid);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const [ce, setCe] = useState<number>(0);
@@ -170,58 +158,55 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
+  // ✅ читаємо users_v1/{uid}
   useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      const uid = leaderUserId;
-      const res = await withFirestore(async (db, fs) => {
-        const ref = fs.doc(db, "users_v1", uid);
-        return fs.onSnapshot(ref, (snap: any) => {
-          if (!alive) return;
-          const d = snap?.data?.() || {};
-          setIsBanned(!!d.banned);
-          setBanReason(String(d.banReason || ""));
-        });
-      });
-
-      if (!res) return;
-      const unsub = res as unknown as () => void;
-
-      return () => {
-        alive = false;
-        try { unsub(); } catch {}
-      };
-    })();
-
-    return () => { alive = false; };
+    if (!leaderUserId) return;
+    const unsub = subscribeUser(leaderUserId, (profile) => {
+      const d: any = profile || {};
+      setIsBanned(!!d.banned);
+      setBanReason(String(d.banReason || ""));
+    });
+    return () => {
+      try { unsub(); } catch {}
+    };
   }, [leaderUserId]);
 
+  // ✅ heartbeat у users_v1/{uid} раз на 20s (плюс tg meta)
   useEffect(() => {
-    if (!hasFirebaseEnv()) return;
+    if (!leaderUserId) return;
 
     let stop = false;
+
     const tick = async () => {
       if (stop) return;
-      const uid = leaderUserId;
+
       const name = (username || "Гість").trim();
       const score = Math.floor(mgp);
 
-      await withFirestore(async (db, fs) => {
-        await fs.setDoc(
-          fs.doc(db, "users_v1", uid),
-          { name, score, lastSeenAt: fs.serverTimestamp() },
-          { merge: true }
-        );
-        return true as any;
-      });
+      // пишемо і звичайні поля, і tg meta (додаткові поля ок для Firestore)
+      await upsertUserProfile(
+        leaderUserId,
+        {
+          name,
+          score,
+          // @ts-ignore extra fields allowed in Firestore
+          tgId: tgMeta.tgId ?? null,
+          // @ts-ignore
+          tgUsername: tgMeta.tgUsername ?? "",
+          // @ts-ignore
+          tgFirst: tgMeta.first ?? "",
+          // @ts-ignore
+          tgLast: tgMeta.last ?? "",
+          lastSeenAt: (await import("firebase/firestore")).serverTimestamp?.() as any,
+        } as any
+      );
 
       if (!stop) window.setTimeout(tick, 20_000);
     };
 
     tick();
     return () => { stop = true; };
-  }, [leaderUserId, username, mgp]);
+  }, [leaderUserId, username, mgp, tgMeta.tgId, tgMeta.tgUsername, tgMeta.first, tgMeta.last]);
 
   /* ===== load/save ===== */
   useEffect(() => {
@@ -388,6 +373,7 @@ export default function App() {
     return true;
   };
 
+  // пуш у лідерборд (тротлінг)
   const lastPush = useRef<{ t: number; s: number }>({ t: 0, s: 0 });
   useEffect(() => {
     if (isBanned) return;
@@ -396,19 +382,21 @@ export default function App() {
     if (!leaderUserId || score <= 0) return;
 
     const displayName = (username || "Гість").trim();
+
     const now = Date.now();
     const dt = now - lastPush.current.t;
     const ds = score - lastPush.current.s;
 
     if (dt < 15_000 && ds < 50_000) return;
 
+    // ✅ userId тепер UID
     upsertScore(leaderUserId, displayName, score).catch(() => {});
     lastPush.current = { t: now, s: score };
   }, [mgp, username, leaderUserId, isBanned]);
 
   /* ===== admin ===== */
   const [adminOpen, setAdminOpen] = useState(false);
-  const isAdmin = useMemo(() => isAdminId(leaderUserId), [leaderUserId]);
+  const isAdmin = useMemo(() => (leaderUserId ? isAdminId(leaderUserId) : false), [leaderUserId]);
 
   useEffect(() => {
     try {
@@ -479,7 +467,7 @@ export default function App() {
 
         {activeTab === "skins" && (
           <SkinsShop
-            userId={leaderUserId}
+            userId={leaderUserId || "no_uid"}
             nickname={username}
             isBanned={isBanned}
             ownedSkins={ownedSkins}
@@ -532,9 +520,9 @@ export default function App() {
       <AppModal
         open={adminOpen}
         title="Адмін панель"
-        icon={null}
-        width={"min(94vw, 920px)"}
-        maxBodyHeight={"66vh"}
+        icon={null as any}
+        width={"min(94vw, 920px)" as any}
+        maxBodyHeight={"66vh" as any}
         footer={
           <button
             onClick={() => setAdminOpen(false)}

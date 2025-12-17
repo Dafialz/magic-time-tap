@@ -19,6 +19,10 @@ let _inited = false;
 let _app: any = null;
 let _db: any = null;
 
+// Auth cache
+let _authInitStarted = false;
+let _authUid: string | null = null;
+
 function env() {
   return ((import.meta as any)?.env ?? {}) as Record<string, string>;
 }
@@ -30,6 +34,12 @@ function env() {
 function hasFirebaseEnv() {
   const e = env();
   return !!(e.VITE_FB_API_KEY && e.VITE_FB_PROJECT_ID);
+}
+
+/** Для Auth краще мати authDomain (і бажано appId) */
+function hasAuthEnv() {
+  const e = env();
+  return !!(e.VITE_FB_API_KEY && e.VITE_FB_PROJECT_ID && e.VITE_FB_AUTH_DOMAIN);
 }
 
 async function ensureFirebase() {
@@ -45,8 +55,6 @@ async function ensureFirebase() {
 
     const e = env();
 
-    // ✅ КРАЩЕ: підставляємо optional поля, щоб конфіг був “нормальний”
-    // (інколи без authDomain/appId бувають дивні кейси в деяких оточеннях)
     const cfg: any = {
       apiKey: e.VITE_FB_API_KEY,
       projectId: e.VITE_FB_PROJECT_ID,
@@ -76,6 +84,87 @@ export async function getDb() {
 }
 
 /**
+ * Firebase Auth (Anonymous)
+ * Повертає UID або null якщо auth не налаштований/не вдалось.
+ */
+export async function ensureAuth(): Promise<string | null> {
+  try {
+    // без authDomain краще не стартувати auth взагалі
+    if (!hasAuthEnv()) return null;
+
+    // треба, щоб app вже був інітнутий (ensureFirebase робить initializeApp)
+    await ensureFirebase();
+    if (!_app) return null;
+
+    const authMod: any = await import("firebase/auth");
+    const auth = authMod.getAuth(_app);
+
+    // якщо вже є user — забираємо uid
+    if (auth?.currentUser?.uid) {
+      _authUid = auth.currentUser.uid;
+      return _authUid;
+    }
+
+    // щоб не запускати 100 разів одночасно
+    if (_authInitStarted) {
+      // почекаємо трохи, поки підхопиться
+      await new Promise((r) => setTimeout(r, 150));
+      return auth?.currentUser?.uid || _authUid;
+    }
+
+    _authInitStarted = true;
+
+    // 1) логін анонімно
+    try {
+      await authMod.signInAnonymously(auth);
+    } catch {
+      // якщо вже залогінений/інші кейси — ок
+    }
+
+    // 2) дочекаємось user
+    const uid: string | null = await new Promise((resolve) => {
+      const unsub = authMod.onAuthStateChanged(auth, (user: any) => {
+        if (user?.uid) {
+          try { unsub(); } catch {}
+          resolve(String(user.uid));
+        }
+      });
+      // fallback timeout
+      setTimeout(() => {
+        try { unsub(); } catch {}
+        resolve(auth?.currentUser?.uid ? String(auth.currentUser.uid) : null);
+      }, 2500);
+    });
+
+    _authUid = uid;
+    return uid;
+  } catch {
+    return null;
+  }
+}
+
+/** Просто взяти UID якщо вже є (без sign-in) */
+export async function getAuthUid(): Promise<string | null> {
+  try {
+    if (_authUid) return _authUid;
+    if (!hasAuthEnv()) return null;
+
+    await ensureFirebase();
+    if (!_app) return null;
+
+    const authMod: any = await import("firebase/auth");
+    const auth = authMod.getAuth(_app);
+    if (auth?.currentUser?.uid) {
+      _authUid = String(auth.currentUser.uid);
+      return _authUid;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * ВАЖЛИВО: docId не може містити "/"
  */
 export function nameToId(name: string) {
@@ -93,11 +182,18 @@ export function nameToId(name: string) {
  * ✅ B: кожен апдейт лідерборду
  * паралельно “heartbeat-ить” users_v1/{userId}.
  * => адмінка (яка читає users_v1) одразу бачить гравців.
+ *
+ * ВАЖЛИВО: якщо ти перейдеш на Auth UID як userId — rules можна зробити:
+ * allow update/create тільки якщо request.auth.uid == userId
  */
 export async function upsertScore(userId: string, name: string, score: number): Promise<void> {
   try {
     const db = await ensureFirebase();
     if (!db) return;
+
+    // ✅ гарантуємо, що в користувача є auth (щоб rules могли спиратись на request.auth.uid)
+    // якщо auth не налаштований — просто продовжимо як раніше (але тоді rules будуть слабкі)
+    await ensureAuth();
 
     const fs: any = await import("firebase/firestore");
 
@@ -107,7 +203,6 @@ export async function upsertScore(userId: string, name: string, score: number): 
     const lbRef = fs.doc(db, "leaderboard_v1", userId);
     const userRef = fs.doc(db, "users_v1", userId);
 
-    // ✅ атомарніше: одним батчем пишемо у 2 колекції
     const batch = fs.writeBatch(db);
 
     batch.set(
@@ -204,6 +299,9 @@ export async function upsertUserProfile(userId: string, patch: Partial<UserProfi
     const db = await ensureFirebase();
     if (!db) return;
 
+    // бажано мати auth
+    await ensureAuth();
+
     const fs: any = await import("firebase/firestore");
     const ref = fs.doc(db, "users_v1", userId);
 
@@ -254,6 +352,9 @@ export async function setUserBan(
     const db = await ensureFirebase();
     if (!db) return;
 
+    // адмін теж має бути auth-юзером (і rules перевірятимуть request.auth.uid)
+    await ensureAuth();
+
     const fs: any = await import("firebase/firestore");
     const ref = fs.doc(db, "users_v1", userId);
 
@@ -276,6 +377,8 @@ export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; da
     const db = await ensureFirebase();
     if (!db) return [];
 
+    await ensureAuth();
+
     const fs: any = await import("firebase/firestore");
     const lim = Math.max(1, Math.min(200, Math.floor(limit) || 50));
 
@@ -284,7 +387,6 @@ export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; da
       const snap = await fs.getDocs(q);
       return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
     } catch {
-      // fallback (якщо orderBy потребує індексу/поле ще не всюди є)
       const q2 = fs.query(fs.collection(db, "users_v1"), fs.limit(lim));
       const snap2 = await fs.getDocs(q2);
       return snap2.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
@@ -300,6 +402,8 @@ export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data
     const db = await ensureFirebase();
     if (!db) return [];
 
+    await ensureAuth();
+
     const fs: any = await import("firebase/firestore");
     const lim = Math.max(1, Math.min(200, Math.floor(limit) || 100));
 
@@ -308,7 +412,6 @@ export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data
       const snap = await fs.getDocs(q);
       return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
     } catch {
-      // fallback
       const q2 = fs.query(fs.collection(db, "users_v1"), fs.limit(lim));
       const snap2 = await fs.getDocs(q2);
       return snap2.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
