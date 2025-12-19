@@ -27,6 +27,20 @@ export type UserProfile = {
   balanceBy?: string;
 };
 
+export type CheatReport = {
+  id: string;
+  userId: string;        // auth.uid репортера (і це ж target user)
+  kind: string;          // напр "SCORE_SPIKE" / "FAST_TAPS" / "CLIENT_TAMPER"
+  reason: string;        // текст
+  score: number;         // поточний score на момент репорту
+  clientTs: number;      // Date.now()
+  at?: any;              // serverTimestamp
+  // optional meta
+  name?: string;
+  tgId?: number | null;
+  tgUsername?: string;
+};
+
 let _inited = false;
 let _app: any = null;
 let _db: any = null;
@@ -66,7 +80,7 @@ async function ensureFirebase() {
 
     const e = env();
 
-    // ✅ нормальний конфіг (optional поля підставляємо якщо є)
+    // нормальний конфіг (optional поля підставляємо якщо є)
     const cfg: any = {
       apiKey: e.VITE_FB_API_KEY,
       projectId: e.VITE_FB_PROJECT_ID,
@@ -188,18 +202,10 @@ export async function upsertScore(userId: string, name: string, score: number): 
 
     const batch = fs.writeBatch(db);
 
-    batch.set(
-      lbRef,
-      { name: cleanName, score: cleanScore, ts: fs.serverTimestamp() },
-      { merge: true }
-    );
+    batch.set(lbRef, { name: cleanName, score: cleanScore, ts: fs.serverTimestamp() }, { merge: true });
 
     // heartbeat для адмінки + гри
-    batch.set(
-      userRef,
-      { name: cleanName, score: cleanScore, lastSeenAt: fs.serverTimestamp() },
-      { merge: true }
-    );
+    batch.set(userRef, { name: cleanName, score: cleanScore, lastSeenAt: fs.serverTimestamp() }, { merge: true });
 
     await batch.commit();
   } catch {}
@@ -279,10 +285,16 @@ export async function upsertUserProfile(userId: string, patch: Partial<UserProfi
 
     const data: any = { ...patch };
 
-    // ✅ конвертуємо "__SERVER_TIMESTAMP__" якщо десь використаєш
+    // конвертуємо "__SERVER_TIMESTAMP__" якщо десь використаєш
     if (data.lastSeenAt === "__SERVER_TIMESTAMP__") data.lastSeenAt = fs.serverTimestamp();
     if (data.bannedAt === "__SERVER_TIMESTAMP__") data.bannedAt = fs.serverTimestamp();
     if (data.balanceUpdatedAt === "__SERVER_TIMESTAMP__") data.balanceUpdatedAt = fs.serverTimestamp();
+
+    // трішки санітуємо
+    if (typeof data.name === "string") data.name = data.name.trim().slice(0, 64);
+    if (typeof data.tgUsername === "string") data.tgUsername = data.tgUsername.trim().slice(0, 64);
+    if (typeof data.tgFirst === "string") data.tgFirst = data.tgFirst.trim().slice(0, 64);
+    if (typeof data.tgLast === "string") data.tgLast = data.tgLast.trim().slice(0, 64);
 
     await fs.setDoc(fs.doc(db, "users_v1", userId), data, { merge: true });
   } catch {}
@@ -326,15 +338,10 @@ export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; da
     const lim = Math.max(1, Math.min(200, Math.floor(limit) || 50));
 
     try {
-      const q = fs.query(
-        fs.collection(db, "users_v1"),
-        fs.orderBy("lastSeenAt", "desc"),
-        fs.limit(lim)
-      );
+      const q = fs.query(fs.collection(db, "users_v1"), fs.orderBy("lastSeenAt", "desc"), fs.limit(lim));
       const snap = await fs.getDocs(q);
       return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
     } catch {
-      // fallback (якщо індексу/поля ще нема)
       const q2 = fs.query(fs.collection(db, "users_v1"), fs.limit(lim));
       const snap2 = await fs.getDocs(q2);
       return snap2.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
@@ -356,11 +363,7 @@ export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data
     const lim = Math.max(1, Math.min(200, Math.floor(limit) || 100));
 
     try {
-      const q = fs.query(
-        fs.collection(db, "users_v1"),
-        fs.orderBy("score", "desc"),
-        fs.limit(lim)
-      );
+      const q = fs.query(fs.collection(db, "users_v1"), fs.orderBy("score", "desc"), fs.limit(lim));
       const snap = await fs.getDocs(q);
       return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
     } catch {
@@ -374,22 +377,133 @@ export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data
 }
 
 /* =========================
+   AUTO-REPORT (cheat_reports_v1)
+========================= */
+
+/**
+ * Юзер створює репорт "від себе" (Rules: request.resource.data.userId == request.auth.uid).
+ * Адмін потім дивиться репорти і банить вручну.
+ */
+export async function reportCheat(input: {
+  userId: string;
+  kind: string;
+  reason?: string;
+  score?: number;
+  name?: string;
+  tgId?: number | null;
+  tgUsername?: string;
+}): Promise<void> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return;
+
+    await ensureAuth();
+    const uid = await getAuthUid();
+    if (!uid) return;
+
+    // важливо: юзер може репортити тільки себе
+    if (input.userId !== uid) return;
+
+    const fs: any = await import("firebase/firestore");
+
+    const kind = String(input.kind || "").trim().slice(0, 32);
+    const reason = String(input.reason || "").trim().slice(0, 300);
+    const score = Math.max(0, Math.floor(Number(input.score || 0)) || 0);
+
+    if (!kind) return;
+
+    const ref = fs.doc(fs.collection(db, "cheat_reports_v1")); // auto id
+
+    await fs.setDoc(ref, {
+      userId: uid,
+      kind,
+      reason,
+      score,
+      clientTs: Date.now(),
+      at: fs.serverTimestamp(),
+      name: input.name ? String(input.name).trim().slice(0, 64) : "",
+      tgId: typeof input.tgId === "number" ? input.tgId : (input.tgId ?? null),
+      tgUsername: input.tgUsername ? String(input.tgUsername).trim().slice(0, 64) : "",
+    });
+  } catch {}
+}
+
+/** Адмін: останні репорти (читання дозволено тільки isAdmin() в Rules) */
+export async function getCheatReports(limit = 50): Promise<CheatReport[]> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return [];
+
+    await ensureAuth();
+
+    const fs: any = await import("firebase/firestore");
+    const lim = Math.max(1, Math.min(200, Math.floor(limit) || 50));
+
+    // сортуємо по "at desc" (якщо індексу нема, буде fallback)
+    try {
+      const q = fs.query(fs.collection(db, "cheat_reports_v1"), fs.orderBy("at", "desc"), fs.limit(lim));
+      const snap = await fs.getDocs(q);
+      return snap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) })) as CheatReport[];
+    } catch {
+      const q2 = fs.query(fs.collection(db, "cheat_reports_v1"), fs.limit(lim));
+      const snap2 = await fs.getDocs(q2);
+      return snap2.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) })) as CheatReport[];
+    }
+  } catch {
+    return [];
+  }
+}
+
+/** Адмін: live підписка на репорти */
+export function subscribeCheatReports(limit: number, cb: (rows: CheatReport[]) => void): () => void {
+  let unsub: any = () => {};
+
+  (async () => {
+    try {
+      const db = await ensureFirebase();
+      if (!db) return;
+
+      await ensureAuth();
+
+      const fs: any = await import("firebase/firestore");
+      const lim = Math.max(1, Math.min(200, Math.floor(limit) || 50));
+
+      // якщо orderBy(at) впаде — зробимо простий limit
+      let q: any;
+      try {
+        q = fs.query(fs.collection(db, "cheat_reports_v1"), fs.orderBy("at", "desc"), fs.limit(lim));
+      } catch {
+        q = fs.query(fs.collection(db, "cheat_reports_v1"), fs.limit(lim));
+      }
+
+      unsub = fs.onSnapshot(
+        q,
+        (snap: any) => {
+          const list = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() || {}) })) as CheatReport[];
+          cb(list);
+        },
+        () => {}
+      );
+    } catch {}
+  })();
+
+  return () => {
+    try {
+      unsub();
+    } catch {}
+  };
+}
+
+/* =========================
    ADMIN
 ========================= */
 
 /**
- * ✅ Бан/розбан + (КРОК 1) одразу пишемо:
+ * Бан/розбан + одразу пишемо:
  * - ban_history_v1 (тільки на BAN)
  * - admin_logs_v1 (на BAN і UNBAN)
- *
- * Все одним batch.commit() (атомарно).
  */
-export async function setUserBan(
-  userId: string,
-  banned: boolean,
-  reason: string,
-  bannedBy: string
-): Promise<void> {
+export async function setUserBan(userId: string, banned: boolean, reason: string, bannedBy: string): Promise<void> {
   try {
     const db = await ensureFirebase();
     if (!db) return;
@@ -407,7 +521,7 @@ export async function setUserBan(
 
     const batch = fs.writeBatch(db);
 
-    // 1) users_v1 update
+    // users_v1 update
     batch.set(
       userRef,
       {
@@ -419,7 +533,7 @@ export async function setUserBan(
       { merge: true }
     );
 
-    // 2) ban history (тільки коли банимо)
+    // ban history (тільки коли банимо)
     if (banned) {
       batch.set(banRef, {
         userId,
@@ -429,7 +543,7 @@ export async function setUserBan(
       });
     }
 
-    // 3) admin log (і бан, і розбан)
+    // admin log (і бан, і розбан)
     batch.set(logRef, {
       action: banned ? "BAN" : "UNBAN",
       targetUserId: userId,
@@ -442,16 +556,8 @@ export async function setUserBan(
   } catch {}
 }
 
-/**
- * (опційно на потім) Зміна балансу адміном + лог
- * Якщо ще не треба — можеш не використовувати.
- */
-export async function adminSetBalance(
-  userId: string,
-  balance: number,
-  reason: string,
-  adminId: string
-): Promise<void> {
+/** Зміна балансу адміном + лог */
+export async function adminSetBalance(userId: string, balance: number, reason: string, adminId: string): Promise<void> {
   try {
     const db = await ensureFirebase();
     if (!db) return;
