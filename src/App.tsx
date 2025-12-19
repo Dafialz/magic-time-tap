@@ -3,15 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { loadState, scheduleSave } from "./core/storage";
 import type { SaveState, ArtifactInstance } from "./core/storage";
 
-import { calcBossHP, calcRewards, getBossByTier } from "./systems/bosses";
-import type { BossDef, BossTier } from "./systems/bosses";
-
 import { epochByLevel } from "./systems/epochs";
 import type { Epoch } from "./systems/epochs";
 
 import { GOLDEN_METEOR, nextMeteorIn } from "./systems/events";
 
-import { rollArtifactId, getArtifactById, aggregateArtifacts } from "./systems/artifacts";
+import { aggregateArtifacts } from "./systems/artifacts";
 import type { AggregatedBonus } from "./systems/artifacts";
 
 import { buildCraftItems, incomePerHourAtLevel, mgpPrestigeMult } from "./systems/economy";
@@ -29,41 +26,41 @@ import AppModal from "./components/AppModal";
 import LeadersPanel from "./components/LeadersPanel";
 import AdminPanel from "./components/AdminPanel";
 
-// сервіс лідерборду + auth/users
+// сервіс лідерборду + auth/users (+admin ban)
 import {
   upsertScore,
   ensureAuth,
   subscribeUser,
   upsertUserProfile,
+  setUserBan,
 } from "./services/leaderboard";
 
 const CRAFT_SLOT_COUNT = 21;
 const OFFLINE_CAP_SECS = 3 * 3600;
 
-/** allowlist адмінів через env: VITE_ADMIN_IDS="UID1,UID2" */
-function env() {
-  return ((import.meta as any)?.env ?? {}) as Record<string, string>;
-}
-function isAdminId(userId: string): boolean {
-  const list = (env().VITE_ADMIN_IDS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (!list.length) return false;
-  return list.includes(userId);
-}
+// ✅ твій адмінський Firebase Auth UID (тільки він зможе банити по Rules)
+const ADMIN_AUTH_UID = "zzyUPc53FPOwOSn2DcNZirHyusu1";
+
+// 🛡️ античит (підкрутиш під свою економіку)
+const ANTICHEAT_WINDOW_MS = 15_000;
+const ANTICHEAT_MAX_GAIN = 500_000; // max +score за 15 сек (має співпасти з rules scoreDeltaOk)
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
-  // 🔑 тепер це буде Auth UID
+  // 🔑 ТЕПЕР це Auth UID (Firestore doc id = auth.uid)
   const [leaderUserId, setLeaderUserId] = useState<string>(""); // "" = ще не готово
 
   // Telegram display name (як було)
   const [username, setUsername] = useState<string>("Гість");
 
   // Telegram meta (збережемо в users_v1)
-  const [tgMeta, setTgMeta] = useState<{ tgId?: number; tgUsername?: string; first?: string; last?: string }>({});
+  const [tgMeta, setTgMeta] = useState<{
+    tgId?: number;
+    tgUsername?: string;
+    first?: string;
+    last?: string;
+  }>({});
 
   // 1) Підтягуємо Telegram user (для імені в UI + мета в профіль)
   useEffect(() => {
@@ -79,10 +76,7 @@ export default function App() {
 
     try {
       const u = tg?.initDataUnsafe?.user;
-      const name =
-        u?.username ||
-        [u?.first_name, u?.last_name].filter(Boolean).join(" ") ||
-        "Гість";
+      const name = u?.username || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || "Гість";
       setUsername(name);
 
       setTgMeta({
@@ -94,7 +88,7 @@ export default function App() {
     } catch {}
   }, []);
 
-  // 2) Стартуємо Firebase Auth (Anonymous) і ставимо leaderUserId = uid
+  // 2) Стартуємо Firebase Auth (Anonymous) і ставимо leaderUserId = auth.uid
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -133,15 +127,6 @@ export default function App() {
   const epoch: Epoch = useMemo(() => epochByLevel(level), [level]);
   const epochMult = epoch.mult;
 
-  const bossTier: BossTier | 0 = useMemo(() => Math.floor(level / 10) as BossTier | 0, [level]);
-
-  const [bossActive, setBossActive] = useState(false);
-  const [bossHP, setBossHP] = useState<number>(0);
-  const [bossMaxHP, setBossMaxHP] = useState<number>(0);
-  const [bossData, setBossData] = useState<BossDef | null>(null);
-  const [bossTimeLeft, setBossTimeLeft] = useState<number>(0);
-  const [bossRetryCooldown, setBossRetryCooldown] = useState<number>(0);
-
   const [meteorVisible, setMeteorVisible] = useState(false);
   const [meteorBuffLeft, setMeteorBuffLeft] = useState(0);
   const [meteorSpawnIn, setMeteorSpawnIn] = useState<number>(() => nextMeteorIn(GOLDEN_METEOR));
@@ -158,7 +143,7 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
-  // ✅ читаємо users_v1/{uid}
+  // ✅ читаємо users_v1/{uid} (бан)
   useEffect(() => {
     if (!leaderUserId) return;
     const unsub = subscribeUser(leaderUserId, (profile) => {
@@ -167,11 +152,13 @@ export default function App() {
       setBanReason(String(d.banReason || ""));
     });
     return () => {
-      try { unsub(); } catch {}
+      try {
+        unsub();
+      } catch {}
     };
   }, [leaderUserId]);
 
-  // ✅ heartbeat у users_v1/{uid} раз на 20s (плюс tg meta)
+  // ✅ heartbeat у users_v1/{uid} раз на 20s
   useEffect(() => {
     if (!leaderUserId) return;
 
@@ -183,29 +170,23 @@ export default function App() {
       const name = (username || "Гість").trim();
       const score = Math.floor(mgp);
 
-      // пишемо і звичайні поля, і tg meta (додаткові поля ок для Firestore)
-      await upsertUserProfile(
-        leaderUserId,
-        {
-          name,
-          score,
-          // @ts-ignore extra fields allowed in Firestore
-          tgId: tgMeta.tgId ?? null,
-          // @ts-ignore
-          tgUsername: tgMeta.tgUsername ?? "",
-          // @ts-ignore
-          tgFirst: tgMeta.first ?? "",
-          // @ts-ignore
-          tgLast: tgMeta.last ?? "",
-          lastSeenAt: (await import("firebase/firestore")).serverTimestamp?.() as any,
-        } as any
-      );
+      await upsertUserProfile(leaderUserId, {
+        name,
+        score,
+        lastSeenAt: "__SERVER_TIMESTAMP__" as any,
+        tgId: tgMeta.tgId ?? null,
+        tgUsername: tgMeta.tgUsername ?? "",
+        tgFirst: tgMeta.first ?? "",
+        tgLast: tgMeta.last ?? "",
+      } as any);
 
       if (!stop) window.setTimeout(tick, 20_000);
     };
 
     tick();
-    return () => { stop = true; };
+    return () => {
+      stop = true;
+    };
   }, [leaderUserId, username, mgp, tgMeta.tgId, tgMeta.tgUsername, tgMeta.first, tgMeta.last]);
 
   /* ===== load/save ===== */
@@ -264,7 +245,15 @@ export default function App() {
 
   useEffect(() => {
     const payload: SaveState = {
-      ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
+      ce,
+      mm,
+      totalEarned,
+      clickPower,
+      autoPerSec,
+      farmMult,
+      hc,
+      level,
+      prestiges,
       upgrades: upgrades.map((u) => ({ id: u.id, level: u.level })),
       lastSeenAt: Date.now(),
       artifacts,
@@ -276,8 +265,22 @@ export default function App() {
     };
     scheduleSave(payload);
   }, [
-    ce, mm, totalEarned, clickPower, autoPerSec, farmMult, hc, level, prestiges,
-    upgrades, artifacts, equippedIds, ownedSkins, equippedSkinId, mgp, craftSlots,
+    ce,
+    mm,
+    totalEarned,
+    clickPower,
+    autoPerSec,
+    farmMult,
+    hc,
+    level,
+    prestiges,
+    upgrades,
+    artifacts,
+    equippedIds,
+    ownedSkins,
+    equippedSkinId,
+    mgp,
+    craftSlots,
   ]);
 
   const artifactLevels: Record<string, number> = useMemo(() => {
@@ -293,7 +296,7 @@ export default function App() {
 
   const meteorMult = meteorBuffLeft > 0 ? GOLDEN_METEOR.mult : 1;
   const effectiveClickMult = (1 + artAgg.click) * meteorMult * epochMult * farmMult;
-  const effectiveAutoMult  = (1 + artAgg.auto)  * meteorMult * epochMult * farmMult;
+  const effectiveAutoMult = (1 + artAgg.auto) * meteorMult * epochMult * farmMult;
 
   const mgpIncomePerHour = useMemo(() => {
     const base = craftSlots.reduce((sum, lvl) => sum + (lvl > 0 ? incomePerHourAtLevel(lvl) : 0), 0);
@@ -310,7 +313,6 @@ export default function App() {
     setCe((prev) => prev + inc);
     setMgp((prev) => prev + inc);
     setTotalEarned((te) => te + inc);
-    if (bossActive) setBossHP((hp) => Math.max(0, hp - clickPower));
   };
 
   useEffect(() => {
@@ -319,12 +321,8 @@ export default function App() {
         const inc = autoPerSec * effectiveAutoMult;
         setCe((prev) => prev + inc);
         setTotalEarned((te) => te + inc);
-        if (bossActive) setBossHP((hp) => Math.max(0, hp - autoPerSec));
       }
       if (mgpIncomePerHour > 0) setMgp((v) => v + mgpIncomePerHour / 3600);
-
-      if (bossActive && bossTimeLeft > 0) setBossTimeLeft((t) => Math.max(0, t - 1));
-      if (bossRetryCooldown > 0) setBossRetryCooldown((t) => Math.max(0, t - 1));
 
       if (meteorBuffLeft > 0) setMeteorBuffLeft((t) => Math.max(0, t - 1));
       else {
@@ -337,7 +335,7 @@ export default function App() {
       }
     }, 1000);
     return () => window.clearInterval(id);
-  }, [autoPerSec, effectiveAutoMult, bossActive, bossTimeLeft, bossRetryCooldown, meteorBuffLeft, meteorVisible, mgpIncomePerHour]);
+  }, [autoPerSec, effectiveAutoMult, meteorBuffLeft, meteorVisible, mgpIncomePerHour]);
 
   const onMeteorClick = () => {
     if (isBanned) return;
@@ -373,6 +371,33 @@ export default function App() {
     return true;
   };
 
+  // 🛡️ Auto-ban (клієнтський): якщо приріст MGP за 15с > ANTICHEAT_MAX_GAIN
+  const antiRef = useRef<{ t: number; s: number }>({ t: Date.now(), s: 0 });
+  useEffect(() => {
+    if (!leaderUserId) return;
+    if (isBanned) return;
+
+    const now = Date.now();
+    const score = Math.floor(mgp);
+
+    // ініціалізація
+    if (antiRef.current.s === 0 && score > 0) {
+      antiRef.current = { t: now, s: score };
+      return;
+    }
+
+    const dt = now - antiRef.current.t;
+    if (dt < ANTICHEAT_WINDOW_MS) return;
+
+    const ds = score - antiRef.current.s;
+    antiRef.current = { t: now, s: score };
+
+    if (ds > ANTICHEAT_MAX_GAIN) {
+      setUserBan(leaderUserId, true, `Auto-ban: suspicious gain (+${ds} in ${Math.round(dt / 1000)}s)`, leaderUserId)
+        .catch(() => {});
+    }
+  }, [mgp, leaderUserId, isBanned]);
+
   // пуш у лідерборд (тротлінг)
   const lastPush = useRef<{ t: number; s: number }>({ t: 0, s: 0 });
   useEffect(() => {
@@ -382,21 +407,19 @@ export default function App() {
     if (!leaderUserId || score <= 0) return;
 
     const displayName = (username || "Гість").trim();
-
     const now = Date.now();
     const dt = now - lastPush.current.t;
     const ds = score - lastPush.current.s;
 
     if (dt < 15_000 && ds < 50_000) return;
 
-    // ✅ userId тепер UID
     upsertScore(leaderUserId, displayName, score).catch(() => {});
     lastPush.current = { t: now, s: score };
   }, [mgp, username, leaderUserId, isBanned]);
 
   /* ===== admin ===== */
   const [adminOpen, setAdminOpen] = useState(false);
-  const isAdmin = useMemo(() => (leaderUserId ? isAdminId(leaderUserId) : false), [leaderUserId]);
+  const isAdmin = useMemo(() => !!leaderUserId && leaderUserId === ADMIN_AUTH_UID, [leaderUserId]);
 
   useEffect(() => {
     try {
@@ -422,19 +445,41 @@ export default function App() {
       />
 
       <main className="page-content">
+        {!leaderUserId ? (
+          <div
+            style={{
+              margin: "14px 12px",
+              padding: "14px",
+              borderRadius: 14,
+              background: "rgba(255,255,255,.06)",
+              border: "1px solid rgba(255,255,255,.12)",
+              textAlign: "center",
+              opacity: 0.9,
+            }}
+          >
+            Підключення...
+          </div>
+        ) : null}
+
         {isBanned ? (
-          <div style={{
-            margin: "14px 12px",
-            padding: "14px",
-            borderRadius: 14,
-            background: "rgba(255,80,80,.12)",
-            border: "1px solid rgba(255,80,80,.25)",
-            textAlign: "center"
-          }}>
+          <div
+            style={{
+              margin: "14px 12px",
+              padding: "14px",
+              borderRadius: 14,
+              background: "rgba(255,80,80,.12)",
+              border: "1px solid rgba(255,80,80,.25)",
+              textAlign: "center",
+            }}
+          >
             <div style={{ fontWeight: 900, marginBottom: 6 }}>⛔ Ви заблоковані</div>
-            {banReason
-              ? <div style={{ opacity: .9 }}>Причина: <b>{banReason}</b></div>
-              : <div style={{ opacity: .9 }}>Зверніться до адміністратора.</div>}
+            {banReason ? (
+              <div style={{ opacity: 0.9 }}>
+                Причина: <b>{banReason}</b>
+              </div>
+            ) : (
+              <div style={{ opacity: 0.9 }}>Зверніться до адміністратора.</div>
+            )}
           </div>
         ) : null}
 

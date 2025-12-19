@@ -1,5 +1,6 @@
 // src/services/leaderboard.ts
 // Firestore: leaderboard + users/admin helpers.
+// Працює з Firebase Auth (anonymous).
 // Якщо Firebase не налаштований — функції тихо нічого не роблять.
 
 export type LBEntry = { name: string; score: number };
@@ -7,19 +8,30 @@ export type LBEntry = { name: string; score: number };
 export type UserProfile = {
   name?: string;
   score?: number;
-  lastSeenAt?: any; // serverTimestamp (Firestore Timestamp)
+  lastSeenAt?: any; // Firestore Timestamp
   banned?: boolean;
   banReason?: string;
-  bannedAt?: any; // serverTimestamp
+  bannedAt?: any; // Firestore Timestamp
   bannedBy?: string;
-  // можна розширювати далі (inventory, purchases, flags...)
+
+  // extra meta (tg)
+  tgId?: number | null;
+  tgUsername?: string;
+  tgFirst?: string;
+  tgLast?: string;
+
+  // (опційно) баланс / службові поля, якщо захочеш
+  balance?: number;
+  balanceReason?: string;
+  balanceUpdatedAt?: any;
+  balanceBy?: string;
 };
 
 let _inited = false;
 let _app: any = null;
 let _db: any = null;
 
-// Auth cache
+// ===== Auth cache =====
 let _authInitStarted = false;
 let _authUid: string | null = null;
 
@@ -27,16 +39,15 @@ function env() {
   return ((import.meta as any)?.env ?? {}) as Record<string, string>;
 }
 
-/**
- * Мінімальний набір для ініціалізації Firebase.
- * Для Firestore достатньо apiKey + projectId. (authDomain бажано)
- */
+/* =========================
+   Firebase init helpers
+========================= */
+
 function hasFirebaseEnv() {
   const e = env();
   return !!(e.VITE_FB_API_KEY && e.VITE_FB_PROJECT_ID);
 }
 
-/** Для Auth краще мати authDomain (і бажано appId) */
 function hasAuthEnv() {
   const e = env();
   return !!(e.VITE_FB_API_KEY && e.VITE_FB_PROJECT_ID && e.VITE_FB_AUTH_DOMAIN);
@@ -55,6 +66,7 @@ async function ensureFirebase() {
 
     const e = env();
 
+    // ✅ нормальний конфіг (optional поля підставляємо якщо є)
     const cfg: any = {
       apiKey: e.VITE_FB_API_KEY,
       projectId: e.VITE_FB_PROJECT_ID,
@@ -66,11 +78,10 @@ async function ensureFirebase() {
     if (e.VITE_FB_MEASUREMENT_ID) cfg.measurementId = e.VITE_FB_MEASUREMENT_ID;
 
     const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(cfg);
-    const db = fsMod.getFirestore(app);
 
     _app = app;
-    _db = db;
-    return db;
+    _db = fsMod.getFirestore(app);
+    return _db;
   } catch {
     _db = null;
     _app = null;
@@ -78,61 +89,56 @@ async function ensureFirebase() {
   }
 }
 
-/** Доступ до db (для інших сервісів/адмінки) */
 export async function getDb() {
-  return await ensureFirebase();
+  return ensureFirebase();
 }
 
-/**
- * Firebase Auth (Anonymous)
- * Повертає UID або null якщо auth не налаштований/не вдалось.
- */
+/* =========================
+   Firebase Auth (Anonymous)
+========================= */
+
 export async function ensureAuth(): Promise<string | null> {
   try {
-    // без authDomain краще не стартувати auth взагалі
     if (!hasAuthEnv()) return null;
 
-    // треба, щоб app вже був інітнутий (ensureFirebase робить initializeApp)
     await ensureFirebase();
     if (!_app) return null;
 
     const authMod: any = await import("firebase/auth");
     const auth = authMod.getAuth(_app);
 
-    // якщо вже є user — забираємо uid
-    if (auth?.currentUser?.uid) {
+    if (auth.currentUser?.uid) {
       _authUid = auth.currentUser.uid;
       return _authUid;
     }
 
-    // щоб не запускати 100 разів одночасно
     if (_authInitStarted) {
-      // почекаємо трохи, поки підхопиться
       await new Promise((r) => setTimeout(r, 150));
-      return auth?.currentUser?.uid || _authUid;
+      return auth.currentUser?.uid || _authUid;
     }
 
     _authInitStarted = true;
 
-    // 1) логін анонімно
     try {
       await authMod.signInAnonymously(auth);
     } catch {
-      // якщо вже залогінений/інші кейси — ок
+      // no-op (інколи вже залогінений)
     }
 
-    // 2) дочекаємось user
-    const uid: string | null = await new Promise((resolve) => {
-      const unsub = authMod.onAuthStateChanged(auth, (user: any) => {
-        if (user?.uid) {
-          try { unsub(); } catch {}
-          resolve(String(user.uid));
+    const uid = await new Promise<string | null>((resolve) => {
+      const unsub = authMod.onAuthStateChanged(auth, (u: any) => {
+        if (u?.uid) {
+          try {
+            unsub();
+          } catch {}
+          resolve(String(u.uid));
         }
       });
-      // fallback timeout
       setTimeout(() => {
-        try { unsub(); } catch {}
-        resolve(auth?.currentUser?.uid ? String(auth.currentUser.uid) : null);
+        try {
+          unsub();
+        } catch {}
+        resolve(auth.currentUser?.uid ?? null);
       }, 2500);
     });
 
@@ -143,7 +149,6 @@ export async function ensureAuth(): Promise<string | null> {
   }
 }
 
-/** Просто взяти UID якщо вже є (без sign-in) */
 export async function getAuthUid(): Promise<string | null> {
   try {
     if (_authUid) return _authUid;
@@ -154,50 +159,28 @@ export async function getAuthUid(): Promise<string | null> {
 
     const authMod: any = await import("firebase/auth");
     const auth = authMod.getAuth(_app);
-    if (auth?.currentUser?.uid) {
-      _authUid = String(auth.currentUser.uid);
-      return _authUid;
-    }
-    return null;
+    const uid = auth?.currentUser?.uid ? String(auth.currentUser.uid) : null;
+    if (uid) _authUid = uid;
+    return uid;
   } catch {
     return null;
   }
-}
-
-/**
- * ВАЖЛИВО: docId не може містити "/"
- */
-export function nameToId(name: string) {
-  const raw = (name || "guest").trim().toLowerCase();
-  const safe = raw.replace(/\//g, "_").replace(/[\u0000-\u001F\u007F]/g, "").trim();
-  const base = safe.length ? safe : "guest";
-  return base.slice(0, 64);
 }
 
 /* =========================
    LEADERBOARD
 ========================= */
 
-/**
- * ✅ B: кожен апдейт лідерборду
- * паралельно “heartbeat-ить” users_v1/{userId}.
- * => адмінка (яка читає users_v1) одразу бачить гравців.
- *
- * ВАЖЛИВО: якщо ти перейдеш на Auth UID як userId — rules можна зробити:
- * allow update/create тільки якщо request.auth.uid == userId
- */
 export async function upsertScore(userId: string, name: string, score: number): Promise<void> {
   try {
     const db = await ensureFirebase();
     if (!db) return;
 
-    // ✅ гарантуємо, що в користувача є auth (щоб rules могли спиратись на request.auth.uid)
-    // якщо auth не налаштований — просто продовжимо як раніше (але тоді rules будуть слабкі)
     await ensureAuth();
 
     const fs: any = await import("firebase/firestore");
 
-    const cleanName = String((name || userId || "guest").trim()).slice(0, 64);
+    const cleanName = String(name || "Guest").trim().slice(0, 64);
     const cleanScore = Math.max(0, Math.floor(score) || 0);
 
     const lbRef = fs.doc(db, "leaderboard_v1", userId);
@@ -207,28 +190,19 @@ export async function upsertScore(userId: string, name: string, score: number): 
 
     batch.set(
       lbRef,
-      {
-        name: cleanName,
-        score: cleanScore,
-        ts: fs.serverTimestamp(),
-      },
+      { name: cleanName, score: cleanScore, ts: fs.serverTimestamp() },
       { merge: true }
     );
 
+    // heartbeat для адмінки + гри
     batch.set(
       userRef,
-      {
-        name: cleanName,
-        score: cleanScore,
-        lastSeenAt: fs.serverTimestamp(),
-      },
+      { name: cleanName, score: cleanScore, lastSeenAt: fs.serverTimestamp() },
       { merge: true }
     );
 
     await batch.commit();
-  } catch {
-    // no-op
-  }
+  } catch {}
 }
 
 export function subscribeTopN(n: number, cb: (rows: LBEntry[]) => void): () => void {
@@ -249,11 +223,12 @@ export function subscribeTopN(n: number, cb: (rows: LBEntry[]) => void): () => v
       unsub = fs.onSnapshot(
         q,
         (snap: any) => {
-          const list: LBEntry[] = snap.docs.map((d: any) => {
-            const data = d.data() || {};
-            return { name: data.name || d.id, score: Number(data.score) || 0 };
-          });
-          cb(list);
+          cb(
+            snap.docs.map((d: any) => ({
+              name: d.data()?.name || d.id,
+              score: Number(d.data()?.score) || 0,
+            }))
+          );
         },
         () => {}
       );
@@ -262,7 +237,7 @@ export function subscribeTopN(n: number, cb: (rows: LBEntry[]) => void): () => v
 
   return () => {
     try {
-      if (typeof unsub === "function") unsub();
+      unsub();
     } catch {}
   };
 }
@@ -280,52 +255,50 @@ export async function getTopN(n: number): Promise<LBEntry[]> {
     );
 
     const snap = await fs.getDocs(q);
-    return snap.docs.map((d: any) => {
-      const data = d.data() || {};
-      return { name: data.name || d.id, score: Number(data.score) || 0 };
-    });
+    return snap.docs.map((d: any) => ({
+      name: d.data()?.name || d.id,
+      score: Number(d.data()?.score) || 0,
+    }));
   } catch {
     return [];
   }
 }
 
 /* =========================
-   USERS (профіль, бан, адмінка)
+   USERS
 ========================= */
 
-/** Оновити профіль юзера (name/score/lastSeenAt/...) */
 export async function upsertUserProfile(userId: string, patch: Partial<UserProfile>): Promise<void> {
   try {
     const db = await ensureFirebase();
     if (!db) return;
 
-    // бажано мати auth
     await ensureAuth();
 
     const fs: any = await import("firebase/firestore");
-    const ref = fs.doc(db, "users_v1", userId);
 
-    await fs.setDoc(ref, patch, { merge: true });
+    const data: any = { ...patch };
+
+    // ✅ конвертуємо "__SERVER_TIMESTAMP__" якщо десь використаєш
+    if (data.lastSeenAt === "__SERVER_TIMESTAMP__") data.lastSeenAt = fs.serverTimestamp();
+    if (data.bannedAt === "__SERVER_TIMESTAMP__") data.bannedAt = fs.serverTimestamp();
+    if (data.balanceUpdatedAt === "__SERVER_TIMESTAMP__") data.balanceUpdatedAt = fs.serverTimestamp();
+
+    await fs.setDoc(fs.doc(db, "users_v1", userId), data, { merge: true });
   } catch {}
 }
 
-/** Підписка на users_v1/{userId} */
 export function subscribeUser(userId: string, cb: (profile: UserProfile | null) => void): () => void {
   let unsub: any = () => {};
 
   (async () => {
     try {
       const db = await ensureFirebase();
-      if (!db) {
-        cb(null);
-        return;
-      }
+      if (!db) return cb(null);
 
       const fs: any = await import("firebase/firestore");
-      const ref = fs.doc(db, "users_v1", userId);
-
       unsub = fs.onSnapshot(
-        ref,
+        fs.doc(db, "users_v1", userId),
         (snap: any) => cb(snap.exists() ? (snap.data() as UserProfile) : null),
         () => cb(null)
       );
@@ -336,42 +309,12 @@ export function subscribeUser(userId: string, cb: (profile: UserProfile | null) 
 
   return () => {
     try {
-      if (typeof unsub === "function") unsub();
+      unsub();
     } catch {}
   };
 }
 
-/** Адмін: бан/анбан */
-export async function setUserBan(
-  userId: string,
-  banned: boolean,
-  banReason: string,
-  bannedBy: string
-): Promise<void> {
-  try {
-    const db = await ensureFirebase();
-    if (!db) return;
-
-    // адмін теж має бути auth-юзером (і rules перевірятимуть request.auth.uid)
-    await ensureAuth();
-
-    const fs: any = await import("firebase/firestore");
-    const ref = fs.doc(db, "users_v1", userId);
-
-    await fs.setDoc(
-      ref,
-      {
-        banned: !!banned,
-        banReason: banned ? String(banReason || "").slice(0, 200) : "",
-        bannedBy: banned ? String(bannedBy || "").slice(0, 64) : "",
-        bannedAt: banned ? fs.serverTimestamp() : fs.deleteField(),
-      },
-      { merge: true }
-    );
-  } catch {}
-}
-
-/** Адмін: список останніх активних (може попросити індекс по lastSeenAt) */
+/** Адмінка: останні активні */
 export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; data: UserProfile }>> {
   try {
     const db = await ensureFirebase();
@@ -383,7 +326,41 @@ export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; da
     const lim = Math.max(1, Math.min(200, Math.floor(limit) || 50));
 
     try {
-      const q = fs.query(fs.collection(db, "users_v1"), fs.orderBy("lastSeenAt", "desc"), fs.limit(lim));
+      const q = fs.query(
+        fs.collection(db, "users_v1"),
+        fs.orderBy("lastSeenAt", "desc"),
+        fs.limit(lim)
+      );
+      const snap = await fs.getDocs(q);
+      return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    } catch {
+      // fallback (якщо індексу/поля ще нема)
+      const q2 = fs.query(fs.collection(db, "users_v1"), fs.limit(lim));
+      const snap2 = await fs.getDocs(q2);
+      return snap2.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    }
+  } catch {
+    return [];
+  }
+}
+
+/** Адмінка: топ по score з users_v1 */
+export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data: UserProfile }>> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return [];
+
+    await ensureAuth();
+
+    const fs: any = await import("firebase/firestore");
+    const lim = Math.max(1, Math.min(200, Math.floor(limit) || 100));
+
+    try {
+      const q = fs.query(
+        fs.collection(db, "users_v1"),
+        fs.orderBy("score", "desc"),
+        fs.limit(lim)
+      );
       const snap = await fs.getDocs(q);
       return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
     } catch {
@@ -396,27 +373,121 @@ export async function getRecentUsers(limit = 50): Promise<Array<{ id: string; da
   }
 }
 
-/** Адмін: топ по score з users_v1 (альтернатива leaderboard) */
-export async function getTopUsers(limit = 100): Promise<Array<{ id: string; data: UserProfile }>> {
+/* =========================
+   ADMIN
+========================= */
+
+/**
+ * ✅ Бан/розбан + (КРОК 1) одразу пишемо:
+ * - ban_history_v1 (тільки на BAN)
+ * - admin_logs_v1 (на BAN і UNBAN)
+ *
+ * Все одним batch.commit() (атомарно).
+ */
+export async function setUserBan(
+  userId: string,
+  banned: boolean,
+  reason: string,
+  bannedBy: string
+): Promise<void> {
   try {
     const db = await ensureFirebase();
-    if (!db) return [];
+    if (!db) return;
 
     await ensureAuth();
 
     const fs: any = await import("firebase/firestore");
-    const lim = Math.max(1, Math.min(200, Math.floor(limit) || 100));
 
-    try {
-      const q = fs.query(fs.collection(db, "users_v1"), fs.orderBy("score", "desc"), fs.limit(lim));
-      const snap = await fs.getDocs(q);
-      return snap.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
-    } catch {
-      const q2 = fs.query(fs.collection(db, "users_v1"), fs.limit(lim));
-      const snap2 = await fs.getDocs(q2);
-      return snap2.docs.map((d: any) => ({ id: d.id, data: (d.data() || {}) as UserProfile }));
+    const userRef = fs.doc(db, "users_v1", userId);
+    const banRef = fs.doc(fs.collection(db, "ban_history_v1")); // auto id
+    const logRef = fs.doc(fs.collection(db, "admin_logs_v1")); // auto id
+
+    const cleanReason = String(reason || "").slice(0, 200);
+    const cleanBy = String(bannedBy || "").slice(0, 128);
+
+    const batch = fs.writeBatch(db);
+
+    // 1) users_v1 update
+    batch.set(
+      userRef,
+      {
+        banned: !!banned,
+        banReason: banned ? cleanReason : "",
+        bannedBy: banned ? cleanBy : "",
+        bannedAt: banned ? fs.serverTimestamp() : fs.deleteField(),
+      },
+      { merge: true }
+    );
+
+    // 2) ban history (тільки коли банимо)
+    if (banned) {
+      batch.set(banRef, {
+        userId,
+        reason: cleanReason,
+        bannedBy: cleanBy,
+        at: fs.serverTimestamp(),
+      });
     }
-  } catch {
-    return [];
-  }
+
+    // 3) admin log (і бан, і розбан)
+    batch.set(logRef, {
+      action: banned ? "BAN" : "UNBAN",
+      targetUserId: userId,
+      reason: cleanReason,
+      by: cleanBy,
+      at: fs.serverTimestamp(),
+    });
+
+    await batch.commit();
+  } catch {}
+}
+
+/**
+ * (опційно на потім) Зміна балансу адміном + лог
+ * Якщо ще не треба — можеш не використовувати.
+ */
+export async function adminSetBalance(
+  userId: string,
+  balance: number,
+  reason: string,
+  adminId: string
+): Promise<void> {
+  try {
+    const db = await ensureFirebase();
+    if (!db) return;
+
+    await ensureAuth();
+
+    const fs: any = await import("firebase/firestore");
+    const userRef = fs.doc(db, "users_v1", userId);
+    const logRef = fs.doc(fs.collection(db, "admin_logs_v1"));
+
+    const cleanReason = String(reason || "").slice(0, 200);
+    const cleanBy = String(adminId || "").slice(0, 128);
+    const cleanBalance = Number.isFinite(Number(balance)) ? Number(balance) : 0;
+
+    const batch = fs.writeBatch(db);
+
+    batch.set(
+      userRef,
+      {
+        balance: cleanBalance,
+        balanceReason: cleanReason,
+        balanceBy: cleanBy,
+        balanceUpdatedAt: fs.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    batch.set(logRef, {
+      action: "SET_BALANCE",
+      targetUserId: userId,
+      balance: cleanBalance,
+      reason: cleanReason,
+      by: cleanBy,
+      at: fs.serverTimestamp(),
+    });
+
+    await batch.commit();
+  } catch {}
 }
