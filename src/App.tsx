@@ -179,6 +179,7 @@ export default function App() {
   const [artifacts, setArtifacts] = useState<ArtifactInstance[]>([]);
   const [equippedIds, setEquippedIds] = useState<string[]>([]);
 
+  // залишив як було — може бути потрібно для інших частин/сейву
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["classic"]);
   const [equippedSkinId, setEquippedSkinId] = useState<string>("classic");
 
@@ -188,8 +189,7 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
-  // ✅ гідратація локального сейву: якщо вже завантажилися з localStorage,
-  // то ПЕРШИЙ snapshot з Firestore НЕ має “відкотити” витрати назад на server balance.
+  // ✅ гідратація локального сейву
   const hydratedFromLocalRef = useRef(false);
 
   // ✅ server balance: застосовуємо ТІЛЬКИ коли воно реально змінилось в Firestore
@@ -199,7 +199,6 @@ export default function App() {
   useEffect(() => {
     if (!leaderUserId) return;
 
-    // ініціалізація refs з localStorage (щоб працювало ПІСЛЯ refresh)
     if (lastAppliedServerBalRef.current === null) {
       const savedBal = readNumLS(LS_APPLIED_SERVER_BAL_KEY);
       if (savedBal != null) lastAppliedServerBalRef.current = savedBal;
@@ -218,30 +217,23 @@ export default function App() {
       if (!hasBal) return;
 
       const serverBal = Math.max(0, Math.floor(d.balance));
-      const serverAtMs = tsToMs(d.balanceUpdatedAt); // може бути null
+      const serverAtMs = tsToMs(d.balanceUpdatedAt);
 
       const prevBal = lastAppliedServerBalRef.current;
       const prevAt = lastAppliedServerAtRef.current;
 
-      // ✅ Визначаємо, чи сервер реально змінювався з останнього разу.
-      // - якщо є timestamp: він головний
-      // - якщо timestamp немає: орієнтуємось по числу
       let serverChanged = false;
 
       if (serverAtMs != null) {
         if (prevAt != null) serverChanged = serverAtMs !== prevAt;
         else if (prevBal != null) serverChanged = serverBal !== prevBal;
-        else serverChanged = true; // нічого не знаємо про “останній сервер” — це перший візит
+        else serverChanged = true;
       } else {
         if (prevBal != null) serverChanged = serverBal !== prevBal;
         else serverChanged = true;
       }
 
-      // ✅ Ключовий фікс:
-      // якщо це “перший показ” сервера після refresh, а ми вже завантажили localStorage,
-      // і сервер НЕ змінювався — не перетираємо mgp (щоб витрати не відкотились).
       if (!serverChanged && hydratedFromLocalRef.current) {
-        // все одно “запам’ятаємо” сервер як останній застосований (щоб при наступних заходах не скакало)
         if (prevBal == null) {
           lastAppliedServerBalRef.current = serverBal;
           writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
@@ -253,7 +245,6 @@ export default function App() {
         return;
       }
 
-      // Якщо сервер реально змінився (адмін задав новий balance) — застосовуємо.
       if (serverChanged) {
         lastAppliedServerBalRef.current = serverBal;
         writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
@@ -267,7 +258,6 @@ export default function App() {
         return;
       }
 
-      // Якщо local ще не гідратнувся — можна прийняти сервер як базу (порожній перший старт)
       if (!hydratedFromLocalRef.current) {
         lastAppliedServerBalRef.current = serverBal;
         writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
@@ -289,8 +279,6 @@ export default function App() {
   }, [leaderUserId]);
 
   // ✅ heartbeat у users_v1/{uid} раз на 20s
-  // ВАЖЛИВО: score = MGP (для лідерборду),
-  // а реальний адмінський баланс зберігається в users_v1.balance і підтягується вище.
   useEffect(() => {
     if (!leaderUserId) return;
 
@@ -334,7 +322,6 @@ export default function App() {
     }
 
     setCe(sAny.ce ?? 0);
-    // ❌ mm ігноруємо
     setTotalEarned(sAny.totalEarned ?? 0);
     setClickPower(sAny.clickPower ?? 1);
     setAutoPerSec(sAny.autoPerSec ?? 0);
@@ -367,7 +354,6 @@ export default function App() {
     setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
     setEquippedSkinId(sAny.equippedSkinId ?? "classic");
 
-    // ✅ важливо: позначаємо, що локал уже завантажили
     hydratedFromLocalRef.current = true;
 
     if (sAny.lastSeenAt && sAny.autoPerSec) {
@@ -386,7 +372,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // SaveState може ще мати mm у типі — кладемо 0, але в грі MM більше не існує.
     const payload: SaveState = {
       ce,
       // @ts-ignore legacy field
@@ -516,7 +501,7 @@ export default function App() {
     return true;
   };
 
-  // 🛡️ Auto-ban (клієнтський): якщо приріст MGP за 15с > ANTICHEAT_MAX_GAIN
+  // 🛡️ Auto-ban (клієнтський)
   const antiRef = useRef<{ t: number; s: number }>({ t: Date.now(), s: 0 });
   useEffect(() => {
     if (!leaderUserId) return;
@@ -580,9 +565,7 @@ export default function App() {
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
       <HeaderBar
         ce={ce}
-        // ❌ MM прибрано, але якщо HeaderBar очікує mm — даємо 0 як legacy
-        // (краще потім прибрати mm з HeaderBar теж)
-        // @ts-ignore
+        // @ts-ignore legacy
         mm={0}
         hc={hc}
         level={level}
@@ -658,7 +641,13 @@ export default function App() {
         )}
 
         {activeTab === "craft" && (
-          <CraftPanel mgp={mgp} setMgp={setMgp} slots={craftSlots} setSlots={setCraftSlots} items={craftItems} />
+          <CraftPanel
+            mgp={mgp}
+            setMgp={setMgp}
+            slots={craftSlots}
+            setSlots={setCraftSlots}
+            items={craftItems}
+          />
         )}
 
         {activeTab === "skins" && (
@@ -666,23 +655,6 @@ export default function App() {
             userId={leaderUserId || "no_uid"}
             nickname={username}
             isBanned={isBanned}
-            ownedSkins={ownedSkins}
-            equippedSkinId={equippedSkinId}
-            // ✅ покупки за MGP (замість MM)
-            buySkin={(id: string, price: number) => {
-              if (ownedSkins.includes(id)) {
-                setEquippedSkinId(id);
-                return;
-              }
-              if (mgp < price) {
-                setOfflineModalText("Не вистачає MGP");
-                setOfflineModalOpen(true);
-                return;
-              }
-              setMgp((v) => Math.max(0, v - price));
-              setOwnedSkins((list) => [...list, id]);
-              setEquippedSkinId(id);
-            }}
             onLoot={({ level }) => addToCraft(level)}
           />
         )}

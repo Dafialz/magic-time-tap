@@ -69,7 +69,7 @@ type Chest = {
   priceTon: number; // TON
   chestImg: string;
   pool: string[];
-  weights: number[]; // (залишено на майбутнє)
+  weights: number[];
 };
 
 function powerWeights(poolLen: number, k: number): number[] {
@@ -88,12 +88,11 @@ function levelsFromFilenames(pool: string[]): number[] {
 
 /**
  * ✅ Твій гаманець Tonkeeper (отримувач платежу)
- * Всі платежі за сундуки йдуть сюди.
  */
 const MERCHANT_TON_ADDRESS = "UQAZ4VN0UzqZ570GjM3EpDFszzs4zsw8cD8_YfC0M2ca6N17";
 
 /**
- * ✅ Ціни:
+ * ✅ Ціни фікс:
  * blue  = 1 TON
  * purple= 2 TON
  * gold  = 3 TON
@@ -131,7 +130,7 @@ const LEVELS_BY_TIER: Record<Tier, number[]> = {
   gold: levelsFromFilenames(GOLD_POOL),
 };
 
-/* ===== Firestore lightweight helper (без окремих файлів) ===== */
+/* ===== Firebase helpers (без окремих файлів) ===== */
 
 function env() {
   return ((import.meta as any)?.env ?? {}) as Record<string, string>;
@@ -165,10 +164,35 @@ async function withFirestore<T>(fn: (db: any, fs: any) => Promise<T>) {
   }
 }
 
-/* ===== TON payment helpers (deeplink) ===== */
+async function withCallable<T>(fn: (app: any, functionsMod: any) => Promise<T>) {
+  try {
+    if (!hasFirebaseEnv()) return null as any;
+
+    const appMod: any = await import("firebase/app");
+    const functionsMod: any = await import("firebase/functions");
+
+    const e = env();
+    const cfg = {
+      apiKey: e.VITE_FB_API_KEY,
+      authDomain: e.VITE_FB_AUTH_DOMAIN,
+      projectId: e.VITE_FB_PROJECT_ID,
+      appId: e.VITE_FB_APP_ID,
+    };
+
+    const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(cfg);
+    return await fn(app, functionsMod);
+  } catch {
+    return null as any;
+  }
+}
+
+/* ===== TON deeplink ===== */
 
 const LOCAL_ID_KEY = "mt_local_id_v1";
 const LS_PENDING_PAY_KEY = "mt_pending_ton_purchase_v1";
+
+// ✅ Назва callable Cloud Function (під це зробимо server-grant)
+const VERIFY_FUNCTION_NAME = "verifyTonChestPurchase";
 
 function getOrCreateLocalId() {
   try {
@@ -183,7 +207,7 @@ function getOrCreateLocalId() {
 }
 
 type PendingPay = {
-  id: string; // intent id / nonce
+  id: string; // intentId
   tier: Tier;
   title: string;
   priceTon: number;
@@ -191,11 +215,18 @@ type PendingPay = {
   userId: string;
   comment: string;
   to: string;
-  status?: "pending" | "confirmed" | "rejected" | "expired";
 };
 
+type VerifyResult =
+  | {
+      ok: true;
+      status: "pending" | "confirmed" | "rejected" | "expired";
+      granted?: { level: number; icon?: string };
+      message?: string;
+    }
+  | { ok: false; status?: string; message?: string };
+
 function nanoFromTon(ton: number): string {
-  // 1 TON = 1_000_000_000 nanoton
   const nano = Math.round(ton * 1_000_000_000);
   return String(nano);
 }
@@ -259,10 +290,9 @@ function openTonTransfer(opts: { to: string; amountNano: string; text: string })
   }
 }
 
-/* ===== Firestore purchase intent (анти-обхід) =====
-   ✅ Клієнт лише CREATE intent.
-   ✅ Видача луту відбудеться лише коли intent.status стане "confirmed".
-   (status має виставити сервер/Cloud Function — зробимо наступним кроком)
+/* ===== Firestore purchase intent =====
+   ✅ Клієнт лише CREATE intent (pending).
+   ✅ Перевірка/підтвердження/видача луту = Cloud Function.
 */
 
 async function createPurchaseIntent(p: PendingPay, nickname: string) {
@@ -270,7 +300,7 @@ async function createPurchaseIntent(p: PendingPay, nickname: string) {
     const ref = fs.doc(db, "purchase_intents_v1", p.id);
     const now = fs.serverTimestamp();
 
-    // Важливо: create only (щоб клієнт не міг “підтвердити” сам)
+    // create intent (pending)
     await fs.setDoc(
       ref,
       {
@@ -292,25 +322,33 @@ async function createPurchaseIntent(p: PendingPay, nickname: string) {
   });
 }
 
-async function readIntentStatus(id: string): Promise<PendingPay["status"] | null> {
-  return await withFirestore(async (db, fs) => {
-    const snap = await fs.getDoc(fs.doc(db, "purchase_intents_v1", id));
-    if (!snap.exists()) return null;
-    const d = snap.data() || {};
-    const s = String(d.status || "");
-    if (s === "pending" || s === "confirmed" || s === "rejected" || s === "expired") return s;
-    return null;
+/* ===== Cloud Function: verify + server-grant =====
+   Очікуємо, що функція:
+   - перевірить TON транзакцію по comment/to/amount
+   - поставить intent.status = confirmed
+   - ВИДАСТЬ лут на сервері (inventory)
+   - поверне granted.level (і опційно icon)
+*/
+
+async function verifyViaFunction(input: {
+  intentId: string;
+}): Promise<VerifyResult | null> {
+  return await withCallable(async (app, functionsMod) => {
+    const fns = functionsMod.getFunctions(app);
+    const callable = functionsMod.httpsCallable(fns, VERIFY_FUNCTION_NAME);
+    const res = await callable({ intentId: input.intentId });
+    return (res?.data ?? null) as any;
   });
 }
 
 /* ===== компонент ===== */
 
 type Props = {
-  /** (опціонально) стабільний userId, краще auth.uid */
+  /** auth.uid (краще), або tg-based */
   userId?: string;
-  /** (опціонально) нік */
+  /** нік */
   nickname?: string;
-  /** (опціонально) якщо забанений — блокуємо дії */
+  /** якщо забанений — блокуємо дії */
   isBanned?: boolean;
 
   /** Коли випадає лут — App кладе предмет у крафт */
@@ -322,7 +360,7 @@ export default function SkinsShop(props: Props) {
   const [payState, setPayState] = React.useState<{
     open: boolean;
     pending?: PendingPay;
-    step?: "idle" | "sent" | "waiting" | "confirmed";
+    step?: "idle" | "sent" | "waiting" | "checking";
     error?: string;
     info?: string;
   }>({ open: false, step: "idle" });
@@ -343,23 +381,20 @@ export default function SkinsShop(props: Props) {
     const p = readPending();
     if (!p) return;
     if (p.userId !== effectiveUserId) return;
+
     setPayState({
       open: true,
       pending: p,
       step: "waiting",
-      info: "Очікуємо підтвердження оплати…",
+      info: "Є незавершена покупка. Якщо ти оплатив — натисни “Перевірити оплату”.",
     });
   }, [effectiveUserId]);
 
   const closeLootModal = () => setOpenState({});
   const closePayModal = () => setPayState({ open: false, step: "idle" });
 
-  const openChestWithLoot = async (chest: Chest) => {
-    // ✅ Лут тут видається тільки після confirmed (див. checkPaymentAndMaybeGrant)
-    const levels = LEVELS_BY_TIER[chest.tier];
-    if (!levels.length) return;
-
-    const level = levels[Math.floor(Math.random() * levels.length)];
+  const showLoot = async (chest: Chest, level: number) => {
+    // icon можемо відмалювати локально по level (узгоджено з твоїм крафтом)
     const icon = iconByLevel(level);
 
     setOpenState({ chest, icon });
@@ -370,8 +405,6 @@ export default function SkinsShop(props: Props) {
     if (props.isBanned) return;
 
     const nonce = makeNonce();
-    // Коментар (реф) який прийде у TON транзакції
-    // Формат: mt|<uid>|<tier>|<nonce>
     const comment = `mt|${effectiveUserId}|${chest.tier}|${nonce}`;
 
     const pending: PendingPay = {
@@ -383,7 +416,6 @@ export default function SkinsShop(props: Props) {
       userId: effectiveUserId,
       comment,
       to: MERCHANT_TON_ADDRESS,
-      status: "pending",
     };
 
     writePending(pending);
@@ -396,13 +428,12 @@ export default function SkinsShop(props: Props) {
       info: "Відкрий Tonkeeper і зроби переказ. Потім натисни “Перевірити оплату”.",
     });
 
-    // створюємо intent у Firestore (якщо rules дозволяють)
+    // intent у Firestore
     createPurchaseIntent(pending, effectiveName).catch(() => {
-      // не блокуємо UX — але без intent не буде auto confirm
       setPayState((s) => ({
         ...s,
         error:
-          "Не вдалося створити покупку в Firestore. Перевір rules для purchase_intents_v1 (зробимо далі).",
+          "Не вдалося створити intent у Firestore. Перевір rules для purchase_intents_v1.",
       }));
     });
 
@@ -413,63 +444,101 @@ export default function SkinsShop(props: Props) {
       text: comment,
     });
 
-    // одразу переходимо у waiting
     setPayState((s) => ({ ...s, step: "waiting" }));
   };
 
-  const checkPaymentAndMaybeGrant = async () => {
+  const checkPaymentAndGrant = async () => {
     const p = payState.pending;
     if (!p) return;
 
-    setPayState((s) => ({ ...s, error: "", info: "Перевіряємо статус у Firestore…" }));
+    setPayState((s) => ({
+      ...s,
+      step: "checking",
+      error: "",
+      info: "Перевіряємо оплату на сервері…",
+    }));
 
-    const status = await readIntentStatus(p.id).catch(() => null);
+    // 1) Викликаємо Cloud Function (verify + grant)
+    const result = await verifyViaFunction({ intentId: p.id }).catch(() => null);
 
-    if (!status) {
+    if (!result) {
       setPayState((s) => ({
         ...s,
+        step: "waiting",
         error:
-          "Не знайшов покупку в Firestore. Перевір, що intent створився (rules/доступ).",
+          "Не вдалося викликати серверну перевірку. Перевір, що Cloud Function задеплоєна і Firebase Functions підключені.",
         info: "",
       }));
       return;
     }
 
-    if (status === "pending") {
+    if (!result.ok) {
       setPayState((s) => ({
         ...s,
+        step: "waiting",
+        error: result.message || "Помилка перевірки платежу.",
+        info: "",
+      }));
+      return;
+    }
+
+    if (result.status === "pending") {
+      setPayState((s) => ({
+        ...s,
+        step: "waiting",
         error: "",
         info:
-          "Оплата ще не підтверджена. Якщо ти вже оплатив — зачекай 10–30 сек і натисни ще раз.",
+          result.message ||
+          "Оплата ще не знайдена/не підтверджена. Якщо ти вже оплатив — зачекай 10–30 сек і натисни ще раз.",
       }));
       return;
     }
 
-    if (status === "rejected" || status === "expired") {
+    if (result.status === "rejected" || result.status === "expired") {
       setPayState((s) => ({
         ...s,
-        error: "Платіж відхилено або прострочено. Створи покупку ще раз.",
+        step: "waiting",
+        error: result.message || "Платіж відхилено або прострочено. Спробуй ще раз.",
         info: "",
       }));
-      // можна очистити pending
-      // writePending(null);
       return;
     }
 
-    if (status === "confirmed") {
-      // ✅ ЄДИНЕ місце, де видаємо лут
-      const chest = CHESTS.find((c) => c.tier === p.tier);
-      if (!chest) {
-        setPayState((s) => ({ ...s, error: "Сундук не знайдено. Онови сторінку." }));
-        return;
-      }
-
-      setPayState((s) => ({ ...s, error: "", info: "Оплату підтверджено ✅ Видаємо сундук…" }));
-      await openChestWithLoot(chest);
-
-      writePending(null);
-      setPayState({ open: false, step: "idle" });
+    // confirmed
+    const chest = CHESTS.find((c) => c.tier === p.tier);
+    if (!chest) {
+      setPayState((s) => ({
+        ...s,
+        step: "waiting",
+        error: "Сундук не знайдено. Онови сторінку.",
+        info: "",
+      }));
+      return;
     }
+
+    const lvl = result.granted?.level;
+    if (typeof lvl !== "number" || !Number.isFinite(lvl) || lvl <= 0) {
+      // навіть якщо сервер записав inventory, ми тут без level не можемо красиво показати попап
+      setPayState((s) => ({
+        ...s,
+        step: "waiting",
+        error:
+          "Оплата підтверджена, але сервер не повернув рівень луту. Перевір Cloud Function відповідь.",
+        info: "",
+      }));
+      return;
+    }
+
+    setPayState((s) => ({
+      ...s,
+      info: "Оплату підтверджено ✅ Видаємо нагороду…",
+      error: "",
+    }));
+
+    await showLoot(chest, lvl);
+
+    writePending(null);
+    setPayState({ open: false, step: "idle" });
   };
 
   return (
@@ -500,8 +569,7 @@ export default function SkinsShop(props: Props) {
         </div>
 
         <div className="ton-sub">
-          Після оплати натисни <b>“Перевірити оплату”</b>. Лут видається <b>тільки</b> коли статус
-          покупки стане <b>confirmed</b> (це буде робити сервер на наступному кроці).
+          Лут видає <b>сервер</b>. Після оплати натисни <b>“Перевірити оплату”</b>.
         </div>
       </div>
 
@@ -542,10 +610,10 @@ export default function SkinsShop(props: Props) {
             </div>
 
             <div className="pay-help">
-              <div style={{ opacity: 0.9 }}>Переказ має містити коментар:</div>
+              <div style={{ opacity: 0.9 }}>Коментар до переказу:</div>
               <div className="pay-ref">{payState.pending.comment}</div>
               <div style={{ opacity: 0.75, fontSize: 13, marginTop: 8 }}>
-                Це потрібно для зв’язки платежу з покупкою.
+                Не змінюй коментар — він потрібен для автоматичної перевірки.
               </div>
             </div>
 
@@ -566,8 +634,12 @@ export default function SkinsShop(props: Props) {
                 Відкрити Tonkeeper
               </button>
 
-              <button className="pay-btn primary" onClick={checkPaymentAndMaybeGrant}>
-                Перевірити оплату
+              <button
+                className="pay-btn primary"
+                onClick={checkPaymentAndGrant}
+                disabled={payState.step === "checking"}
+              >
+                {payState.step === "checking" ? "Перевіряємо..." : "Перевірити оплату"}
               </button>
             </div>
 
