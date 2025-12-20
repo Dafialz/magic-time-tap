@@ -61,6 +61,11 @@ export const GOLD_ICONS: string[] = [
   "/shop_icons/SunCoin50.png",
 ];
 
+/** ✅ Щоб не дублювати у SkinsShop — експортуємо “пули” */
+export const BLUE_POOL = BLUE_ICONS;
+export const PURPLE_POOL = PURPLE_ICONS;
+export const GOLD_POOL = GOLD_ICONS;
+
 /** Старий список (може бути корисний для превʼю магазину), але НЕ для level->icon */
 export const ICONS_IN_ORDER: string[] = [...BLUE_ICONS, ...PURPLE_ICONS, ...GOLD_ICONS];
 
