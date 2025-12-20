@@ -147,8 +147,8 @@ export default function App() {
   const [banReason, setBanReason] = useState<string>("");
 
   // ✅ щоб адмінський "balance" (MGP) застосовувався в грі
-  // - якщо адмін задав balance — робимо його джерелом істини для mgp
-  // - також читаємо бан
+  // - читаємо бан
+  // - balance з Firestore НЕ має перетирати тапи: застосовуємо лише якщо server > local
   useEffect(() => {
     if (!leaderUserId) return;
 
@@ -157,11 +157,11 @@ export default function App() {
       setIsBanned(!!d.banned);
       setBanReason(String(d.banReason || ""));
 
-      // ✅ MGP баланс з Firestore: users_v1.balance
+      // 🔒 admin balance sync fix:
+      // якщо адмін підняв balance — підтягуємо. Якщо balance <= локального — НЕ перетираємо прогрес від тапів.
       if (typeof d.balance === "number" && Number.isFinite(d.balance)) {
         const serverBal = Math.max(0, Math.floor(d.balance));
-        // не робимо зайвих setState якщо не змінилось
-        setMgp((prev) => (prev === serverBal ? prev : serverBal));
+        setMgp((prev) => (serverBal > prev ? serverBal : prev));
       }
     });
 
