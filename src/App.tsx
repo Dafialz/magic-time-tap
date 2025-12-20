@@ -146,9 +146,10 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
-  // ✅ щоб адмінський "balance" (MGP) застосовувався в грі
-  // - читаємо бан
-  // - balance з Firestore НЕ має перетирати тапи: застосовуємо лише якщо server > local
+  // ✅ server balance: застосовуємо ТІЛЬКИ коли воно реально змінилось в Firestore
+  // (інакше покупки/витрати будуть “відкотуватись” назад до serverBal)
+  const lastAppliedServerBalRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!leaderUserId) return;
 
@@ -157,11 +158,24 @@ export default function App() {
       setIsBanned(!!d.banned);
       setBanReason(String(d.banReason || ""));
 
-      // 🔒 admin balance sync fix:
-      // якщо адмін підняв balance — підтягуємо. Якщо balance <= локального — НЕ перетираємо прогрес від тапів.
-      if (typeof d.balance === "number" && Number.isFinite(d.balance)) {
-        const serverBal = Math.max(0, Math.floor(d.balance));
-        setMgp((prev) => (serverBal > prev ? serverBal : prev));
+      const hasBal = typeof d.balance === "number" && Number.isFinite(d.balance);
+      if (!hasBal) return;
+
+      const serverBal = Math.max(0, Math.floor(d.balance));
+
+      // ✅ Ключова логіка:
+      // - якщо balance НЕ змінювався на сервері (адмін не чіпав) — НЕ перетираємо локальний mgp
+      // - якщо адмін змінює balance — застосовуємо один раз
+      if (lastAppliedServerBalRef.current === null) {
+        // перший раз після входу: приймаємо serverBal як базу, але не “фліпаємо” туди-сюди
+        lastAppliedServerBalRef.current = serverBal;
+        setMgp((prev) => (prev === serverBal ? prev : serverBal));
+        return;
+      }
+
+      if (serverBal !== lastAppliedServerBalRef.current) {
+        lastAppliedServerBalRef.current = serverBal;
+        setMgp((prev) => (prev === serverBal ? prev : serverBal));
       }
     });
 
