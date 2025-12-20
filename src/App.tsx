@@ -76,7 +76,8 @@ export default function App() {
 
     try {
       const u = tg?.initDataUnsafe?.user;
-      const name = u?.username || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || "Гість";
+      const name =
+        u?.username || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || "Гість";
       setUsername(name);
 
       setTgMeta({
@@ -102,7 +103,7 @@ export default function App() {
   }, []);
 
   const [ce, setCe] = useState<number>(0);
-  const [mm, setMm] = useState<number>(0);
+  // ❌ MM прибрано повністю. Баланс = MGP.
   const [totalEarned, setTotalEarned] = useState<number>(0);
   const [clickPower, setClickPower] = useState<number>(1);
   const [autoPerSec, setAutoPerSec] = useState<number>(0);
@@ -111,7 +112,9 @@ export default function App() {
   const [level, setLevel] = useState<number>(1);
   const [prestiges, setPrestiges] = useState<number>(0);
 
+  // ✅ головний баланс
   const [mgp, setMgp] = useState<number>(0);
+
   const [craftSlots, setCraftSlots] = useState<number[]>(() => Array(CRAFT_SLOT_COUNT).fill(0));
 
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
@@ -143,14 +146,25 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
-  // ✅ читаємо users_v1/{uid} (бан)
+  // ✅ щоб адмінський "balance" (MGP) застосовувався в грі
+  // - якщо адмін задав balance — робимо його джерелом істини для mgp
+  // - також читаємо бан
   useEffect(() => {
     if (!leaderUserId) return;
+
     const unsub = subscribeUser(leaderUserId, (profile) => {
       const d: any = profile || {};
       setIsBanned(!!d.banned);
       setBanReason(String(d.banReason || ""));
+
+      // ✅ MGP баланс з Firestore: users_v1.balance
+      if (typeof d.balance === "number" && Number.isFinite(d.balance)) {
+        const serverBal = Math.max(0, Math.floor(d.balance));
+        // не робимо зайвих setState якщо не змінилось
+        setMgp((prev) => (prev === serverBal ? prev : serverBal));
+      }
     });
+
     return () => {
       try {
         unsub();
@@ -159,6 +173,8 @@ export default function App() {
   }, [leaderUserId]);
 
   // ✅ heartbeat у users_v1/{uid} раз на 20s
+  // ВАЖЛИВО: score = MGP (для лідерборду),
+  // а реальний адмінський баланс зберігається в users_v1.balance і підтягується вище.
   useEffect(() => {
     if (!leaderUserId) return;
 
@@ -170,15 +186,18 @@ export default function App() {
       const name = (username || "Гість").trim();
       const score = Math.floor(mgp);
 
-      await upsertUserProfile(leaderUserId, {
-        name,
-        score,
-        lastSeenAt: "__SERVER_TIMESTAMP__" as any,
-        tgId: tgMeta.tgId ?? null,
-        tgUsername: tgMeta.tgUsername ?? "",
-        tgFirst: tgMeta.first ?? "",
-        tgLast: tgMeta.last ?? "",
-      } as any);
+      await upsertUserProfile(
+        leaderUserId,
+        {
+          name,
+          score,
+          lastSeenAt: "__SERVER_TIMESTAMP__" as any,
+          tgId: tgMeta.tgId ?? null,
+          tgUsername: tgMeta.tgUsername ?? "",
+          tgFirst: tgMeta.first ?? "",
+          tgLast: tgMeta.last ?? "",
+        } as any
+      );
 
       if (!stop) window.setTimeout(tick, 20_000);
     };
@@ -196,7 +215,7 @@ export default function App() {
     if (!sAny) return;
 
     setCe(sAny.ce ?? 0);
-    setMm(sAny.mm ?? 0);
+    // ❌ mm ігноруємо
     setTotalEarned(sAny.totalEarned ?? 0);
     setClickPower(sAny.clickPower ?? 1);
     setAutoPerSec(sAny.autoPerSec ?? 0);
@@ -206,6 +225,7 @@ export default function App() {
     setPrestiges(sAny.prestiges ?? 0);
 
     setMgp(sAny.mgp ?? 0);
+
     if (Array.isArray(sAny.craftSlots)) {
       const arr = [...sAny.craftSlots];
       if (arr.length < CRAFT_SLOT_COUNT) {
@@ -244,9 +264,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // SaveState може ще мати mm у типі — кладемо 0, але в грі MM більше не існує.
     const payload: SaveState = {
       ce,
-      mm,
+      // @ts-ignore legacy field
+      mm: 0,
       totalEarned,
       clickPower,
       autoPerSec,
@@ -263,10 +285,10 @@ export default function App() {
       mgp,
       craftSlots,
     };
+
     scheduleSave(payload);
   }, [
     ce,
-    mm,
     totalEarned,
     clickPower,
     autoPerSec,
@@ -334,6 +356,7 @@ export default function App() {
         });
       }
     }, 1000);
+
     return () => window.clearInterval(id);
   }, [autoPerSec, effectiveAutoMult, meteorBuffLeft, meteorVisible, mgpIncomePerHour]);
 
@@ -380,7 +403,6 @@ export default function App() {
     const now = Date.now();
     const score = Math.floor(mgp);
 
-    // ініціалізація
     if (antiRef.current.s === 0 && score > 0) {
       antiRef.current = { t: now, s: score };
       return;
@@ -393,8 +415,12 @@ export default function App() {
     antiRef.current = { t: now, s: score };
 
     if (ds > ANTICHEAT_MAX_GAIN) {
-      setUserBan(leaderUserId, true, `Auto-ban: suspicious gain (+${ds} in ${Math.round(dt / 1000)}s)`, leaderUserId)
-        .catch(() => {});
+      setUserBan(
+        leaderUserId,
+        true,
+        `Auto-ban: suspicious gain (+${ds} in ${Math.round(dt / 1000)}s)`,
+        leaderUserId
+      ).catch(() => {});
     }
   }, [mgp, leaderUserId, isBanned]);
 
@@ -432,7 +458,10 @@ export default function App() {
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
       <HeaderBar
         ce={ce}
-        mm={mm}
+        // ❌ MM прибрано, але якщо HeaderBar очікує mm — даємо 0 як legacy
+        // (краще потім прибрати mm з HeaderBar теж)
+        // @ts-ignore
+        mm={0}
         hc={hc}
         level={level}
         epochName={epoch.name}
@@ -517,17 +546,18 @@ export default function App() {
             isBanned={isBanned}
             ownedSkins={ownedSkins}
             equippedSkinId={equippedSkinId}
+            // ✅ покупки за MGP (замість MM)
             buySkin={(id: string, price: number) => {
               if (ownedSkins.includes(id)) {
                 setEquippedSkinId(id);
                 return;
               }
-              if (mm < price) {
-                setOfflineModalText("Не вистачає MM");
+              if (mgp < price) {
+                setOfflineModalText("Не вистачає MGP");
                 setOfflineModalOpen(true);
                 return;
               }
-              setMm((v) => v - price);
+              setMgp((v) => Math.max(0, v - price));
               setOwnedSkins((list) => [...list, id]);
               setEquippedSkinId(id);
             }}
