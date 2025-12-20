@@ -24,7 +24,7 @@ export type UserProfile = {
   balance?: number;
   balanceReason?: string;
   balanceUpdatedAt?: any;
-  balanceBy?: string;
+  // balanceBy?: string; // ❗️НЕ використовуємо: rules не дозволяють це поле для admin update
 };
 
 export type CheatReport = {
@@ -570,21 +570,26 @@ export async function adminSetBalance(userId: string, balance: number, reason: s
 
     const cleanReason = String(reason || "").slice(0, 200);
     const cleanBy = String(adminId || "").slice(0, 128);
-    const cleanBalance = Number.isFinite(Number(balance)) ? Number(balance) : 0;
+
+    // rules дозволяють number, а в UI ми очікуємо ціле >= 0
+    let cleanBalance = Number.isFinite(Number(balance)) ? Number(balance) : 0;
+    if (!Number.isFinite(cleanBalance)) cleanBalance = 0;
+    cleanBalance = Math.max(0, Math.floor(cleanBalance));
 
     const batch = fs.writeBatch(db);
 
+    // ❗️ВАЖЛИВО: не пишемо balanceBy — rules whitelist його не містить
     batch.set(
       userRef,
       {
         balance: cleanBalance,
         balanceReason: cleanReason,
-        balanceBy: cleanBy,
         balanceUpdatedAt: fs.serverTimestamp(),
       },
       { merge: true }
     );
 
+    // лог можна писати з "by" (це інша колекція і rules для неї: allow create if isAdmin())
     batch.set(logRef, {
       action: "SET_BALANCE",
       targetUserId: userId,
