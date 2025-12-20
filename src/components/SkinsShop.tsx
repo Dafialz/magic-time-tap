@@ -87,6 +87,19 @@ function levelsFromFilenames(pool: string[]): number[] {
 }
 
 /**
+ * ✅ Гарантуємо правильну іконку саме для цього сундука:
+ * спочатку шукаємо "...{level}.png" у пулі сундука,
+ * а якщо раптом не знайдено — fallback на iconByLevel().
+ */
+function iconFromChestAndLevel(chest: Chest, level: number): string {
+  const lvl = Math.floor(level);
+  if (!Number.isFinite(lvl) || lvl <= 0) return "";
+  const wanted = `${lvl}.png`;
+  const found = chest.pool.find((p) => p.endsWith(wanted));
+  return found || iconByLevel(lvl);
+}
+
+/**
  * ✅ Твій гаманець Tonkeeper (отримувач платежу)
  */
 const MERCHANT_TON_ADDRESS = "UQAZ4VN0UzqZ570GjM3EpDFszzs4zsw8cD8_YfC0M2ca6N17";
@@ -319,7 +332,6 @@ async function createPurchaseIntent(p: PendingPay, nickname: string) {
 
 async function verifyViaFunction(input: { intentId: string }): Promise<VerifyResult | null> {
   return await withCallable(async (app, functionsMod) => {
-    // ✅ region важливий
     const fns = functionsMod.getFunctions(app, FUNCTIONS_REGION);
     const callable = functionsMod.httpsCallable(fns, VERIFY_FUNCTION_NAME);
     const res = await callable({ intentId: input.intentId });
@@ -377,11 +389,12 @@ export default function SkinsShop(props: Props) {
   const closePayModal = () => setPayState({ open: false, step: "idle" });
 
   const showLoot = async (chest: Chest, level: number) => {
-    const icon = iconByLevel(level);
+    // ✅ FIX: іконка завжди відповідає сундуку/level
+    const icon = iconFromChestAndLevel(chest, level);
+
     setOpenState({ chest, icon });
 
-    // ⚠️ Це НЕ запис у Firestore. Просто UX.
-    // Реальний інвентар уже записав сервер у users_v1/{uid}/inventory_v1/...
+    // UX only
     props.onLoot?.({ level, icon, chest });
   };
 
@@ -500,7 +513,6 @@ export default function SkinsShop(props: Props) {
 
     const lvl = (result as any).level;
     if (typeof lvl !== "number" || !Number.isFinite(lvl) || lvl <= 0) {
-      // якщо сервер повернув тільки confirmed без level — просто закриємо
       writePending(null);
       setPayState({ open: false, step: "idle" });
       return;
