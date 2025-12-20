@@ -45,6 +45,48 @@ const ADMIN_AUTH_UID = "zzyUPc53FPOwOSn2DcNZirHyusu1";
 const ANTICHEAT_WINDOW_MS = 15_000;
 const ANTICHEAT_MAX_GAIN = 500_000; // max +score за 15 сек (має співпасти з rules scoreDeltaOk)
 
+/**
+ * ✅ Щоб витрати НЕ "відкочувались" після refresh:
+ * памʼятаємо останній застосований server balance у localStorage.
+ */
+const LS_APPLIED_SERVER_BAL_KEY = "mt_applied_server_balance_v1";
+const LS_APPLIED_SERVER_BAL_AT_KEY = "mt_applied_server_balance_at_v1";
+
+function readNumLS(key: string): number | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeNumLS(key: string, value: number) {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {}
+}
+
+function tsToMs(x: any): number | null {
+  // Firestore Timestamp має toDate(), інколи може бути Date, або undefined
+  try {
+    const d: Date =
+      typeof x?.toDate === "function"
+        ? x.toDate()
+        : x instanceof Date
+        ? x
+        : (null as any);
+
+    if (!d) return null;
+    const ms = d.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
@@ -149,9 +191,20 @@ export default function App() {
   // ✅ server balance: застосовуємо ТІЛЬКИ коли воно реально змінилось в Firestore
   // (інакше покупки/витрати будуть “відкотуватись” назад до serverBal)
   const lastAppliedServerBalRef = useRef<number | null>(null);
+  const lastAppliedServerAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!leaderUserId) return;
+
+    // ініціалізація refs з localStorage (щоб працювало ПІСЛЯ refresh)
+    if (lastAppliedServerBalRef.current === null) {
+      const savedBal = readNumLS(LS_APPLIED_SERVER_BAL_KEY);
+      if (savedBal != null) lastAppliedServerBalRef.current = savedBal;
+    }
+    if (lastAppliedServerAtRef.current === null) {
+      const savedAt = readNumLS(LS_APPLIED_SERVER_BAL_AT_KEY);
+      if (savedAt != null) lastAppliedServerAtRef.current = savedAt;
+    }
 
     const unsub = subscribeUser(leaderUserId, (profile) => {
       const d: any = profile || {};
@@ -162,21 +215,36 @@ export default function App() {
       if (!hasBal) return;
 
       const serverBal = Math.max(0, Math.floor(d.balance));
+      const serverAtMs = tsToMs(d.balanceUpdatedAt); // може бути null
 
-      // ✅ Ключова логіка:
-      // - якщо balance НЕ змінювався на сервері (адмін не чіпав) — НЕ перетираємо локальний mgp
-      // - якщо адмін змінює balance — застосовуємо один раз
-      if (lastAppliedServerBalRef.current === null) {
-        // перший раз після входу: приймаємо serverBal як базу, але не “фліпаємо” туди-сюди
-        lastAppliedServerBalRef.current = serverBal;
-        setMgp((prev) => (prev === serverBal ? prev : serverBal));
-        return;
+      const prevBal = lastAppliedServerBalRef.current;
+      const prevAt = lastAppliedServerAtRef.current;
+
+      // ✅ Основне правило:
+      // - якщо сервер НЕ змінювався (по часу або хоча б по числу) — НЕ чіпаємо локальний mgp
+      const changedByAt = serverAtMs != null && prevAt != null && serverAtMs !== prevAt;
+      const changedByBal = prevBal == null ? true : serverBal !== prevBal;
+
+      // якщо є timestamp — він головний індикатор змін
+      const shouldApply =
+        serverAtMs != null
+          ? prevAt == null
+            ? true
+            : changedByAt
+          : changedByBal;
+
+      if (!shouldApply) return;
+
+      // сервер реально змінився (адмін задав новий balance) — застосовуємо
+      lastAppliedServerBalRef.current = serverBal;
+      writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
+
+      if (serverAtMs != null) {
+        lastAppliedServerAtRef.current = serverAtMs;
+        writeNumLS(LS_APPLIED_SERVER_BAL_AT_KEY, serverAtMs);
       }
 
-      if (serverBal !== lastAppliedServerBalRef.current) {
-        lastAppliedServerBalRef.current = serverBal;
-        setMgp((prev) => (prev === serverBal ? prev : serverBal));
-      }
+      setMgp((prev) => (prev === serverBal ? prev : serverBal));
     });
 
     return () => {
