@@ -1,0 +1,220 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== helpers =====
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.uid == "zzyUPc53FPOwOSn2DcNZirHyusu1"; }
+    function existsDoc() { return resource != null; }
+
+    // старий score (0 якщо дока ще нема)
+    function oldScore() {
+      return (existsDoc() && (resource.data.score is number)) ? resource.data.score : 0;
+    }
+
+    // Обмеження на накрутку: макс приріст за 1 запис
+    function scoreDeltaOk(newScore) {
+      return !existsDoc() || (newScore <= oldScore() + 500000);
+    }
+
+    // ✅ забороняємо зменшення score
+    function scoreNonDecreasing(newScore) {
+      return !existsDoc() || (newScore >= oldScore());
+    }
+
+    // ===== balance helpers =====
+    function oldBalance() {
+      return (existsDoc() && (resource.data.balance is number)) ? resource.data.balance : 0;
+    }
+
+    // Ліміт на разове списання
+    function spendDeltaOk(newBalance) {
+      // якщо док ще не існує — не даємо "писати balance" (тільки адмін може ставити)
+      return existsDoc()
+        && (oldBalance() - newBalance) <= 500000; // <-- можеш змінити ліміт
+    }
+
+    // ===== leaderboard: читають всі, пише свій власник =====
+    match /leaderboard_v1/{userId} {
+      allow read: if true;
+
+      // USER пише тільки свій документ
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['name','score','ts'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 64
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 1000000000000000
+        && scoreDeltaOk(request.resource.data.score)
+        && scoreNonDecreasing(request.resource.data.score);
+
+      // ✅ Адмін може правити будь-який leaderboard score
+      allow update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name','score','ts'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 64
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 1000000000000000;
+
+      allow delete: if false;
+    }
+
+    // ===== users профілі =====
+    match /users_v1/{userId} {
+      allow read: if true;
+
+      // ---- USER: create тільки whitelist поля (без balance!) ----
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['name','score','lastSeenAt','tgId','tgUsername','tgFirst','tgLast'])
+        && ( !(request.resource.data.score is number)
+              || (scoreDeltaOk(request.resource.data.score) && scoreNonDecreasing(request.resource.data.score)) );
+
+      // ---- USER: update профілю тільки whitelist поля (без balance!) ----
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly(['name','score','lastSeenAt','tgId','tgUsername','tgFirst','tgLast'])
+        && ( !(request.resource.data.score is number)
+              || (scoreDeltaOk(request.resource.data.score) && scoreNonDecreasing(request.resource.data.score)) );
+
+      // ✅ USER: дозволяємо ТІЛЬКИ списання balance (тільки вниз) + оновлення balanceUpdatedAt
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly(['balance','balanceUpdatedAt'])
+        && request.resource.data.balance is number
+        && request.resource.data.balance >= 0
+        && request.resource.data.balance <= oldBalance()   // тільки вниз або рівно
+        && spendDeltaOk(request.resource.data.balance)
+        && request.resource.data.balanceUpdatedAt is timestamp;
+
+      // ---- ADMIN: бан + зміна балансу (вгору/вниз) ----
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly([
+            'banned','banReason','bannedAt','bannedBy',
+            'balance','balanceReason','balanceUpdatedAt'
+          ]);
+
+      allow delete: if false;
+
+      // ===== інвентар (server-grant only) =====
+      // ✅ Користувач НЕ МОЖЕ писати інвентар взагалі.
+      // ✅ Лут записує Cloud Function (Admin SDK) -> rules не застосовуються.
+      // (Опційно) Адмін може правити вручну через клієнт.
+      match /inventory_v1/{itemKey} {
+        allow read: if true;
+
+        // 🚫 користувачу - заборонено
+        // ✅ адмінові - можна (якщо хочеш, можеш теж поставити false)
+        allow create, update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ===== events/audit =====
+    // ✅ Рекомендую робити тільки сервером/адміном, щоб не було спаму/підробок.
+    match /events_v1/{id} {
+      allow read: if isAdmin();
+
+      // 🚫 користувачу - заборонено
+      // ✅ адмінові - можна
+      allow create: if isAdmin();
+
+      allow update, delete: if false;
+    }
+
+    // ===== purchase intents (під TON-оплату) =====
+    // Клієнт створює intent (status="pending") перед оплатою.
+    // Сервер/Cloud Function (Admin SDK) потім виставляє status="confirmed" і додає txHash/confirmedAt.
+    match /purchase_intents_v1/{intentId} {
+
+      // ✅ читати може власник або адмін
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+
+      // ✅ create тільки власник, тільки expected schema, і тільки status="pending"
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'userId','name','tier','title','priceTon','to','comment',
+          'status','createdAt','clientTs'
+        ])
+        && request.resource.data.userId == request.auth.uid
+
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 64
+
+        && request.resource.data.tier is string
+        && request.resource.data.tier in ['blue','purple','gold']
+
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 64
+
+        && request.resource.data.priceTon is number
+        && request.resource.data.priceTon in [1,2,3]   // ✅ фікс ціни
+
+        && request.resource.data.to is string
+        && request.resource.data.to.size() > 0
+        && request.resource.data.to.size() <= 120
+
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() > 0
+        && request.resource.data.comment.size() <= 200
+
+        && request.resource.data.status is string
+        && request.resource.data.status == 'pending'
+
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.clientTs is number;
+
+      // ❌ клієнту update/delete заборонено (щоб не міг підтвердити сам)
+      // ✅ Cloud Function (Admin SDK) оновить напряму
+      allow update, delete: if false;
+    }
+
+    // ===== auto-report (cheat_reports_v1) =====
+    match /cheat_reports_v1/{id} {
+      allow read: if isAdmin();
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'userId','kind','reason','score','clientTs','at',
+          'name','tgId','tgUsername'
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.kind is string
+        && request.resource.data.kind.size() > 0
+        && request.resource.data.kind.size() <= 32
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() <= 300
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 1000000000000000
+        && request.resource.data.clientTs is number;
+
+      allow update, delete: if false;
+    }
+
+    // ===== історія банів =====
+    match /ban_history_v1/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ===== лог дій адміна =====
+    match /admin_logs_v1/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

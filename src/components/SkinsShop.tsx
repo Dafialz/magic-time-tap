@@ -191,8 +191,10 @@ async function withCallable<T>(fn: (app: any, functionsMod: any) => Promise<T>) 
 const LOCAL_ID_KEY = "mt_local_id_v1";
 const LS_PENDING_PAY_KEY = "mt_pending_ton_purchase_v1";
 
-// ✅ Назва callable Cloud Function (під це зробимо server-grant)
-const VERIFY_FUNCTION_NAME = "verifyTonChestPurchase";
+// ✅ У ТЕБЕ ЗАДЕПЛОЄНО: export const checkTonPayment = ...
+const VERIFY_FUNCTION_NAME = "checkTonPayment";
+// ✅ ВАЖЛИВО: регіон функції
+const FUNCTIONS_REGION = "europe-west1";
 
 function getOrCreateLocalId() {
   try {
@@ -218,13 +220,8 @@ type PendingPay = {
 };
 
 type VerifyResult =
-  | {
-      ok: true;
-      status: "pending" | "confirmed" | "rejected" | "expired";
-      granted?: { level: number; icon?: string };
-      message?: string;
-    }
-  | { ok: false; status?: string; message?: string };
+  | { status: "pending" | "confirmed" | "rejected" | "expired"; level?: number; message?: string }
+  | { status?: string; message?: string };
 
 function nanoFromTon(ton: number): string {
   const nano = Math.round(ton * 1_000_000_000);
@@ -290,17 +287,13 @@ function openTonTransfer(opts: { to: string; amountNano: string; text: string })
   }
 }
 
-/* ===== Firestore purchase intent =====
-   ✅ Клієнт лише CREATE intent (pending).
-   ✅ Перевірка/підтвердження/видача луту = Cloud Function.
-*/
+/* ===== Firestore purchase intent ===== */
 
 async function createPurchaseIntent(p: PendingPay, nickname: string) {
   return await withFirestore(async (db, fs) => {
     const ref = fs.doc(db, "purchase_intents_v1", p.id);
     const now = fs.serverTimestamp();
 
-    // create intent (pending)
     await fs.setDoc(
       ref,
       {
@@ -322,19 +315,12 @@ async function createPurchaseIntent(p: PendingPay, nickname: string) {
   });
 }
 
-/* ===== Cloud Function: verify + server-grant =====
-   Очікуємо, що функція:
-   - перевірить TON транзакцію по comment/to/amount
-   - поставить intent.status = confirmed
-   - ВИДАСТЬ лут на сервері (inventory)
-   - поверне granted.level (і опційно icon)
-*/
+/* ===== Cloud Function call ===== */
 
-async function verifyViaFunction(input: {
-  intentId: string;
-}): Promise<VerifyResult | null> {
+async function verifyViaFunction(input: { intentId: string }): Promise<VerifyResult | null> {
   return await withCallable(async (app, functionsMod) => {
-    const fns = functionsMod.getFunctions(app);
+    // ✅ region важливий
+    const fns = functionsMod.getFunctions(app, FUNCTIONS_REGION);
     const callable = functionsMod.httpsCallable(fns, VERIFY_FUNCTION_NAME);
     const res = await callable({ intentId: input.intentId });
     return (res?.data ?? null) as any;
@@ -344,14 +330,11 @@ async function verifyViaFunction(input: {
 /* ===== компонент ===== */
 
 type Props = {
-  /** auth.uid (краще), або tg-based */
   userId?: string;
-  /** нік */
   nickname?: string;
-  /** якщо забанений — блокуємо дії */
   isBanned?: boolean;
 
-  /** Коли випадає лут — App кладе предмет у крафт */
+  /** Якщо хочеш одразу “додати в крафт” після підтвердження — лишаємо */
   onLoot?: (payload: { level: number; icon: string; chest: Chest }) => void;
 };
 
@@ -394,10 +377,11 @@ export default function SkinsShop(props: Props) {
   const closePayModal = () => setPayState({ open: false, step: "idle" });
 
   const showLoot = async (chest: Chest, level: number) => {
-    // icon можемо відмалювати локально по level (узгоджено з твоїм крафтом)
     const icon = iconByLevel(level);
-
     setOpenState({ chest, icon });
+
+    // ⚠️ Це НЕ запис у Firestore. Просто UX.
+    // Реальний інвентар уже записав сервер у users_v1/{uid}/inventory_v1/...
     props.onLoot?.({ level, icon, chest });
   };
 
@@ -428,16 +412,13 @@ export default function SkinsShop(props: Props) {
       info: "Відкрий Tonkeeper і зроби переказ. Потім натисни “Перевірити оплату”.",
     });
 
-    // intent у Firestore
     createPurchaseIntent(pending, effectiveName).catch(() => {
       setPayState((s) => ({
         ...s,
-        error:
-          "Не вдалося створити intent у Firestore. Перевір rules для purchase_intents_v1.",
+        error: "Не вдалося створити intent у Firestore. Перевір rules для purchase_intents_v1.",
       }));
     });
 
-    // відкриваємо Tonkeeper
     openTonTransfer({
       to: MERCHANT_TON_ADDRESS,
       amountNano: nanoFromTon(chest.priceTon),
@@ -458,53 +439,54 @@ export default function SkinsShop(props: Props) {
       info: "Перевіряємо оплату на сервері…",
     }));
 
-    // 1) Викликаємо Cloud Function (verify + grant)
     const result = await verifyViaFunction({ intentId: p.id }).catch(() => null);
 
-    if (!result) {
+    if (!result || typeof result !== "object") {
       setPayState((s) => ({
         ...s,
         step: "waiting",
         error:
-          "Не вдалося викликати серверну перевірку. Перевір, що Cloud Function задеплоєна і Firebase Functions підключені.",
+          "Не вдалося викликати серверну перевірку. Перевір: (1) firebase/functions у вебі, (2) регіон europe-west1, (3) user залогінений.",
         info: "",
       }));
       return;
     }
 
-    if (!result.ok) {
-      setPayState((s) => ({
-        ...s,
-        step: "waiting",
-        error: result.message || "Помилка перевірки платежу.",
-        info: "",
-      }));
-      return;
-    }
+    const status = String((result as any).status || "");
+    const message = String((result as any).message || "");
 
-    if (result.status === "pending") {
+    if (status === "pending") {
       setPayState((s) => ({
         ...s,
         step: "waiting",
         error: "",
         info:
-          result.message ||
-          "Оплата ще не знайдена/не підтверджена. Якщо ти вже оплатив — зачекай 10–30 сек і натисни ще раз.",
+          message ||
+          "Оплата ще не знайдена/не підтверджена. Якщо оплатив — зачекай 10–30 сек і натисни ще раз.",
       }));
       return;
     }
 
-    if (result.status === "rejected" || result.status === "expired") {
+    if (status === "rejected" || status === "expired") {
       setPayState((s) => ({
         ...s,
         step: "waiting",
-        error: result.message || "Платіж відхилено або прострочено. Спробуй ще раз.",
+        error: message || "Платіж відхилено або прострочено. Спробуй ще раз.",
         info: "",
       }));
       return;
     }
 
-    // confirmed
+    if (status !== "confirmed") {
+      setPayState((s) => ({
+        ...s,
+        step: "waiting",
+        error: message || `Невідомий статус: ${status}`,
+        info: "",
+      }));
+      return;
+    }
+
     const chest = CHESTS.find((c) => c.tier === p.tier);
     if (!chest) {
       setPayState((s) => ({
@@ -516,22 +498,17 @@ export default function SkinsShop(props: Props) {
       return;
     }
 
-    const lvl = result.granted?.level;
+    const lvl = (result as any).level;
     if (typeof lvl !== "number" || !Number.isFinite(lvl) || lvl <= 0) {
-      // навіть якщо сервер записав inventory, ми тут без level не можемо красиво показати попап
-      setPayState((s) => ({
-        ...s,
-        step: "waiting",
-        error:
-          "Оплата підтверджена, але сервер не повернув рівень луту. Перевір Cloud Function відповідь.",
-        info: "",
-      }));
+      // якщо сервер повернув тільки confirmed без level — просто закриємо
+      writePending(null);
+      setPayState({ open: false, step: "idle" });
       return;
     }
 
     setPayState((s) => ({
       ...s,
-      info: "Оплату підтверджено ✅ Видаємо нагороду…",
+      info: "Оплату підтверджено ✅ Нагороду додано в інвентар.",
       error: "",
     }));
 
@@ -551,13 +528,7 @@ export default function SkinsShop(props: Props) {
             <span className="dot" />
             Оплата TON → Tonkeeper
           </div>
-          <a
-            className="ton-btn"
-            href="https://ton.org/wallets"
-            target="_blank"
-            rel="noreferrer"
-            title="Офіційні гаманці TON"
-          >
+          <a className="ton-btn" href="https://ton.org/wallets" target="_blank" rel="noreferrer">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
               <path
                 d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2zm0 2C7.59 4 4 7.59 4 12c0 4.08 3.06 7.44 7 7.93V13H8l4-7 4 7h-3v6.93c3.94-.49 7-3.85 7-7.93 0-4.41-3.59-8-8-8z"
@@ -714,7 +685,6 @@ export default function SkinsShop(props: Props) {
         .chest-card.tier-purple { box-shadow: inset 0 0 18px rgba(185,120,255,.16); }
         .chest-card.tier-gold   { box-shadow: inset 0 0 18px rgba(255,210,90,.20); }
 
-        /* payment modal */
         .pay-modal{
           position:fixed; inset:0; background:rgba(0,0,0,.60);
           display:grid; place-items:center; z-index:60;
@@ -806,7 +776,6 @@ export default function SkinsShop(props: Props) {
           opacity:.9;
         }
 
-        /* loot modal */
         .loot-modal{
           position:fixed; inset:0; background:rgba(0,0,0,.55);
           display:grid; place-items:center; z-index:50;
