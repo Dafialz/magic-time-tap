@@ -1,3 +1,4 @@
+// src/components/LeadersPanel.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import type { LBEntry } from "../services/leaderboard";
 import { subscribeTopN } from "../services/leaderboard";
@@ -244,13 +245,20 @@ const tableWrap: React.CSSProperties = {
   background: "rgba(25,30,40,.95)",
   border: "1px solid rgba(255,255,255,.08)",
   borderRadius: 14,
-  overflow: "hidden",
+
+  // ✅ важливо для мобілки/модалки: дозволяємо горизонтальний скрол, не обрізаємо контент
+  overflowX: "auto",
+  overflowY: "hidden",
+  WebkitOverflowScrolling: "touch",
 };
 
 const table: React.CSSProperties = {
   width: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
+
+  // ✅ щоб таблиця не “стискалась” дивно у вузьких контейнерах
+  minWidth: 380,
 };
 
 const loadingBox: React.CSSProperties = {

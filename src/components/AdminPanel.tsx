@@ -91,7 +91,14 @@ export default function AdminPanel({ adminId }: Props) {
       setRows((prev) =>
         prev.map((r) =>
           r.id === uid
-            ? { ...r, data: { ...r.data, banned: ban, banReason: ban ? reason : "" } }
+            ? {
+                ...r,
+                data: {
+                  ...r.data,
+                  banned: ban,
+                  banReason: ban ? reason : "",
+                },
+              }
             : r
         )
       );
@@ -111,7 +118,9 @@ export default function AdminPanel({ adminId }: Props) {
       `Новий BALANCE для ${uid} (ціле число, >= 0)\nПоточний: ${fmt(
         currentBalance
       )}\n\nВведи число:`,
-      currentBalance != null ? String(Math.floor(Number(currentBalance))) : ""
+      currentBalance != null
+        ? String(Math.floor(Number(currentBalance)))
+        : ""
     );
 
     if (raw == null) return; // cancel
@@ -159,7 +168,14 @@ export default function AdminPanel({ adminId }: Props) {
       <div style={topRow}>
         <div style={{ fontWeight: 900, fontSize: 18 }}>Адмін панель</div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
           <button style={btn(mode === "recent")} onClick={() => setMode("recent")}>
             Останні
           </button>
@@ -186,6 +202,7 @@ export default function AdminPanel({ adminId }: Props) {
 
       {err ? <div style={errBox}>{err}</div> : null}
 
+      {/* ✅ fix mobile: горизонтальний скрол, щоб правий край (кнопки) не обрізався */}
       <div style={tableWrap}>
         <table style={table}>
           <thead>
@@ -208,7 +225,9 @@ export default function AdminPanel({ adminId }: Props) {
               return (
                 <tr
                   key={r.id}
-                  style={{ background: banned ? "rgba(255,80,80,.08)" : "transparent" }}
+                  style={{
+                    background: banned ? "rgba(255,80,80,.08)" : "transparent",
+                  }}
                 >
                   <td style={tdMono}>{r.id}</td>
                   <td style={td}>{String(r.data?.name || "—")}</td>
@@ -236,7 +255,17 @@ export default function AdminPanel({ adminId }: Props) {
                     )}
                   </td>
 
-                  <td style={{ ...td, textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                  <td
+                    style={{
+                      ...td,
+                      textAlign: "right",
+                      display: "flex",
+                      gap: 8,
+                      justifyContent: "flex-end",
+                      flexWrap: "nowrap",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     <button style={ghostBtn} onClick={() => doSetBalance(r.id)} disabled={loading}>
                       Змінити баланс
                     </button>
@@ -304,13 +333,16 @@ const search: React.CSSProperties = {
 
 const tableWrap: React.CSSProperties = {
   borderRadius: 14,
-  overflow: "hidden",
+  overflowX: "auto",
+  overflowY: "hidden",
+  WebkitOverflowScrolling: "touch",
   border: "1px solid rgba(255,255,255,.10)",
   background: "rgba(0,0,0,.20)",
 };
 
 const table: React.CSSProperties = {
   width: "100%",
+  minWidth: 860, // ✅ важливо для мобілки: не стискати до "2 колонок"
   borderCollapse: "separate",
   borderSpacing: 0,
   fontSize: 13,
@@ -322,12 +354,14 @@ const th: React.CSSProperties = {
   background: "rgba(255,255,255,.06)",
   borderBottom: "1px solid rgba(255,255,255,.10)",
   fontWeight: 900,
+  whiteSpace: "nowrap",
 };
 
 const td: React.CSSProperties = {
   padding: "10px 10px",
   borderBottom: "1px solid rgba(255,255,255,.08)",
   verticalAlign: "top",
+  whiteSpace: "nowrap",
 };
 
 const tdMono: React.CSSProperties = {
@@ -345,36 +379,40 @@ const btn = (active: boolean): React.CSSProperties => ({
   color: "#fff",
   fontWeight: 900,
   cursor: "pointer",
+  whiteSpace: "nowrap",
 });
 
 const ghostBtn: React.CSSProperties = {
-  padding: "8px 12px",
+  padding: "8px 10px",
   borderRadius: 12,
   border: "1px solid rgba(255,255,255,.14)",
   background: "rgba(255,255,255,.04)",
   color: "#fff",
   fontWeight: 900,
   cursor: "pointer",
+  whiteSpace: "nowrap",
 };
 
 const dangerBtn: React.CSSProperties = {
-  padding: "8px 12px",
+  padding: "8px 10px",
   borderRadius: 12,
   border: "1px solid rgba(255,120,120,.30)",
   background: "rgba(255,80,80,.18)",
   color: "#fff",
   fontWeight: 900,
   cursor: "pointer",
+  whiteSpace: "nowrap",
 };
 
 const okBtn: React.CSSProperties = {
-  padding: "8px 12px",
+  padding: "8px 10px",
   borderRadius: 12,
   border: "1px solid rgba(80,255,170,.30)",
   background: "rgba(40,231,168,.18)",
   color: "#fff",
   fontWeight: 900,
   cursor: "pointer",
+  whiteSpace: "nowrap",
 };
 
 const errBox: React.CSSProperties = {
