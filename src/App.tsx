@@ -188,8 +188,11 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
+  // ✅ гідратація локального сейву: якщо вже завантажилися з localStorage,
+  // то ПЕРШИЙ snapshot з Firestore НЕ має “відкотити” витрати назад на server balance.
+  const hydratedFromLocalRef = useRef(false);
+
   // ✅ server balance: застосовуємо ТІЛЬКИ коли воно реально змінилось в Firestore
-  // (інакше покупки/витрати будуть “відкотуватись” назад до serverBal)
   const lastAppliedServerBalRef = useRef<number | null>(null);
   const lastAppliedServerAtRef = useRef<number | null>(null);
 
@@ -220,31 +223,62 @@ export default function App() {
       const prevBal = lastAppliedServerBalRef.current;
       const prevAt = lastAppliedServerAtRef.current;
 
-      // ✅ Основне правило:
-      // - якщо сервер НЕ змінювався (по часу або хоча б по числу) — НЕ чіпаємо локальний mgp
-      const changedByAt = serverAtMs != null && prevAt != null && serverAtMs !== prevAt;
-      const changedByBal = prevBal == null ? true : serverBal !== prevBal;
-
-      // якщо є timestamp — він головний індикатор змін
-      const shouldApply =
-        serverAtMs != null
-          ? prevAt == null
-            ? true
-            : changedByAt
-          : changedByBal;
-
-      if (!shouldApply) return;
-
-      // сервер реально змінився (адмін задав новий balance) — застосовуємо
-      lastAppliedServerBalRef.current = serverBal;
-      writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
+      // ✅ Визначаємо, чи сервер реально змінювався з останнього разу.
+      // - якщо є timestamp: він головний
+      // - якщо timestamp немає: орієнтуємось по числу
+      let serverChanged = false;
 
       if (serverAtMs != null) {
-        lastAppliedServerAtRef.current = serverAtMs;
-        writeNumLS(LS_APPLIED_SERVER_BAL_AT_KEY, serverAtMs);
+        if (prevAt != null) serverChanged = serverAtMs !== prevAt;
+        else if (prevBal != null) serverChanged = serverBal !== prevBal;
+        else serverChanged = true; // нічого не знаємо про “останній сервер” — це перший візит
+      } else {
+        if (prevBal != null) serverChanged = serverBal !== prevBal;
+        else serverChanged = true;
       }
 
-      setMgp((prev) => (prev === serverBal ? prev : serverBal));
+      // ✅ Ключовий фікс:
+      // якщо це “перший показ” сервера після refresh, а ми вже завантажили localStorage,
+      // і сервер НЕ змінювався — не перетираємо mgp (щоб витрати не відкотились).
+      if (!serverChanged && hydratedFromLocalRef.current) {
+        // все одно “запам’ятаємо” сервер як останній застосований (щоб при наступних заходах не скакало)
+        if (prevBal == null) {
+          lastAppliedServerBalRef.current = serverBal;
+          writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
+        }
+        if (serverAtMs != null && prevAt == null) {
+          lastAppliedServerAtRef.current = serverAtMs;
+          writeNumLS(LS_APPLIED_SERVER_BAL_AT_KEY, serverAtMs);
+        }
+        return;
+      }
+
+      // Якщо сервер реально змінився (адмін задав новий balance) — застосовуємо.
+      if (serverChanged) {
+        lastAppliedServerBalRef.current = serverBal;
+        writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
+
+        if (serverAtMs != null) {
+          lastAppliedServerAtRef.current = serverAtMs;
+          writeNumLS(LS_APPLIED_SERVER_BAL_AT_KEY, serverAtMs);
+        }
+
+        setMgp((prev) => (prev === serverBal ? prev : serverBal));
+        return;
+      }
+
+      // Якщо local ще не гідратнувся — можна прийняти сервер як базу (порожній перший старт)
+      if (!hydratedFromLocalRef.current) {
+        lastAppliedServerBalRef.current = serverBal;
+        writeNumLS(LS_APPLIED_SERVER_BAL_KEY, serverBal);
+
+        if (serverAtMs != null) {
+          lastAppliedServerAtRef.current = serverAtMs;
+          writeNumLS(LS_APPLIED_SERVER_BAL_AT_KEY, serverAtMs);
+        }
+
+        setMgp((prev) => (prev === serverBal ? prev : serverBal));
+      }
     });
 
     return () => {
@@ -294,7 +328,10 @@ export default function App() {
   useEffect(() => {
     const sAny = loadState() as any;
     const now = Date.now();
-    if (!sAny) return;
+    if (!sAny) {
+      hydratedFromLocalRef.current = true;
+      return;
+    }
 
     setCe(sAny.ce ?? 0);
     // ❌ mm ігноруємо
@@ -329,6 +366,9 @@ export default function App() {
     setEquippedIds(sAny.equippedArtifactIds ?? []);
     setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
     setEquippedSkinId(sAny.equippedSkinId ?? "classic");
+
+    // ✅ важливо: позначаємо, що локал уже завантажили
+    hydratedFromLocalRef.current = true;
 
     if (sAny.lastSeenAt && sAny.autoPerSec) {
       const secsAway = Math.min(OFFLINE_CAP_SECS, Math.floor((now - sAny.lastSeenAt) / 1000));
