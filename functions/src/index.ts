@@ -354,3 +354,248 @@ export const checkTonPayment = onCall(
     return { status: result.status, level: result.level };
   }
 );
+
+/* =========================================================
+ * ✅ FRIENDS / REFERRALS + TASKS
+ * ========================================================= */
+
+type TaskKey =
+  | "tiktok"
+  | "facebook"
+  | "instagram"
+  | "twitter"
+  | "youtube"
+  | "vk"
+  | "telegram"
+  | "site";
+
+const TASK_REWARD: Record<TaskKey, number> = {
+  tiktok: 5_000,
+  facebook: 5_000,
+  instagram: 5_000,
+  twitter: 5_000,
+  youtube: 5_000,
+  vk: 5_000,
+  telegram: 5_000,
+  site: 100_000,
+};
+
+function assertTaskKey(x: unknown): x is TaskKey {
+  return (
+    x === "tiktok" ||
+    x === "facebook" ||
+    x === "instagram" ||
+    x === "twitter" ||
+    x === "youtube" ||
+    x === "vk" ||
+    x === "telegram" ||
+    x === "site"
+  );
+}
+
+function calcReferralReward(refCountAfter: number): number {
+  // 1 -> 5000, 2 -> 10000, ... 11 -> 5_120_000, 12+ -> 5_120_000
+  const base = 5_000;
+  const cap = 5_120_000;
+
+  if (!Number.isFinite(refCountAfter) || refCountAfter <= 0) return base;
+
+  if (refCountAfter >= 11) return cap;
+
+  // 5000 * 2^(n-1)
+  const mul = 2 ** (refCountAfter - 1);
+  const val = base * mul;
+  return val >= cap ? cap : val;
+}
+
+function safeStr(x: any, max = 64): string {
+  const s = String(x ?? "").trim();
+  if (!s) return "";
+  return s.length <= max ? s : s.slice(0, max);
+}
+
+/**
+ * ✅ TASKS: claimTaskReward
+ * - Нараховує MGP за таск 1 раз на акаунт.
+ * - Зберігає tasksCompleted[] у users_v1/{uid}
+ * - Пише balanceReason, balanceUpdatedAt
+ */
+export const claimTaskReward = onCall(
+  {
+    region: "europe-west1",
+    timeoutSeconds: 20,
+    cors: true,
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth?.uid) throw new HttpsError("unauthenticated", "Not authenticated");
+    const uid = auth.uid;
+
+    const data = (request.data ?? {}) as { task?: unknown };
+    const task = data.task;
+
+    if (!assertTaskKey(task)) {
+      throw new HttpsError("invalid-argument", "Invalid task key");
+    }
+
+    const amount = TASK_REWARD[task];
+    const userRef = db.collection("users_v1").doc(uid);
+    const eventRef = db.collection("events_v1").doc(`task_${uid}_${task}`);
+
+    const out = await db.runTransaction(async (t) => {
+      const snap = await t.get(userRef);
+      const cur = snap.exists ? (snap.data() as any) : {};
+      const prevBal = typeof cur.balance === "number" && Number.isFinite(cur.balance) ? cur.balance : 0;
+
+      const done: string[] = Array.isArray(cur.tasksCompleted) ? cur.tasksCompleted : [];
+      if (done.includes(task)) {
+        return { ok: true, message: "Already claimed" };
+      }
+
+      const nextDone = [...done, task];
+
+      t.set(
+        userRef,
+        {
+          tasksCompleted: nextDone,
+          balance: prevBal + amount,
+          balanceReason: `task:${task}`,
+          balanceUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      t.set(
+        eventRef,
+        {
+          userId: uid,
+          type: "task_reward",
+          task,
+          amount,
+          ts: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return { ok: true, message: `+${amount} MGP` };
+    });
+
+    logger.info("claimTaskReward:done", { uid, task, out });
+    return out;
+  }
+);
+
+/**
+ * ✅ REFERRALS: registerReferral
+ * Вхід: { referrerUid, referrerName? }
+ *
+ * - Реферал може бути записаний ТІЛЬКИ 1 раз для користувача.
+ * - Нарахування йде рефереру: reward = 5000 * 2^(n-1), cap 5_120_000 після 11-го.
+ * - Пише у реферера: refCount, recentRefs[], balance+, balanceReason
+ * - Пише у реферала: referredBy, referredAt
+ */
+export const registerReferral = onCall(
+  {
+    region: "europe-west1",
+    timeoutSeconds: 20,
+    cors: true,
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth?.uid) throw new HttpsError("unauthenticated", "Not authenticated");
+    const uid = auth.uid;
+
+    const data = (request.data ?? {}) as { referrerUid?: string; referrerName?: string };
+    const referrerUid = String(data.referrerUid ?? "").trim();
+    const referrerName = safeStr(data.referrerName ?? "", 64);
+
+    if (!referrerUid) throw new HttpsError("invalid-argument", "referrerUid required");
+    if (referrerUid === uid) return { ok: false, message: "Self-referral blocked" };
+
+    const userRef = db.collection("users_v1").doc(uid);
+    const refRef = db.collection("users_v1").doc(referrerUid);
+
+    const eventId = `ref_${referrerUid}_${uid}`;
+    const eventRef = db.collection("events_v1").doc(eventId);
+
+    const res = await db.runTransaction(async (t) => {
+      const userSnap = await t.get(userRef);
+      const userData: any = userSnap.exists ? userSnap.data() : {};
+
+      // якщо реф уже був — нічого не робимо
+      if (userData?.referredBy) {
+        return { ok: true, message: "Already referred" };
+      }
+
+      const refSnap = await t.get(refRef);
+      if (!refSnap.exists) {
+        return { ok: false, message: "Referrer not found" };
+      }
+
+      const refData: any = refSnap.data() || {};
+      const prevRefCount =
+        typeof refData.refCount === "number" && Number.isFinite(refData.refCount) ? refData.refCount : 0;
+
+      const nextRefCount = Math.max(0, Math.floor(prevRefCount)) + 1;
+      const reward = calcReferralReward(nextRefCount);
+
+      const prevBal =
+        typeof refData.balance === "number" && Number.isFinite(refData.balance) ? refData.balance : 0;
+
+      const nowMs = Date.now();
+
+      // recent refs (cap 20)
+      const prevRecent: any[] = Array.isArray(refData.recentRefs) ? refData.recentRefs : [];
+      const nextRecent = [
+        {
+          id: uid,
+          name: referrerName ? "" : "", // залишимо пустим — ім'я реферала краще оновлювати з профілю (фронт)
+          at: nowMs,
+        },
+        ...prevRecent.filter((x) => String(x?.id ?? "") !== uid),
+      ].slice(0, 20);
+
+      // 1) записуємо у реферала: referredBy
+      t.set(
+        userRef,
+        {
+          referredBy: referrerUid,
+          referredAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // 2) рефереру: refCount + баланс
+      t.set(
+        refRef,
+        {
+          refCount: nextRefCount,
+          recentRefs: nextRecent,
+          balance: prevBal + reward,
+          balanceReason: `referral:${nextRefCount}`,
+          balanceUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // 3) event (idempotent by doc id)
+      t.set(
+        eventRef,
+        {
+          userId: referrerUid,
+          type: "referral_reward",
+          fromUserId: uid,
+          reward,
+          refCountAfter: nextRefCount,
+          ts: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return { ok: true, reward, refCountAfter: nextRefCount };
+    });
+
+    logger.info("registerReferral:done", { uid, referrerUid, res });
+    return res;
+  }
+);

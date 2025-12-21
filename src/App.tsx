@@ -17,7 +17,7 @@ import { formatNum } from "./utils/format";
 
 import HeaderBar from "./components/HeaderBar";
 import TapArea from "./components/TapArea";
-import UpgradesList, { Upgrade } from "./components/UpgradesList";
+import UpgradesList from "./components/UpgradesList"; // ✅ тепер це вкладка "Друзі"
 import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
@@ -27,13 +27,7 @@ import LeadersPanel from "./components/LeadersPanel";
 import AdminPanel from "./components/AdminPanel";
 
 // сервіс лідерборду + auth/users (+admin ban)
-import {
-  upsertScore,
-  ensureAuth,
-  subscribeUser,
-  upsertUserProfile,
-  setUserBan,
-} from "./services/leaderboard";
+import { upsertScore, ensureAuth, subscribeUser, upsertUserProfile, setUserBan } from "./services/leaderboard";
 
 const CRAFT_SLOT_COUNT = 21;
 const OFFLINE_CAP_SECS = 3 * 3600;
@@ -41,7 +35,7 @@ const OFFLINE_CAP_SECS = 3 * 3600;
 // ✅ твій адмінський Firebase Auth UID (тільки він зможе банити по Rules)
 const ADMIN_AUTH_UID = "zzyUPc53FPOwOSn2DcNZirHyusu1";
 
-// 🛡️ античит (підкрутиш під свою економіку)
+// 🛡️ античит
 const ANTICHEAT_WINDOW_MS = 15_000;
 const ANTICHEAT_MAX_GAIN = 500_000; // max +score за 15 сек (має співпасти з rules scoreDeltaOk)
 
@@ -70,15 +64,9 @@ function writeNumLS(key: string, value: number) {
 }
 
 function tsToMs(x: any): number | null {
-  // Firestore Timestamp має toDate(), інколи може бути Date, або undefined
   try {
     const d: Date =
-      typeof x?.toDate === "function"
-        ? x.toDate()
-        : x instanceof Date
-        ? x
-        : (null as any);
-
+      typeof x?.toDate === "function" ? x.toDate() : x instanceof Date ? x : (null as any);
     if (!d) return null;
     const ms = d.getTime();
     return Number.isFinite(ms) ? ms : null;
@@ -90,10 +78,10 @@ function tsToMs(x: any): number | null {
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
-  // 🔑 ТЕПЕР це Auth UID (Firestore doc id = auth.uid)
+  // 🔑 Auth UID
   const [leaderUserId, setLeaderUserId] = useState<string>(""); // "" = ще не готово
 
-  // Telegram display name (як було)
+  // Telegram display name
   const [username, setUsername] = useState<string>("Гість");
 
   // Telegram meta (збережемо в users_v1)
@@ -104,7 +92,7 @@ export default function App() {
     last?: string;
   }>({});
 
-  // 1) Підтягуємо Telegram user (для імені в UI + мета в профіль)
+  // 1) Telegram init
   useEffect(() => {
     const tg = (window as any)?.Telegram?.WebApp;
     if (!tg) return;
@@ -118,8 +106,7 @@ export default function App() {
 
     try {
       const u = tg?.initDataUnsafe?.user;
-      const name =
-        u?.username || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || "Гість";
+      const name = u?.username || [u?.first_name, u?.last_name].filter(Boolean).join(" ") || "Гість";
       setUsername(name);
 
       setTgMeta({
@@ -131,7 +118,7 @@ export default function App() {
     } catch {}
   }, []);
 
-  // 2) Стартуємо Firebase Auth (Anonymous) і ставимо leaderUserId = auth.uid
+  // 2) Firebase Auth (Anonymous)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -145,7 +132,6 @@ export default function App() {
   }, []);
 
   const [ce, setCe] = useState<number>(0);
-  // ❌ MM прибрано повністю. Баланс = MGP.
   const [totalEarned, setTotalEarned] = useState<number>(0);
   const [clickPower, setClickPower] = useState<number>(1);
   const [autoPerSec, setAutoPerSec] = useState<number>(0);
@@ -162,13 +148,6 @@ export default function App() {
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
   const [offlineModalText, setOfflineModalText] = useState("");
 
-  const initialUpgrades: Upgrade[] = [
-    { id: "u1", name: "Пісочний Годинник", level: 0, baseCost: 10, costMult: 1.15, clickPowerBonus: 1 },
-    { id: "u2", name: "Міні Вежа", level: 0, baseCost: 100, costMult: 1.18, autoPerSecBonus: 0.5 },
-    { id: "u3", name: "Хронокристалічний Ротор", level: 0, baseCost: 1000, costMult: 1.2, clickPowerBonus: 5, autoPerSecBonus: 2 },
-  ];
-  const [upgrades, setUpgrades] = useState<Upgrade[]>(initialUpgrades);
-
   const epoch: Epoch = useMemo(() => epochByLevel(level), [level]);
   const epochMult = epoch.mult;
 
@@ -179,7 +158,6 @@ export default function App() {
   const [artifacts, setArtifacts] = useState<ArtifactInstance[]>([]);
   const [equippedIds, setEquippedIds] = useState<string[]>([]);
 
-  // залишив як було — може бути потрібно для інших частин/сейву
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["classic"]);
   const [equippedSkinId, setEquippedSkinId] = useState<string>("classic");
 
@@ -340,15 +318,6 @@ export default function App() {
       } else setCraftSlots(arr.slice(0, CRAFT_SLOT_COUNT));
     } else setCraftSlots(Array(CRAFT_SLOT_COUNT).fill(0));
 
-    if (Array.isArray(sAny.upgrades)) {
-      setUpgrades((prev) =>
-        prev.map((u) => {
-          const found = sAny.upgrades.find((x: { id: string; level: number }) => x.id === u.id);
-          return found ? { ...u, level: found.level } : u;
-        })
-      );
-    }
-
     setArtifacts(sAny.artifacts ?? []);
     setEquippedIds(sAny.equippedArtifactIds ?? []);
     setOwnedSkins(sAny.ownedSkins ?? ["classic"]);
@@ -383,7 +352,7 @@ export default function App() {
       hc,
       level,
       prestiges,
-      upgrades: upgrades.map((u) => ({ id: u.id, level: u.level })),
+      upgrades: [], // ✅ вкладку апгрейдів замінили на “Друзі”
       lastSeenAt: Date.now(),
       artifacts,
       equippedArtifactIds: equippedIds,
@@ -403,7 +372,6 @@ export default function App() {
     hc,
     level,
     prestiges,
-    upgrades,
     artifacts,
     equippedIds,
     ownedSkins,
@@ -473,18 +441,6 @@ export default function App() {
     setMeteorBuffLeft(GOLDEN_METEOR.activeSecs);
     setMeteorSpawnIn(nextMeteorIn(GOLDEN_METEOR));
   };
-
-  const buyUpgrade = (u: Upgrade) => {
-    if (isBanned) return;
-    const cost = Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
-    if (ce < cost) return;
-    setCe((prev) => prev - cost);
-    setUpgrades((prev) => prev.map((x) => (x.id === u.id ? { ...x, level: x.level + 1 } : x)));
-    setClickPower((cp) => cp + (u.clickPowerBonus ?? 0));
-    setAutoPerSec((a) => a + (u.autoPerSecBonus ?? 0));
-    setLevel((l) => l + 1);
-  };
-  const getCost = (u: Upgrade) => Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
 
   const addToCraft = (levelToPlace = 1): boolean => {
     const idx = craftSlots.findIndex((v) => v === 0);
@@ -632,22 +588,13 @@ export default function App() {
           />
         )}
 
-        {activeTab === "upgrades" && (
-          <UpgradesList upgrades={upgrades} ce={ce} getCost={getCost} buyUpgrade={buyUpgrade} />
-        )}
+        {/* ✅ ВКЛАДКА "ДРУЗІ" */}
+        {activeTab === "upgrades" && <UpgradesList userId={leaderUserId} nickname={username} />}
 
-        {activeTab === "artifacts" && (
-          <ArtifactsPanel mgp={mgp} setMgp={setMgp} addToCraft={addToCraft} />
-        )}
+        {activeTab === "artifacts" && <ArtifactsPanel mgp={mgp} setMgp={setMgp} addToCraft={addToCraft} />}
 
         {activeTab === "craft" && (
-          <CraftPanel
-            mgp={mgp}
-            setMgp={setMgp}
-            slots={craftSlots}
-            setSlots={setCraftSlots}
-            items={craftItems}
-          />
+          <CraftPanel mgp={mgp} setMgp={setMgp} slots={craftSlots} setSlots={setCraftSlots} items={craftItems} />
         )}
 
         {activeTab === "skins" && (
