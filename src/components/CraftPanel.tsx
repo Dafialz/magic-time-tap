@@ -5,8 +5,8 @@ import { iconByLevel } from "../systems/shop_icons";
 
 /**
  * CraftPanel (20 слотів):
- * - Клік по слоту: купити L1 або апґрейд до L+1 (за MGP)
- * - Drag & Drop (працює на iPhone):
+ * - ❌ КЛІК-логіка (купити/апґрейд) ВИДАЛЕНА
+ * - Drag & Drop:
  *    • на порожній → перемістити
  *    • на такий самий рівень → злиття L + L = L+1
  *    • на $ → продаж за 70% від ЦІНИ поточного рівня
@@ -65,7 +65,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     started: false,
   });
 
-  // щоб блокувати click після перетягування
+  // щоб блокувати click після перетягування (і ghost click на iOS)
   const suppressClickRef = useRef(false);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -82,24 +82,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
   const sellValueForLevel = (lvl: number) => {
     const d = defOf(lvl);
     return d ? d.price_mgp * 0.7 : 0;
-  };
-
-  // ==== Клік-купівля/апґрейд (за MGP)
-  const handleClick = (index: number) => {
-    // якщо щойно тягнули — клік ігноруємо
-    if (suppressClickRef.current) return;
-
-    const cur = slots[index] || 0;
-    const next = Math.min(cur + 1 || 1, 50);
-    const d = defOf(next);
-    if (!d || mgp < d.price_mgp) return;
-
-    setSlots((prev) => {
-      const copy = [...prev];
-      copy[index] = next;
-      return copy;
-    });
-    setMgp((v) => round2(v - d.price_mgp));
   };
 
   // ==== drop-правила
@@ -179,14 +161,17 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
 
   // ==== Pointer-based drag (iPhone-friendly)
   const onPointerDownCell = (e: React.PointerEvent, index: number, level: number) => {
+    // drag стартує ТІЛЬКИ якщо в слоті є предмет
     if (!level) return;
+
+    // ✅ прибиваємо iOS ghost click одразу
+    suppressClickRef.current = true;
 
     try {
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     } catch {}
 
     startPosRef.current = { x: e.clientX, y: e.clientY };
-    suppressClickRef.current = false;
 
     setDrag({
       active: true,
@@ -211,7 +196,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       const started = s.started || dist > 6;
-      if (started) suppressClickRef.current = true;
 
       const target = pickDropTarget(e.clientX, e.clientY);
       return {
@@ -267,7 +251,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       window.removeEventListener("pointercancel", cancel as any);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slots, mgp]);
+  }, [slots]);
 
   const totalIncome = useMemo(
     () => slots.reduce((acc, lvl) => acc + (defOf(lvl)?.income_per_hour_mgp ?? 0), 0),
@@ -283,9 +267,9 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     <section className="craft">
       <h2>Крафт артефактів</h2>
       <p>
-        <b>20 слотів.</b> Клік — купити/апгрейд за <b>MGP</b>. Перетягни:
-        <b> на порожній</b> — перемістити; <b>на такий самий рівень</b> — злиття <b>L+L = L+1</b>;
-        на <b>$</b> — продати (70% від ціни рівня).
+        <b>20 слотів.</b> Перетягни предмет:
+        <b> на порожній</b> — перемістити; <b>на такий самий рівень</b> — злиття <b>L+L = L+1</b>; на <b>$</b> — продати
+        (70% від ціни рівня).
       </p>
 
       <div className="row" style={{ opacity: 0.9, marginBottom: 8 }}>
@@ -296,10 +280,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
         <div className="craft-grid">
           {Array.from({ length: SLOTS_COUNT }).map((_, i) => {
             const lvl = slots[i] || 0;
-            const next = Math.min(lvl + 1 || 1, 50);
             const curDef = defOf(lvl);
-            const nextDef = defOf(next);
-            const maxed = lvl >= 50;
 
             const isDragOver = dragOverIdx === i;
             const { ok, reason } = drag.active ? canDropInfo(i, drag.level) : { ok: false, reason: "blocked" as const };
@@ -314,19 +295,17 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
                 key={i}
                 data-slot-index={i}
                 className={`cell tile ${lvl ? "has" : ""} ${dropClass} ${isDragSource ? "drag-source" : ""}`}
-                onClick={() => !maxed && handleClick(i)}
-                disabled={maxed || !nextDef || mgp < (nextDef?.price_mgp ?? Infinity)}
-                title={
-                  maxed
-                    ? "MAX"
-                    : lvl
-                    ? `L${lvl} → L${next} • ${coin(nextDef!.price_mgp)} MGP`
-                    : `Купити L1 • ${coin(nextDef!.price_mgp)} MGP`
-                }
-                draggable={false}
-                onPointerDown={(e) => {
-                  if (lvl > 0) onPointerDownCell(e, i, lvl);
+                // ✅ кліки більше не використовуємо (і прибиваємо iOS ghost click)
+                onClickCapture={(e) => {
+                  if (suppressClickRef.current) e.preventDefault();
                 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                }}
+                type="button"
+                draggable={false}
+                onPointerDown={(e) => onPointerDownCell(e, i, lvl)}
+                title={lvl ? `L${lvl}` : "Порожній слот"}
               >
                 <div className="tile-fig">
                   {icon && !isDragSource ? (
@@ -334,14 +313,8 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
                   ) : (
                     <span className="tile-plus">{isDragSource ? "" : "+"}</span>
                   )}
-                  <span className="tile-lvl">{maxed ? "MAX" : lvl ? `L${lvl}` : `L1`}</span>
-                  <div className="tile-sub">
-                    {lvl > 0
-                      ? `${coin(curDef!.income_per_hour_mgp)}/год`
-                      : nextDef
-                      ? `${coin(nextDef.price_mgp)} MGP`
-                      : ""}
-                  </div>
+                  <span className="tile-lvl">{lvl ? `L${lvl}` : ""}</span>
+                  <div className="tile-sub">{lvl > 0 && curDef ? `${coin(curDef.income_per_hour_mgp)}/год` : ""}</div>
                 </div>
               </button>
             );
@@ -352,7 +325,8 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
           data-drop="dollar"
           className={`craft-dollar ${dragOverDollar ? "drag-over" : ""}`}
           title="Перетягни сюди предмет, щоб продати за 70% від ціни рівня"
-          onClick={() => {}}
+          onClick={(e) => e.preventDefault()}
+          type="button"
         >
           $
         </button>
@@ -391,10 +365,8 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
           padding:10px;
           text-align:center;
           color:#fff;
-          cursor:pointer;
+          cursor:default;
         }
-
-        .tile:disabled{ opacity:.6; cursor:not-allowed; }
 
         .tile-fig{ display:flex; flex-direction:column; align-items:center; gap:6px; }
         .tile-img{ width:52px; height:52px; object-fit:contain; border-radius:12px; }
