@@ -156,10 +156,15 @@ body{
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
-  touch-action: manipulation;
+
+  /* ✅ КРИТИЧНО ДЛЯ DRAG НА ТЕЛЕФОНІ: дозволяє pointermove */
+  touch-action: none;
 }
 .craft .cell.tile{
   position:relative; padding:6px; aspect-ratio: 1 / 1; min-height:0; overflow:hidden;
+
+  /* ✅ дублюємо для надійності на деяких WebView */
+  touch-action: none;
 }
 .craft .cell.has{
   background: linear-gradient(180deg,
