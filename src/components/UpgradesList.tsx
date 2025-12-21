@@ -3,7 +3,7 @@ import React from "react";
 import { formatNum } from "../utils/format";
 
 /**
- * ✅ Тепер це вкладка "Друзі" (реф-система + завдання).
+ * ✅ Вкладка "Друзі" (реф-система + завдання).
  *
  * Сервер:
  * - registerReferral  (callable)
@@ -35,24 +35,12 @@ export type Upgrade = {
 /* ===== reward plan ===== */
 
 type RewardPlan = {
-  levels: number[]; // index 0 = 1st friend reward
-  cap: number; // 5_120_000
+  levels: number[];
+  cap: number;
 };
 
 const REWARD_PLAN: RewardPlan = {
-  levels: [
-    5_000,
-    10_000,
-    20_000,
-    40_000,
-    80_000,
-    160_000,
-    320_000,
-    640_000,
-    1_280_000,
-    2_560_000,
-    5_120_000,
-  ],
+  levels: [5_000, 10_000, 20_000, 40_000, 80_000, 160_000, 320_000, 640_000, 1_280_000, 2_560_000, 5_120_000],
   cap: 5_120_000,
 };
 
@@ -69,7 +57,7 @@ function nextRewardForCount(friendsCount: number): { nextN: number; amount: numb
 
 /* ===== Task config ===== */
 
-type TaskKey =
+export type TaskKey =
   | "tiktok"
   | "facebook"
   | "instagram"
@@ -102,7 +90,7 @@ const TASKS: TaskDef[] = [
 export type ReferralLite = {
   id: string;
   name?: string;
-  at?: number; // Date.now()
+  at?: number;
 };
 
 type LoadedUserData = {
@@ -112,18 +100,15 @@ type LoadedUserData = {
 };
 
 type Props = {
-  /** ✅ auth uid (Firestore doc id = auth.uid). Якщо не передаси — вкладка покаже "Підключення..." */
   userId?: string;
-  /** display name */
   nickname?: string;
 
-  /** якщо хочеш вручну підкласти (опційно) */
   friendsCount?: number;
   recentRefs?: ReferralLite[];
   completedTasks?: TaskKey[];
 };
 
-/* ===== Firebase helpers (як у SkinsShop) ===== */
+/* ===== Firebase helpers ===== */
 
 function env() {
   return ((import.meta as any)?.env ?? {}) as Record<string, string>;
@@ -178,14 +163,12 @@ const FN_REGISTER_REF = "registerReferral";
 /* ===== Telegram start param parsing ===== */
 
 function readStartParam(): string {
-  // 1) Telegram WebApp initDataUnsafe.start_param
   try {
     const tg = (window as any)?.Telegram?.WebApp;
     const sp = tg?.initDataUnsafe?.start_param;
     if (typeof sp === "string" && sp.trim()) return sp.trim();
   } catch {}
 
-  // 2) URL param: tgWebAppStartParam
   try {
     const q = new URLSearchParams(window.location.search);
     const v = q.get("tgWebAppStartParam") || q.get("startapp") || q.get("start_param");
@@ -196,7 +179,6 @@ function readStartParam(): string {
 }
 
 function parseReferrerUid(startParam: string): string {
-  // очікуємо: "ref_<uid>"
   const s = String(startParam || "").trim();
   const m = s.match(/^ref_(.+)$/i);
   if (!m) return "";
@@ -206,10 +188,9 @@ function parseReferrerUid(startParam: string): string {
 /* ===== UI helpers ===== */
 
 function makeRefLink(botUsername: string, uid: string): string {
-  // Telegram Mini App deep link:
-  // https://t.me/<bot>?startapp=ref_<uid>
   const sp = `ref_${uid}`;
-  return `https://t.me/${encodeURIComponent(botUsername)}?startapp=${encodeURIComponent(sp)}`;
+  // ВАЖЛИВО: username без @
+  return `https://t.me/${botUsername}?startapp=${encodeURIComponent(sp)}`;
 }
 
 function normalizeTaskKey(x: any): TaskKey | null {
@@ -228,15 +209,52 @@ function normalizeTaskKey(x: any): TaskKey | null {
   return null;
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function formatEta(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  if (hh > 0) return `${hh}:${pad2(mm)}:${pad2(ss)}`;
+  return `${mm}:${pad2(ss)}`;
+}
+
 /* ===== Component ===== */
 
 const BOT_USERNAME = "MagicTimeTapBot"; // ✅ твоє: @MagicTimeTapBot
+
+// 1 година “перевірки”
+const VERIFY_MS = 60 * 60 * 1000;
+
+// localStorage key: коли юзер натиснув "Відкрити" для таску
+function lsOpenKey(uid: string, task: TaskKey) {
+  return `mt_task_open_v1:${uid}:${task}`;
+}
+
+function readOpenAt(uid: string, task: TaskKey): number | null {
+  try {
+    const raw = localStorage.getItem(lsOpenKey(uid, task));
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeOpenAt(uid: string, task: TaskKey, ts: number) {
+  try {
+    localStorage.setItem(lsOpenKey(uid, task), String(ts));
+  } catch {}
+}
 
 export default function UpgradesList(props: Props & any) {
   const uid = String(props.userId || "").trim();
   const name = String(props.nickname || "Гість").trim();
 
-  // якщо ти передав з App.tsx вручну — використовуємо їх, інакше тягнемо з Firestore
   const [loaded, setLoaded] = React.useState<LoadedUserData>({
     refCount: Number.isFinite(props.friendsCount) ? Number(props.friendsCount) : 0,
     recentRefs: Array.isArray(props.recentRefs) ? props.recentRefs : [],
@@ -248,6 +266,13 @@ export default function UpgradesList(props: Props & any) {
   const [busy, setBusy] = React.useState(false);
   const [toast, setToast] = React.useState("");
   const [refApplied, setRefApplied] = React.useState(false);
+
+  // тикер для таймерів (щоб “через годину” кнопка ожила сама)
+  const [, forceTick] = React.useState(0);
+  React.useEffect(() => {
+    const id = window.setInterval(() => forceTick((x) => x + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   function showToast(s: string) {
     setToast(s);
@@ -355,6 +380,18 @@ export default function UpgradesList(props: Props & any) {
       return;
     }
 
+    // безпека: не даємо claim раніше ніж через 1 годину після open
+    const openedAt = readOpenAt(uid, key);
+    if (!openedAt) {
+      showToast("Спочатку натисни “Відкрити” 👆");
+      return;
+    }
+    const readyAt = openedAt + VERIFY_MS;
+    if (Date.now() < readyAt) {
+      showToast("Перевірка ще триває ⏳");
+      return;
+    }
+
     setBusy(true);
     const out = await withCallable(async (app, functionsMod) => {
       const fns = functionsMod.getFunctions(app, FUNCTIONS_REGION);
@@ -373,6 +410,22 @@ export default function UpgradesList(props: Props & any) {
     await reloadFromFirestore();
   }
 
+  function openTask(t: TaskDef) {
+    if (!uid) return;
+    // запам'ятали момент відкриття
+    writeOpenAt(uid, t.key, Date.now());
+
+    // відкриваємо посилання (Telegram WebApp -> openLink краще)
+    const tg = (window as any)?.Telegram?.WebApp;
+    try {
+      if (tg?.openLink) {
+        tg.openLink(t.url);
+        return;
+      }
+    } catch {}
+    window.open(t.url, "_blank", "noopener,noreferrer");
+  }
+
   // ✅ Авто-реєстрація реферала (1 раз), якщо є start_param = ref_<uid>
   React.useEffect(() => {
     if (!uid) return;
@@ -382,7 +435,6 @@ export default function UpgradesList(props: Props & any) {
     const referrerUid = parseReferrerUid(start);
     if (!referrerUid) return;
 
-    // щоб не стріляло постійно при кожному рендері
     setRefApplied(true);
 
     (async () => {
@@ -395,7 +447,6 @@ export default function UpgradesList(props: Props & any) {
 
       if (out?.ok) {
         showToast("Реферал зараховано ✅");
-        // оновимо дані (корисно для реферера, але реферал теж збережеться)
         await reloadFromFirestore();
       }
     })();
@@ -490,7 +541,7 @@ export default function UpgradesList(props: Props & any) {
         <div className="row">
           <div>
             <div className="title">Завдання за монети</div>
-            <div className="sub">Спочатку відкрий посилання, потім натисни “Отримати”.</div>
+            <div className="sub">Натисни “Відкрити”. Після цього перевірка займе 1 годину, і кнопка стане “Отримати”.</div>
           </div>
           <button className="btn tiny" onClick={reloadFromFirestore} disabled={!uid || busy}>
             Оновити
@@ -500,6 +551,37 @@ export default function UpgradesList(props: Props & any) {
         <div className="tasks">
           {TASKS.map((t) => {
             const done = completed.has(t.key);
+            const openedAt = uid ? readOpenAt(uid, t.key) : null;
+            const readyAt = openedAt ? openedAt + VERIFY_MS : 0;
+            const msLeft = openedAt ? Math.max(0, readyAt - Date.now()) : 0;
+
+            const stage: "open" | "wait" | "claim" | "done" = done
+              ? "done"
+              : !openedAt
+              ? "open"
+              : msLeft > 0
+              ? "wait"
+              : "claim";
+
+            const btnText =
+              stage === "done" ? "Зараховано" : stage === "open" ? "Відкрити" : "Отримати";
+
+            const btnDisabled =
+              !uid || busy || stage === "done" || stage === "wait";
+
+            const onBtnClick = async () => {
+              if (!uid) return;
+              if (stage === "open") {
+                openTask(t);
+                showToast("Посилання відкрито ✅");
+                return;
+              }
+              if (stage === "claim") {
+                await claimTask(t.key);
+                return;
+              }
+            };
+
             return (
               <div key={t.key} className={`task ${done ? "done" : ""}`}>
                 <div className="taskLeft">
@@ -507,20 +589,40 @@ export default function UpgradesList(props: Props & any) {
                   <div className="taskMeta">
                     Нагорода: <b>{formatNum(t.reward)} MGP</b>
                   </div>
+
+                  {!done ? (
+                    <div className="taskHint">
+                      {stage === "open" ? (
+                        <>Спочатку натисни <b>“Відкрити”</b>.</>
+                      ) : stage === "wait" ? (
+                        <>
+                          Перевірка займе <b>1 годину</b>. Залишилось: <b>{formatEta(msLeft)}</b>
+                        </>
+                      ) : stage === "claim" ? (
+                        <>Перевірка завершена ✅ Можна натиснути <b>“Отримати”</b>.</>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="taskHint">Вже зараховано ✅</div>
+                  )}
                 </div>
 
                 <div className="taskActions">
-                  <a className="linkBtn" href={t.url} target="_blank" rel="noreferrer">
-                    Відкрити
-                  </a>
-
                   <button
-                    className="btn primary"
-                    onClick={() => claimTask(t.key)}
-                    disabled={!uid || done || busy}
-                    title={done ? "Вже зараховано" : "Нарахувати нагороду через сервер"}
+                    className={`btn primary single ${stage === "open" ? "open" : ""}`}
+                    onClick={onBtnClick}
+                    disabled={btnDisabled}
+                    title={
+                      stage === "open"
+                        ? "Відкрити посилання"
+                        : stage === "wait"
+                        ? "Потрібно зачекати 1 годину"
+                        : stage === "claim"
+                        ? "Отримати нагороду через сервер"
+                        : "Вже зараховано"
+                    }
                   >
-                    {done ? "Зараховано" : busy ? "..." : "Отримати"}
+                    {busy && stage !== "done" ? "..." : btnText}
                   </button>
                 </div>
               </div>
@@ -529,8 +631,7 @@ export default function UpgradesList(props: Props & any) {
         </div>
 
         <div style={{ marginTop: 10, opacity: 0.72, fontSize: 12, fontWeight: 800 }}>
-          ⚠️ Посилання на соцмережі зараз заглушки (tiktok.com, facebook.com…). Якщо ти скинеш свої реальні лінки —
-          я підставлю.
+          ⚠️ Посилання на соцмережі зараз заглушки. Скинь свої реальні лінки — я підставлю.
         </div>
       </div>
 
@@ -640,15 +741,22 @@ export default function UpgradesList(props: Props & any) {
         .task.done{ opacity:.78; }
         .taskTitle{ font-weight:1000; }
         .taskMeta{ margin-top:4px; font-size:12px; opacity:.78; font-weight:800; }
+        .taskHint{
+          margin-top:8px;
+          font-size:12px;
+          opacity:.78;
+          font-weight:800;
+        }
+
         .taskActions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-        .linkBtn{
-          padding:10px 12px;
-          border-radius:12px;
+        .btn.single{
+          min-width: 124px;
+          justify-content:center;
+        }
+        .btn.single.open{
+          background:rgba(255,255,255,.08);
           border:1px solid rgba(255,255,255,.12);
-          text-decoration:none;
-          color:#7cc7ff;
-          font-weight:900;
-          background:rgba(0,0,0,.12);
+          color:#fff;
         }
 
         .toast{

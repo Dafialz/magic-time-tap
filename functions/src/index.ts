@@ -62,7 +62,6 @@ type TonTx = {
 };
 
 function tonToNanoBigInt(ton: number): bigint {
-  // ціни 1/2/3 => точно і без float
   return BigInt(ton) * 1_000_000_000n;
 }
 
@@ -109,7 +108,6 @@ function pickCommentFromTx(tx: TonTx): string {
   const p = msg.payload;
   if (typeof p === "string" && p.trim()) return p.trim();
 
-  // decoded_body може бути об’єктом з text/comment
   const d: any = msg.decoded_body;
   const dText = d?.text;
   if (typeof dText === "string" && dText.trim()) return dText.trim();
@@ -120,15 +118,6 @@ function pickCommentFromTx(tx: TonTx): string {
   return "";
 }
 
-/**
- * Знаходимо транзакцію серед ВХІДНИХ транзакцій мерчанта:
- * - value == price (nanoton)
- * - comment збігається (exact або includes)
- *
- * ⚠️ НЕ перевіряємо destination == merchantAddress,
- * бо TonAPI інколи віддає destination в іншому форматі/полі,
- * а ми і так читаємо transactions саме merchant акаунта.
- */
 async function findMatchingTx(
   merchantAddress: string,
   comment: string,
@@ -168,12 +157,6 @@ async function findMatchingTx(
   return { tx: null, scanned: txs.length, samples };
 }
 
-/**
- * callable:
- * client -> "checkTonPayment"
- *
- * input: { intentId }
- */
 export const checkTonPayment = onCall(
   {
     region: "europe-west1",
@@ -194,7 +177,6 @@ export const checkTonPayment = onCall(
 
     logger.info("checkTonPayment:start", { uid, intentId });
 
-    // 1) зчитали intent
     const snap = await intentRef.get();
     if (!snap.exists) throw new HttpsError("not-found", "Intent not found");
 
@@ -209,10 +191,8 @@ export const checkTonPayment = onCall(
       userId: intent.userId,
     });
 
-    // перевірка власника
     if (intent.userId !== uid) throw new HttpsError("permission-denied", "Not your intent");
 
-    // якщо вже не pending — повертаємо як є (і level, якщо є)
     if (intent.status !== "pending") {
       logger.info("checkTonPayment:already_not_pending", {
         status: intent.status,
@@ -221,7 +201,6 @@ export const checkTonPayment = onCall(
       return { status: intent.status, level: intent.grantedLevel ?? undefined };
     }
 
-    // базові анти-підміна перевірки
     if (intent.to !== MERCHANT_ADDRESS) {
       logger.warn("checkTonPayment:rejected_wrong_to", {
         intentTo: intent.to,
@@ -244,13 +223,11 @@ export const checkTonPayment = onCall(
     const apiKey = TONAPI_KEY.value();
     if (!apiKey) throw new HttpsError("failed-precondition", "TONAPI_KEY secret not set");
 
-    // 2) шукаємо оплату в TON
     const lookup = await findMatchingTx(MERCHANT_ADDRESS, intent.comment, intent.priceTon, apiKey);
 
     logger.info("checkTonPayment:ton_scan", {
       scanned: lookup.scanned,
       matchesForAmount: lookup.samples.length,
-      // покажемо максимум 3 приклади коментарів для цього amount (щоб не засмічувати логи)
       sample: lookup.samples.slice(0, 3),
     });
 
@@ -267,7 +244,6 @@ export const checkTonPayment = onCall(
       value: tx.in_msg?.value ?? "",
     });
 
-    // 3) визначаємо лут ДЕТЕРМІНОВАНО (щоб не “скакало” при повторних викликах)
     const levelByTier: Record<Tier, number[]> = {
       blue: [1, 2, 3, 4, 5],
       purple: [10, 11, 12, 13, 14],
@@ -278,7 +254,6 @@ export const checkTonPayment = onCall(
     const level = pickDeterministic(levels, `${intentId}:${tx.hash}:${intent.tier}`);
     const itemKey = `loot_level_${level}`;
 
-    // 4) атомарно: confirmed + grant (тільки 1 раз!) + audit
     const result = await db.runTransaction(async (t) => {
       const fresh = await t.get(intentRef);
       if (!fresh.exists) throw new HttpsError("not-found", "Intent not found");
@@ -293,7 +268,6 @@ export const checkTonPayment = onCall(
         };
       }
 
-      // якщо раптом grant уже був — не інкрементимо вдруге
       if (typeof cur.grantedLevel === "number" && cur.grantedItemKey) {
         t.update(intentRef, {
           status: "confirmed",
@@ -312,7 +286,6 @@ export const checkTonPayment = onCall(
         grantedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // inventory increment (server-grant)
       const itemRef = db.collection("users_v1").doc(uid).collection("inventory_v1").doc(itemKey);
       t.set(
         itemRef,
@@ -325,7 +298,6 @@ export const checkTonPayment = onCall(
         { merge: true }
       );
 
-      // audit (idempotent doc id = intentId)
       const eventRef = db.collection("events_v1").doc(intentId);
       t.set(
         eventRef,
@@ -359,15 +331,7 @@ export const checkTonPayment = onCall(
  * ✅ FRIENDS / REFERRALS + TASKS
  * ========================================================= */
 
-type TaskKey =
-  | "tiktok"
-  | "facebook"
-  | "instagram"
-  | "twitter"
-  | "youtube"
-  | "vk"
-  | "telegram"
-  | "site";
+type TaskKey = "tiktok" | "facebook" | "instagram" | "twitter" | "youtube" | "vk" | "telegram" | "site";
 
 const TASK_REWARD: Record<TaskKey, number> = {
   tiktok: 5_000,
@@ -394,15 +358,12 @@ function assertTaskKey(x: unknown): x is TaskKey {
 }
 
 function calcReferralReward(refCountAfter: number): number {
-  // 1 -> 5000, 2 -> 10000, ... 11 -> 5_120_000, 12+ -> 5_120_000
   const base = 5_000;
   const cap = 5_120_000;
 
   if (!Number.isFinite(refCountAfter) || refCountAfter <= 0) return base;
-
   if (refCountAfter >= 11) return cap;
 
-  // 5000 * 2^(n-1)
   const mul = 2 ** (refCountAfter - 1);
   const val = base * mul;
   return val >= cap ? cap : val;
@@ -416,7 +377,7 @@ function safeStr(x: any, max = 64): string {
 
 /**
  * ✅ TASKS: claimTaskReward
- * - Нараховує MGP за таск 1 раз на акаунт.
+ * - Нараховує MTP за таск 1 раз на акаунт.
  * - Зберігає tasksCompleted[] у users_v1/{uid}
  * - Пише balanceReason, balanceUpdatedAt
  */
@@ -477,7 +438,7 @@ export const claimTaskReward = onCall(
         { merge: true }
       );
 
-      return { ok: true, message: `+${amount} MGP` };
+      return { ok: true, message: `+${amount} MTP` };
     });
 
     logger.info("claimTaskReward:done", { uid, task, out });
@@ -522,7 +483,6 @@ export const registerReferral = onCall(
       const userSnap = await t.get(userRef);
       const userData: any = userSnap.exists ? userSnap.data() : {};
 
-      // якщо реф уже був — нічого не робимо
       if (userData?.referredBy) {
         return { ok: true, message: "Already referred" };
       }
@@ -533,18 +493,15 @@ export const registerReferral = onCall(
       }
 
       const refData: any = refSnap.data() || {};
-      const prevRefCount =
-        typeof refData.refCount === "number" && Number.isFinite(refData.refCount) ? refData.refCount : 0;
+      const prevRefCount = typeof refData.refCount === "number" && Number.isFinite(refData.refCount) ? refData.refCount : 0;
 
       const nextRefCount = Math.max(0, Math.floor(prevRefCount)) + 1;
       const reward = calcReferralReward(nextRefCount);
 
-      const prevBal =
-        typeof refData.balance === "number" && Number.isFinite(refData.balance) ? refData.balance : 0;
+      const prevBal = typeof refData.balance === "number" && Number.isFinite(refData.balance) ? refData.balance : 0;
 
       const nowMs = Date.now();
 
-      // recent refs (cap 20)
       const prevRecent: any[] = Array.isArray(refData.recentRefs) ? refData.recentRefs : [];
       const nextRecent = [
         {
@@ -555,7 +512,6 @@ export const registerReferral = onCall(
         ...prevRecent.filter((x) => String(x?.id ?? "") !== uid),
       ].slice(0, 20);
 
-      // 1) записуємо у реферала: referredBy
       t.set(
         userRef,
         {
@@ -565,7 +521,6 @@ export const registerReferral = onCall(
         { merge: true }
       );
 
-      // 2) рефереру: refCount + баланс
       t.set(
         refRef,
         {
@@ -578,7 +533,6 @@ export const registerReferral = onCall(
         { merge: true }
       );
 
-      // 3) event (idempotent by doc id)
       t.set(
         eventRef,
         {

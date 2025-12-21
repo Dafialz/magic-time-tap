@@ -1,8 +1,8 @@
+// src/components/HeaderBar.tsx
 import React from "react";
 
 type Props = {
   ce: number;
-  mm: number;
   hc: number;
   level: number;
   epochName: string;

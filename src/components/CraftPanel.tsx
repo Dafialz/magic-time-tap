@@ -5,7 +5,7 @@ import { iconByLevel } from "../systems/shop_icons";
 
 /**
  * CraftPanel (20 слотів):
- * - Клік по слоту: купити L1 або апґрейд до L+1 (за mgp)
+ * - Клік по слоту: купити L1 або апґрейд до L+1 (за MGP)
  * - Drag & Drop (працює на iPhone):
  *    • на порожній → перемістити
  *    • на такий самий рівень → злиття L + L = L+1
@@ -84,7 +84,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     return d ? d.price_mgp * 0.7 : 0;
   };
 
-  // ==== Клік-купівля/апґрейд (за mgp)
+  // ==== Клік-купівля/апґрейд (за MGP)
   const handleClick = (index: number) => {
     // якщо щойно тягнули — клік ігноруємо
     if (suppressClickRef.current) return;
@@ -181,8 +181,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
   const onPointerDownCell = (e: React.PointerEvent, index: number, level: number) => {
     if (!level) return;
 
-    // щоб сторінка не скролилась під час drag
-    // (працює якщо елемент має touch-action: none)
     try {
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     } catch {}
@@ -212,7 +210,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
       const dy = start ? e.clientY - start.y : 0;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // поріг, після якого вважаємо що це саме drag, а не tap
       const started = s.started || dist > 6;
       if (started) suppressClickRef.current = true;
 
@@ -232,12 +229,10 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     setDrag((s) => {
       if (!s.active || s.pointerId !== e.pointerId) return s;
 
-      // якщо drag реально стартував — робимо drop
       if (s.started) {
         applyDrop(s.srcIdx, s.level, { overIdx: s.overIdx, overDollar: s.overDollar });
       }
 
-      // скидаємо suppressClick трохи пізніше (щоб не спрацював click)
       window.setTimeout(() => {
         suppressClickRef.current = false;
         startPosRef.current = null;
@@ -258,7 +253,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
   };
 
   useEffect(() => {
-    // глобальні pointer listeners
     const move = (e: PointerEvent) => onPointerMove(e);
     const up = (e: PointerEvent) => finishDrag(e);
     const cancel = (e: PointerEvent) => finishDrag(e);
@@ -280,24 +274,22 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     [slots, defs]
   );
 
-  // для підсвітки $-кнопки
   const dragOverDollar = drag.active && drag.started && drag.overDollar;
   const dragOverIdx = drag.active && drag.started ? drag.overIdx : null;
 
-  // прев’ю іконки під пальцем
   const dragIcon = drag.active ? iconByLevel(drag.level) : "";
 
   return (
     <section className="craft">
       <h2>Крафт артефактів</h2>
       <p>
-        <b>20 слотів.</b> Клік — купити/апгрейд за mgp. Перетягни:
+        <b>20 слотів.</b> Клік — купити/апгрейд за <b>MGP</b>. Перетягни:
         <b> на порожній</b> — перемістити; <b>на такий самий рівень</b> — злиття <b>L+L = L+1</b>;
         на <b>$</b> — продати (70% від ціни рівня).
       </p>
 
       <div className="row" style={{ opacity: 0.9, marginBottom: 8 }}>
-        Баланс: <b>{coin(mgp)} mgp</b> • Дохід: <b>{coin(totalIncome)}</b> mgp/год
+        Баланс: <b>{coin(mgp)} MGP</b> • Дохід: <b>{coin(totalIncome)}</b> MGP/год
       </div>
 
       <div className="craft-root" ref={rootRef}>
@@ -315,8 +307,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
               isDragOver ? (ok ? (reason === "merge" ? "drop-ok-merge" : "drop-ok-move") : "drop-bad") : "";
 
             const icon = lvl > 0 ? iconByLevel(lvl) : "";
-
-            // "елемент не має оставатись": під час перетягування джерело робимо "порожнім" візуально
             const isDragSource = drag.active && drag.started && drag.srcIdx === i;
 
             return (
@@ -330,13 +320,11 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
                   maxed
                     ? "MAX"
                     : lvl
-                    ? `L${lvl} → L${next} • ${coin(nextDef!.price_mgp)} mgp`
-                    : `Купити L1 • ${coin(nextDef!.price_mgp)} mgp`
+                    ? `L${lvl} → L${next} • ${coin(nextDef!.price_mgp)} MGP`
+                    : `Купити L1 • ${coin(nextDef!.price_mgp)} MGP`
                 }
-                // вимикаємо нативний html5 drag (iOS глючить)
                 draggable={false}
                 onPointerDown={(e) => {
-                  // якщо слот порожній — не стартуємо drag
                   if (lvl > 0) onPointerDownCell(e, i, lvl);
                 }}
               >
@@ -351,7 +339,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
                     {lvl > 0
                       ? `${coin(curDef!.income_per_hour_mgp)}/год`
                       : nextDef
-                      ? `${coin(nextDef.price_mgp)} mgp`
+                      ? `${coin(nextDef.price_mgp)} MGP`
                       : ""}
                   </div>
                 </div>
@@ -360,19 +348,15 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
           })}
         </div>
 
-        {/* Ціль для дропа продажу */}
         <button
           data-drop="dollar"
           className={`craft-dollar ${dragOverDollar ? "drag-over" : ""}`}
           title="Перетягни сюди предмет, щоб продати за 70% від ціни рівня"
-          onClick={() => {
-            // не робимо нічого
-          }}
+          onClick={() => {}}
         >
           $
         </button>
 
-        {/* Плаваючий прев’ю-тайл (працює на iPhone) */}
         {drag.active && drag.started ? (
           <div
             className="drag-preview"
@@ -392,8 +376,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
 
       <style>{`
         .craft-root{ position:relative; }
-
-        /* ВАЖЛИВО для iOS: вимикає скрол/zoom-жести під час drag по тайлу */
         .tile{ touch-action:none; -webkit-user-select:none; user-select:none; }
 
         .craft-grid{
@@ -420,12 +402,10 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
         .tile-lvl{ font-weight:1000; font-size:12px; opacity:.95; }
         .tile-sub{ font-size:12px; opacity:.75; font-weight:800; }
 
-        /* Підсвітка drop */
         .drop-ok-move{ box-shadow: 0 0 0 2px rgba(83,255,166,.45), inset 0 0 18px rgba(83,255,166,.10); }
         .drop-ok-merge{ box-shadow: 0 0 0 2px rgba(160,120,255,.55), inset 0 0 18px rgba(160,120,255,.12); }
         .drop-bad{ box-shadow: 0 0 0 2px rgba(255,80,80,.45), inset 0 0 18px rgba(255,80,80,.10); }
 
-        /* Джерело під час drag — виглядає як "порожнє" (щоб не "оставатись") */
         .drag-source{ opacity:.25; }
 
         .craft-dollar{
@@ -449,7 +429,6 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
           filter:brightness(1.08);
         }
 
-        /* Плаваючий прев'ю */
         .drag-preview{
           position:fixed;
           z-index:9999;

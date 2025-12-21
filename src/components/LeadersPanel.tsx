@@ -26,9 +26,7 @@ function loadLB(): LeaderEntry[] {
     if (!raw) return [];
     const arr = JSON.parse(raw) as LeaderEntry[];
     if (Array.isArray(arr)) {
-      return arr.filter(
-        (x) => x && typeof x.name === "string" && Number.isFinite(x.score)
-      );
+      return arr.filter((x) => x && typeof x.name === "string" && Number.isFinite(x.score));
     }
   } catch {}
   return [];
@@ -55,29 +53,18 @@ function seedDemo(): LeaderEntry[] {
 
 type CloudState = "entries" | "pending" | "active" | "fallback";
 
-export default function LeadersPanel({
-  nickname,
-  currentScore = 0,
-  entries,
-}: Props) {
+export default function LeadersPanel({ nickname, currentScore = 0, entries }: Props) {
   const [lb, setLb] = useState<LeaderEntry[]>(() => {
-    // якщо передали entries — показуємо їх, без хмари/демо
     if (entries?.length) return entries;
-
-    // локал показуємо одразу (якщо є), щоб не було пустого екрану
     const local = loadLB();
     return local.length ? local : [];
   });
 
-  const [cloudState, setCloudState] = useState<CloudState>(() =>
-    entries?.length ? "entries" : "pending"
-  );
-
+  const [cloudState, setCloudState] = useState<CloudState>(() => (entries?.length ? "entries" : "pending"));
   const usingCloud = cloudState === "active";
 
   /* ===== init ===== */
   useEffect(() => {
-    // 1) якщо є entries — ніяких підписок/фолбеків
     if (entries?.length) {
       setLb(entries);
       setCloudState("entries");
@@ -86,12 +73,10 @@ export default function LeadersPanel({
 
     setCloudState("pending");
 
-    // беремо локал (але НЕ сідаємо демо одразу — щоб не блимало)
     const local = loadLB();
     if (local.length) setLb(local);
-    else setLb([]); // покажемо "Завантаження..." замість Hero-демо
+    else setLb([]);
 
-    // якщо хмара не відповіла — робимо fallback
     const t = window.setTimeout(() => {
       const curLocal = loadLB();
       if (curLocal.length) {
@@ -104,7 +89,6 @@ export default function LeadersPanel({
       setCloudState("fallback");
     }, CLOUD_TIMEOUT_MS);
 
-    // пробуємо cloud: перший snapshot фіксує режим (навіть якщо пусто)
     const unsub = subscribeTopN(100, (rows) => {
       window.clearTimeout(t);
       setCloudState("active");
@@ -141,10 +125,7 @@ export default function LeadersPanel({
       .map((e, i) => ({ rank: i + 1, ...e }));
   }, [lb]);
 
-  const myRank = useMemo(
-    () => rows.find((r) => r.name === nickname)?.rank ?? null,
-    [rows, nickname]
-  );
+  const myRank = useMemo(() => rows.find((r) => r.name === nickname)?.rank ?? null, [rows, nickname]);
 
   const subtitle = useMemo(() => {
     if (cloudState === "pending") return "Завантаження рейтингу…";
@@ -156,17 +137,13 @@ export default function LeadersPanel({
   /* ===== render ===== */
   return (
     <section className="leaders" aria-labelledby="leaders-title">
-      <h2
-        id="leaders-title"
-        style={{ textAlign: "center", margin: "12px 0 8px" }}
-      >
+      <h2 id="leaders-title" style={{ textAlign: "center", margin: "12px 0 8px" }}>
         Список лідерів
       </h2>
 
       <div style={{ textAlign: "center", opacity: 0.85, marginBottom: 10 }}>
         Топ-100 за загальними монетами (MTP).{" "}
-        {nickname ? <b>{nickname}</b> : "Ви"} зараз маєте{" "}
-        <b>{fmt(currentScore)}</b>.
+        {nickname ? <b>{nickname}</b> : "Ви"} зараз маєте <b>{fmt(currentScore)} MTP</b>.
         {myRank && (
           <>
             {" "}
@@ -185,11 +162,9 @@ export default function LeadersPanel({
           <table style={table}>
             <thead>
               <tr>
-                <th style={{ width: 56, textAlign: "right", paddingRight: 8 }}>
-                  #
-                </th>
+                <th style={{ width: 56, textAlign: "right", paddingRight: 8 }}>#</th>
                 <th style={{ textAlign: "left" }}>Гравець</th>
-                <th style={{ textAlign: "right" }}>Монети</th>
+                <th style={{ textAlign: "right" }}>MTP</th>
               </tr>
             </thead>
             <tbody>
@@ -200,33 +175,14 @@ export default function LeadersPanel({
                   <tr
                     key={`${name}-${rank}`}
                     style={{
-                      background: isMe
-                        ? "rgba(40,231,168,.12)"
-                        : isTop1
-                        ? "rgba(255,215,64,.10)"
-                        : "transparent",
+                      background: isMe ? "rgba(40,231,168,.12)" : isTop1 ? "rgba(255,215,64,.10)" : "transparent",
                     }}
                   >
-                    <td
-                      style={{
-                        textAlign: "right",
-                        paddingRight: 8,
-                        fontWeight: isTop1 ? 900 : 600,
-                      }}
-                    >
-                      {rank}
-                    </td>
+                    <td style={{ textAlign: "right", paddingRight: 8, fontWeight: isTop1 ? 900 : 600 }}>{rank}</td>
                     <td style={{ fontWeight: isMe ? 800 : 600 }}>
                       {name} {isTop1 ? " 👑" : isMe ? " (ви)" : ""}
                     </td>
-                    <td
-                      style={{
-                        textAlign: "right",
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {fmt(score)}
-                    </td>
+                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(score)}</td>
                   </tr>
                 );
               })}
@@ -245,8 +201,6 @@ const tableWrap: React.CSSProperties = {
   background: "rgba(25,30,40,.95)",
   border: "1px solid rgba(255,255,255,.08)",
   borderRadius: 14,
-
-  // ✅ важливо для мобілки/модалки: дозволяємо горизонтальний скрол, не обрізаємо контент
   overflowX: "auto",
   overflowY: "hidden",
   WebkitOverflowScrolling: "touch",
@@ -256,8 +210,6 @@ const table: React.CSSProperties = {
   width: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
-
-  // ✅ щоб таблиця не “стискалась” дивно у вузьких контейнерах
   minWidth: 380,
 };
 

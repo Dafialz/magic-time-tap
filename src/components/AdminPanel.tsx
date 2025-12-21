@@ -1,12 +1,7 @@
 // src/components/AdminPanel.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import type { UserProfile } from "../services/leaderboard";
-import {
-  getRecentUsers,
-  getTopUsers,
-  setUserBan,
-  adminSetBalance,
-} from "../services/leaderboard";
+import { getRecentUsers, getTopUsers, setUserBan, adminSetBalance } from "../services/leaderboard";
 
 type Props = {
   adminId: string; // твій leaderUserId (наприклад tg_794618820)
@@ -67,8 +62,7 @@ export default function AdminPanel({ adminId }: Props) {
     setErr("");
     setLoading(true);
     try {
-      const list =
-        mode === "recent" ? await getRecentUsers(100) : await getTopUsers(100);
+      const list = mode === "recent" ? await getRecentUsers(100) : await getTopUsers(100);
       setRows(list as any);
     } catch (e: any) {
       setErr("Не вдалось завантажити список. Перевір Firebase/Rules/Indexes.");
@@ -115,12 +109,8 @@ export default function AdminPanel({ adminId }: Props) {
     const currentBalance = cur?.balance;
 
     const raw = prompt(
-      `Новий BALANCE для ${uid} (ціле число, >= 0)\nПоточний: ${fmt(
-        currentBalance
-      )}\n\nВведи число:`,
-      currentBalance != null
-        ? String(Math.floor(Number(currentBalance)))
-        : ""
+      `Новий баланс (MTP) для ${uid} (ціле число, >= 0)\nПоточний: ${fmt(currentBalance)}\n\nВведи число:`,
+      currentBalance != null ? String(Math.floor(Number(currentBalance))) : ""
     );
 
     if (raw == null) return; // cancel
@@ -155,9 +145,7 @@ export default function AdminPanel({ adminId }: Props) {
         )
       );
     } catch (e: any) {
-      alert(
-        "Не вдалось змінити баланс. Перевір доступи Firestore rules та adminSetBalance() у services/leaderboard.ts"
-      );
+      alert("Не вдалось змінити баланс. Перевір доступи Firestore rules та adminSetBalance() у services/leaderboard.ts");
     } finally {
       setLoading(false);
     }
@@ -189,12 +177,7 @@ export default function AdminPanel({ adminId }: Props) {
       </div>
 
       <div style={{ display: "flex", gap: 10, margin: "10px 0 12px", flexWrap: "wrap" }}>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Пошук: tg_..., anon_..., імʼя"
-          style={search}
-        />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук: tg_..., anon_..., імʼя" style={search} />
         <div style={{ opacity: 0.75, fontSize: 12 }}>
           Показано: <b>{filtered.length}</b> / {rows.length}
         </div>
@@ -209,7 +192,7 @@ export default function AdminPanel({ adminId }: Props) {
             <tr>
               <th style={th}>UserId</th>
               <th style={th}>Імʼя</th>
-              <th style={{ ...th, textAlign: "right" }}>Balance</th>
+              <th style={{ ...th, textAlign: "right" }}>MTP</th>
               <th style={{ ...th, textAlign: "right" }}>Score</th>
               <th style={th}>Last seen</th>
               <th style={th}>Ban</th>
@@ -232,22 +215,15 @@ export default function AdminPanel({ adminId }: Props) {
                   <td style={tdMono}>{r.id}</td>
                   <td style={td}>{String(r.data?.name || "—")}</td>
 
-                  <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                    {fmt(balance)}
-                  </td>
+                  <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(balance)}</td>
 
-                  <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                    {fmt((r.data as any)?.score)}
-                  </td>
+                  <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt((r.data as any)?.score)}</td>
 
                   <td style={td}>{tsToText((r.data as any)?.lastSeenAt)}</td>
 
                   <td style={td}>
                     {banned ? (
-                      <span
-                        title={String((r.data as any)?.banReason || "")}
-                        style={{ color: "#ff6b6b", fontWeight: 900 }}
-                      >
+                      <span title={String((r.data as any)?.banReason || "")} style={{ color: "#ff6b6b", fontWeight: 900 }}>
                         BANNED
                       </span>
                     ) : (
@@ -267,7 +243,7 @@ export default function AdminPanel({ adminId }: Props) {
                     }}
                   >
                     <button style={ghostBtn} onClick={() => doSetBalance(r.id)} disabled={loading}>
-                      Змінити баланс
+                      Змінити MTP
                     </button>
 
                     {!banned ? (
@@ -296,12 +272,11 @@ export default function AdminPanel({ adminId }: Props) {
       </div>
 
       <div style={{ marginTop: 10, opacity: 0.75, fontSize: 12, lineHeight: 1.35 }}>
-        <b>Важливо:</b> гра підтягує “адмінський баланс” з поля <code>users_v1.balance</code>.
-        Тому для ручного апу використовуй кнопку <b>Змінити баланс</b>.
+        <b>Важливо:</b> гра підтягує “адмінський баланс (MTP)” з поля <code>users_v1.balance</code>.
+        Тому для ручного апу використовуй кнопку <b>Змінити MTP</b>.
         <br />
         Також, щоб “Останні”/“Топ” працювали, у Firestore можуть знадобитись індекси по{" "}
-        <code>users_v1.lastSeenAt</code> і <code>users_v1.score</code>. Якщо список пустий —
-        спочатку хай гравці відкриють гру (heartbeat пише їх у users_v1).
+        <code>users_v1.lastSeenAt</code> і <code>users_v1.score</code>. Якщо список пустий — спочатку хай гравці відкриють гру (heartbeat пише їх у users_v1).
       </div>
     </div>
   );
@@ -342,7 +317,7 @@ const tableWrap: React.CSSProperties = {
 
 const table: React.CSSProperties = {
   width: "100%",
-  minWidth: 860, // ✅ важливо для мобілки: не стискати до "2 колонок"
+  minWidth: 860,
   borderCollapse: "separate",
   borderSpacing: 0,
   fontSize: 13,

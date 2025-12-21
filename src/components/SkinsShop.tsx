@@ -84,6 +84,8 @@ const LEVELS_BY_TIER: Record<Tier, number[]> = {
   purple: levelsFromFilenames(PURPLE_POOL),
   gold: levelsFromFilenames(GOLD_POOL),
 };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+void LEVELS_BY_TIER; // (щоб не було warning, якщо тимчасово не використовуєш)
 
 /* ===== Firebase helpers (без окремих файлів) ===== */
 
@@ -184,11 +186,10 @@ function nanoFromTon(ton: number): string {
 }
 
 function makeNonce(): string {
-  return (
-    Math.random().toString(16).slice(2) +
-    Math.random().toString(16).slice(2) +
-    Date.now().toString(16)
-  ).slice(0, 32);
+  return (Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2) + Date.now().toString(16)).slice(
+    0,
+    32
+  );
 }
 
 function readPending(): PendingPay | null {
@@ -216,9 +217,9 @@ function openTonTransfer(opts: { to: string; amountNano: string; text: string })
   const amountNano = opts.amountNano;
   const text = opts.text;
 
-  const deep = `ton://transfer/${encodeURIComponent(to)}?amount=${encodeURIComponent(
-    amountNano
-  )}&text=${encodeURIComponent(text)}`;
+  const deep = `ton://transfer/${encodeURIComponent(to)}?amount=${encodeURIComponent(amountNano)}&text=${encodeURIComponent(
+    text
+  )}`;
 
   const web = `https://app.tonkeeper.com/transfer/${encodeURIComponent(to)}?amount=${encodeURIComponent(
     amountNano
@@ -328,7 +329,12 @@ export default function SkinsShop(props: Props) {
   }, [effectiveUserId]);
 
   const closeLootModal = () => setOpenState({});
-  const closePayModal = () => setPayState({ open: false, step: "idle" });
+
+  // ✅ FIX: якщо юзер натиснув "Закрити" — вважаємо, що він скасував (очищаємо pending)
+  const closePayModal = () => {
+    writePending(null);
+    setPayState({ open: false, step: "idle" });
+  };
 
   const showLoot = async (chest: Chest, level: number) => {
     // ✅ FIX: іконка завжди відповідає сундуку/level
@@ -423,6 +429,8 @@ export default function SkinsShop(props: Props) {
     }
 
     if (status === "rejected" || status === "expired") {
+      // ✅ FIX: це тупик — очищаємо pending
+      writePending(null);
       setPayState((s) => ({
         ...s,
         step: "waiting",
@@ -580,11 +588,7 @@ export default function SkinsShop(props: Props) {
         <div className="loot-modal" onClick={closeLootModal}>
           <div className="loot-box" onClick={(e) => e.stopPropagation()}>
             <div className="loot-title">Випало зі {openState.chest?.title}:</div>
-            {openState.icon ? (
-              <img className="loot-icon" src={openState.icon} alt="loot" />
-            ) : (
-              <div className="loot-placeholder">—</div>
-            )}
+            {openState.icon ? <img className="loot-icon" src={openState.icon} alt="loot" /> : <div className="loot-placeholder">—</div>}
             <button className="close-btn" onClick={closeLootModal}>
               Гаразд
             </button>

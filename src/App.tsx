@@ -27,17 +27,14 @@ import LeadersPanel from "./components/LeadersPanel";
 import AdminPanel from "./components/AdminPanel";
 
 // сервіс лідерборду + auth/users (+admin ban)
-import { upsertScore, ensureAuth, subscribeUser, upsertUserProfile, setUserBan } from "./services/leaderboard";
+// ✅ setUserBan прибрано (автобан вимкнено)
+import { upsertScore, ensureAuth, subscribeUser, upsertUserProfile } from "./services/leaderboard";
 
 const CRAFT_SLOT_COUNT = 21;
 const OFFLINE_CAP_SECS = 3 * 3600;
 
 // ✅ твій адмінський Firebase Auth UID (тільки він зможе банити по Rules)
 const ADMIN_AUTH_UID = "zzyUPc53FPOwOSn2DcNZirHyusu1";
-
-// 🛡️ античит
-const ANTICHEAT_WINDOW_MS = 15_000;
-const ANTICHEAT_MAX_GAIN = 500_000; // max +score за 15 сек (має співпасти з rules scoreDeltaOk)
 
 /**
  * ✅ Щоб витрати НЕ "відкочувались" після refresh:
@@ -65,8 +62,7 @@ function writeNumLS(key: string, value: number) {
 
 function tsToMs(x: any): number | null {
   try {
-    const d: Date =
-      typeof x?.toDate === "function" ? x.toDate() : x instanceof Date ? x : (null as any);
+    const d: Date = typeof x?.toDate === "function" ? x.toDate() : x instanceof Date ? x : (null as any);
     if (!d) return null;
     const ms = d.getTime();
     return Number.isFinite(ms) ? ms : null;
@@ -140,7 +136,7 @@ export default function App() {
   const [level, setLevel] = useState<number>(1);
   const [prestiges, setPrestiges] = useState<number>(0);
 
-  // ✅ головний баланс
+  // ✅ головний баланс (в UI це MTP)
   const [mgp, setMgp] = useState<number>(0);
 
   const [craftSlots, setCraftSlots] = useState<number[]>(() => Array(CRAFT_SLOT_COUNT).fill(0));
@@ -343,8 +339,6 @@ export default function App() {
   useEffect(() => {
     const payload: SaveState = {
       ce,
-      // @ts-ignore legacy field
-      mm: 0,
       totalEarned,
       clickPower,
       autoPerSec,
@@ -386,10 +380,7 @@ export default function App() {
     return map;
   }, [artifacts]);
 
-  const artAgg: AggregatedBonus = useMemo(
-    () => aggregateArtifacts(equippedIds, artifactLevels),
-    [equippedIds, artifactLevels]
-  );
+  const artAgg: AggregatedBonus = useMemo(() => aggregateArtifacts(equippedIds, artifactLevels), [equippedIds, artifactLevels]);
 
   const meteorMult = meteorBuffLeft > 0 ? GOLDEN_METEOR.mult : 1;
   const effectiveClickMult = (1 + artAgg.click) * meteorMult * epochMult * farmMult;
@@ -457,36 +448,6 @@ export default function App() {
     return true;
   };
 
-  // 🛡️ Auto-ban (клієнтський)
-  const antiRef = useRef<{ t: number; s: number }>({ t: Date.now(), s: 0 });
-  useEffect(() => {
-    if (!leaderUserId) return;
-    if (isBanned) return;
-
-    const now = Date.now();
-    const score = Math.floor(mgp);
-
-    if (antiRef.current.s === 0 && score > 0) {
-      antiRef.current = { t: now, s: score };
-      return;
-    }
-
-    const dt = now - antiRef.current.t;
-    if (dt < ANTICHEAT_WINDOW_MS) return;
-
-    const ds = score - antiRef.current.s;
-    antiRef.current = { t: now, s: score };
-
-    if (ds > ANTICHEAT_MAX_GAIN) {
-      setUserBan(
-        leaderUserId,
-        true,
-        `Auto-ban: suspicious gain (+${ds} in ${Math.round(dt / 1000)}s)`,
-        leaderUserId
-      ).catch(() => {});
-    }
-  }, [mgp, leaderUserId, isBanned]);
-
   // пуш у лідерборд (тротлінг)
   const lastPush = useRef<{ t: number; s: number }>({ t: 0, s: 0 });
   useEffect(() => {
@@ -521,8 +482,6 @@ export default function App() {
     <div className="app" style={{ minHeight: "100vh", background: "transparent" }}>
       <HeaderBar
         ce={ce}
-        // @ts-ignore legacy
-        mm={0}
         hc={hc}
         level={level}
         epochName={epoch.name}
@@ -593,17 +552,10 @@ export default function App() {
 
         {activeTab === "artifacts" && <ArtifactsPanel mgp={mgp} setMgp={setMgp} addToCraft={addToCraft} />}
 
-        {activeTab === "craft" && (
-          <CraftPanel mgp={mgp} setMgp={setMgp} slots={craftSlots} setSlots={setCraftSlots} items={craftItems} />
-        )}
+        {activeTab === "craft" && <CraftPanel mgp={mgp} setMgp={setMgp} slots={craftSlots} setSlots={setCraftSlots} items={craftItems} />}
 
         {activeTab === "skins" && (
-          <SkinsShop
-            userId={leaderUserId || "no_uid"}
-            nickname={username}
-            isBanned={isBanned}
-            onLoot={({ level }) => addToCraft(level)}
-          />
+          <SkinsShop userId={leaderUserId || "no_uid"} nickname={username} isBanned={isBanned} onLoot={({ level }) => addToCraft(level)} />
         )}
 
         {activeTab === "leaders" && (
