@@ -304,7 +304,8 @@ export default function App() {
     setLevel(sAny.level ?? 1);
     setPrestiges(sAny.prestiges ?? 0);
 
-    setMgp(sAny.mgp ?? 0);
+    // ✅ підтримка старого ключа "mm" + нового "mgp" (на всяк випадок)
+    setMgp(sAny.mgp ?? sAny.mm ?? 0);
 
     if (Array.isArray(sAny.craftSlots)) {
       const arr = [...sAny.craftSlots];
@@ -337,6 +338,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // ✅ ВАЖЛИВО: SaveState у тебе все ще очікує поле "mm"
+    // Тому при сейві кладемо MTP у "mm" (а не в "mgp"), щоб TypeScript не падав.
     const payload: SaveState = {
       ce,
       totalEarned,
@@ -352,7 +355,7 @@ export default function App() {
       equippedArtifactIds: equippedIds,
       ownedSkins,
       equippedSkinId,
-      mgp,
+      mm: mgp, // ✅ FIX: було mgp, але SaveState чекає mm
       craftSlots,
     };
 
@@ -380,7 +383,10 @@ export default function App() {
     return map;
   }, [artifacts]);
 
-  const artAgg: AggregatedBonus = useMemo(() => aggregateArtifacts(equippedIds, artifactLevels), [equippedIds, artifactLevels]);
+  const artAgg: AggregatedBonus = useMemo(
+    () => aggregateArtifacts(equippedIds, artifactLevels),
+    [equippedIds, artifactLevels]
+  );
 
   const meteorMult = meteorBuffLeft > 0 ? GOLDEN_METEOR.mult : 1;
   const effectiveClickMult = (1 + artAgg.click) * meteorMult * epochMult * farmMult;
@@ -552,10 +558,17 @@ export default function App() {
 
         {activeTab === "artifacts" && <ArtifactsPanel mgp={mgp} setMgp={setMgp} addToCraft={addToCraft} />}
 
-        {activeTab === "craft" && <CraftPanel mgp={mgp} setMgp={setMgp} slots={craftSlots} setSlots={setCraftSlots} items={craftItems} />}
+        {activeTab === "craft" && (
+          <CraftPanel mgp={mgp} setMgp={setMgp} slots={craftSlots} setSlots={setCraftSlots} items={craftItems} />
+        )}
 
         {activeTab === "skins" && (
-          <SkinsShop userId={leaderUserId || "no_uid"} nickname={username} isBanned={isBanned} onLoot={({ level }) => addToCraft(level)} />
+          <SkinsShop
+            userId={leaderUserId || "no_uid"}
+            nickname={username}
+            isBanned={isBanned}
+            onLoot={({ level }) => addToCraft(level)}
+          />
         )}
 
         {activeTab === "leaders" && (
