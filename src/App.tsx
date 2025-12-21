@@ -62,7 +62,8 @@ function writeNumLS(key: string, value: number) {
 
 function tsToMs(x: any): number | null {
   try {
-    const d: Date = typeof x?.toDate === "function" ? x.toDate() : x instanceof Date ? x : (null as any);
+    const d: Date =
+      typeof x?.toDate === "function" ? x.toDate() : x instanceof Date ? x : (null as any);
     if (!d) return null;
     const ms = d.getTime();
     return Number.isFinite(ms) ? ms : null;
@@ -563,12 +564,7 @@ export default function App() {
         )}
 
         {activeTab === "skins" && (
-          <SkinsShop
-            userId={leaderUserId || "no_uid"}
-            nickname={username}
-            isBanned={isBanned}
-            onLoot={({ level }) => addToCraft(level)}
-          />
+          <SkinsShop userId={leaderUserId || "no_uid"} nickname={username} isBanned={isBanned} onLoot={({ level }) => addToCraft(level)} />
         )}
 
         {activeTab === "leaders" && (
