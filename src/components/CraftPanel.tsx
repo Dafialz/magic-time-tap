@@ -69,6 +69,12 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
   const suppressClickRef = useRef(false);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
+  // ✅ актуальний флаг drag для pointermove (без багів через closures)
+  const dragActiveRef = useRef(false);
+  useEffect(() => {
+    dragActiveRef.current = drag.active;
+  }, [drag.active]);
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -187,6 +193,13 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
   };
 
   const onPointerMove = (e: PointerEvent) => {
+    // ✅ FIX iOS/Telegram: коли drag активний — прибиваємо "swipe down to close"
+    if (dragActiveRef.current && (e as any).cancelable) {
+      try {
+        e.preventDefault();
+      } catch {}
+    }
+
     setDrag((s) => {
       if (!s.active || s.pointerId !== e.pointerId) return s;
 

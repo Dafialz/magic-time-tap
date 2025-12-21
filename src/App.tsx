@@ -96,6 +96,12 @@ export default function App() {
 
     tg.ready();
     tg.expand();
+
+    // ✅ FIX iOS: не даємо Telegram згорнути mini app свайпом вниз
+    try {
+      tg.disableVerticalSwipes?.();
+    } catch {}
+
     try {
       tg.setHeaderColor?.("#0b1220");
       tg.setBackgroundColor?.("#0b1220");
@@ -564,7 +570,12 @@ export default function App() {
         )}
 
         {activeTab === "skins" && (
-          <SkinsShop userId={leaderUserId || "no_uid"} nickname={username} isBanned={isBanned} onLoot={({ level }) => addToCraft(level)} />
+          <SkinsShop
+            userId={leaderUserId || "no_uid"}
+            nickname={username}
+            isBanned={isBanned}
+            onLoot={({ level }) => addToCraft(level)}
+          />
         )}
 
         {activeTab === "leaders" && (
