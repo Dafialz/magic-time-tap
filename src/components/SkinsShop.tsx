@@ -212,6 +212,19 @@ function writePending(p: PendingPay | null) {
   } catch {}
 }
 
+/** ✅ Android Telegram WebView часто ламається від ton:// (ERR_UNKNOWN_URL_SCHEME) */
+function isAndroidWebView(): boolean {
+  try {
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    // Telegram Android WebView має "Telegram" у UA
+    const isTelegram = /Telegram/i.test(ua) || !!(window as any)?.Telegram?.WebApp;
+    return isAndroid && isTelegram;
+  } catch {
+    return false;
+  }
+}
+
 function openTonTransfer(opts: { to: string; amountNano: string; text: string }) {
   const to = opts.to;
   const amountNano = opts.amountNano;
@@ -221,14 +234,35 @@ function openTonTransfer(opts: { to: string; amountNano: string; text: string })
     text
   )}`;
 
+  // ✅ Universal link Tonkeeper: відкриє апку якщо встановлена (і на iOS, і на Android)
   const web = `https://app.tonkeeper.com/transfer/${encodeURIComponent(to)}?amount=${encodeURIComponent(
     amountNano
   )}&text=${encodeURIComponent(text)}`;
 
   const tg = (window as any)?.Telegram?.WebApp;
+
+  // ✅ ГОЛОВНИЙ FIX: на Android Telegram відкриваємо тільки https (а не ton://)
+  if (isAndroidWebView()) {
+    try {
+      tg?.openLink?.(web, { try_instant_view: false });
+      return;
+    } catch {}
+    try {
+      window.open(web, "_blank", "noopener,noreferrer");
+      return;
+    } catch {}
+    try {
+      window.location.href = web;
+      return;
+    } catch {}
+    return;
+  }
+
+  // iOS / Desktop: пробуємо ton://, якщо не вийшло — https
   try {
     if (tg?.openLink) {
-      tg.openLink(deep);
+      // на iOS це зазвичай ок
+      tg.openLink(deep, { try_instant_view: false });
       return;
     }
   } catch {}
@@ -236,7 +270,11 @@ function openTonTransfer(opts: { to: string; amountNano: string; text: string })
   try {
     window.location.href = deep;
     window.setTimeout(() => {
-      window.location.href = web;
+      try {
+        window.location.href = web;
+      } catch {
+        window.open(web, "_blank", "noopener,noreferrer");
+      }
     }, 600);
   } catch {
     window.open(web, "_blank", "noopener,noreferrer");

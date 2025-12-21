@@ -56,6 +56,7 @@ body{
   filter: drop-shadow(0 0 14px rgba(40,231,168,.55)) drop-shadow(0 0 32px rgba(111,82,255,.35))
           saturate(1.15) brightness(1.08);
   pointer-events:none;  /* щоб довгий тап по зображенню не відкривав меню */
+  -webkit-user-drag:none;
 }
 .hero__tap{
   position:absolute; inset:0; border:0; background:transparent; cursor:pointer;
@@ -140,6 +141,13 @@ body{
   padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px));
 }
 
+/* ✅ важливо: деякі Android WebView “глушать” pointermove,
+   якщо touch-action стоїть лише на кнопці */
+.craft .craft-root,
+.craft .craft-grid{
+  touch-action: none;
+}
+
 .craft .craft-grid{
   display:grid;
   grid-template-columns: repeat(4, 1fr); /* 4 колонки — компактно */
@@ -151,21 +159,24 @@ body{
   background: color-mix(in oklab, var(--mtp-bg) 78%, transparent);
   box-shadow: 0 6px 14px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.03);
   border-radius:12px; color:var(--mtp-text); cursor:pointer;
+  -webkit-tap-highlight-color: transparent;
 
   /* анти long-press/контекстне меню */
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
 
-  /* ✅ КРИТИЧНО ДЛЯ DRAG НА ТЕЛЕФОНІ: дозволяє pointermove */
+  /* ✅ КРИТИЧНО ДЛЯ DRAG: дозволяє pointermove і не дає сторінці “красти” жест */
   touch-action: none;
 }
+
 .craft .cell.tile{
   position:relative; padding:6px; aspect-ratio: 1 / 1; min-height:0; overflow:hidden;
 
   /* ✅ дублюємо для надійності на деяких WebView */
   touch-action: none;
 }
+
 .craft .cell.has{
   background: linear-gradient(180deg,
     color-mix(in oklab, var(--mtp-grad-b) 16%, transparent),
@@ -175,18 +186,25 @@ body{
 .craft .cell:disabled{ opacity:.65; cursor:default; }
 
 /* вміст плитки */
-.craft .tile-fig{ position:absolute; inset:6px; display:grid; place-items:center; border-radius:10px; }
-.craft .tile-img{ width:80%; height:80%; object-fit:contain; border-radius:10px;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.06), inset 0 0 18px rgba(255,255,255,.04); }
+.craft .tile-fig{ position:absolute; inset:6px; display:grid; place-items:center; border-radius:10px; touch-action:none; }
+.craft .tile-img{
+  width:80%; height:80%; object-fit:contain; border-radius:10px;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.06), inset 0 0 18px rgba(255,255,255,.04);
+  -webkit-user-drag:none;
+  user-select:none;
+  pointer-events:none; /* щоб під пальцем не “ловився” img, а ловилась кнопка */
+}
 .craft .tile-plus{ font-weight:900; font-size:26px; opacity:.85; }
 .craft .tile-lvl{
   position:absolute; top:6px; right:6px; font-weight:900; font-size:12px;
   padding:3px 6px; border-radius:8px; background:rgba(0,0,0,.35); backdrop-filter: blur(4px);
+  pointer-events:none;
 }
 .craft .tile-sub{
   position:absolute; left:6px; right:6px; bottom:6px; text-align:center;
   font-size:11px; font-weight:700; opacity:.95; background:rgba(0,0,0,.25);
   padding:3px 6px; border-radius:8px; backdrop-filter: blur(3px);
+  pointer-events:none;
 }
 
 /* Drop feedback */
@@ -210,6 +228,8 @@ body{
   display:grid; place-items:center;
   box-shadow: 0 10px 24px rgba(40,231,168,.25), inset 0 0 0 1px rgba(255,255,255,.04);
   user-select:none;
+  touch-action:none;
+  -webkit-tap-highlight-color: transparent;
 }
 .craft-dollar.drag-over{
   border-color: color-mix(in oklab, var(--mtp-grad-a) 85%, #fff);
@@ -261,7 +281,10 @@ body{
   border-radius:16px; padding:16px; text-align:center;
   box-shadow: 0 10px 26px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.03);
 }
-.chest-img{ width:136px; height:136px; object-fit:contain; margin:6px auto 12px; display:block; }
+.chest-img{
+  width:136px; height:136px; object-fit:contain; margin:6px auto 12px; display:block;
+  -webkit-user-drag:none;
+}
 .chest-title{ font-weight:900; margin-bottom:4px; letter-spacing:.2px; }
 .chest-price{ opacity:.9; margin-bottom:12px; }
 .open-btn{
@@ -299,7 +322,7 @@ body{
   display:grid; place-items:center;
   overflow:hidden;
 }
-.mt-modal__badge img{ width:100%; height:100%; object-fit:cover; opacity:.95; }
+.mt-modal__badge img{ width:100%; height:100%; object-fit:cover; opacity:.95; -webkit-user-drag:none; }
 
 .mt-modal__title{ margin-top:24px; font-weight:900; font-size:18px; }
 .mt-modal__content{ margin:12px 0 16px; }
@@ -307,6 +330,7 @@ body{
   width:96px; height:96px; object-fit:contain;
   border-radius:12px; box-shadow: 0 0 0 2px rgba(255,255,255,.06), inset 0 0 18px rgba(255,255,255,.04);
   margin:8px auto 12px; display:block;
+  -webkit-user-drag:none;
 }
 .mt-modal__actions{ display:grid; gap:10px; }
 .mt-modal__btn{
@@ -331,6 +355,7 @@ body{
   width:96px; height:96px; object-fit:contain;
   border-radius:12px; box-shadow: 0 0 0 2px rgba(255,255,255,.06), inset 0 0 18px rgba(255,255,255,.04);
   margin:10px auto 14px; display:block;
+  -webkit-user-drag:none;
 }
 .close-btn{
   padding:10px 14px; border-radius:10px; border:0; cursor:pointer; font-weight:800;
