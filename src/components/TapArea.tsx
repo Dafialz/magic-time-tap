@@ -310,7 +310,7 @@ export default function TapArea({
     setTimeout(() => setDailyOpen(false), 150);
   };
 
-  // ✅ ОЦЕ — правильна кнопка (без списку): натиснув → мова змінилась
+  // ✅ правильна кнопка (без списку): натиснув → мова змінилась
   const cycleLang = () => {
     const idx = LANGS.indexOf(lang);
     const next = LANGS[(idx >= 0 ? idx + 1 : 0) % LANGS.length];
@@ -319,7 +319,7 @@ export default function TapArea({
   };
 
   return (
-    <div className="tap-area">
+    <div className="tap-area" style={{ position: "relative" }}>
       {/* ✅ ЛІВИЙ КРУЖОК МОВИ (БЕЗ МЕНЮ/СПИСКУ) */}
       <button type="button" onClick={cycleLang} aria-label="Language" title="Language" style={langFabStyle}>
         <img
@@ -448,6 +448,8 @@ const langFabStyle: React.CSSProperties = {
   boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
   overflow: "hidden",
   cursor: "pointer",
+  zIndex: 200, // ✅ щоб точно було клікабельне
+  pointerEvents: "auto",
 };
 
 // вертикальна рейка праворуч
@@ -458,6 +460,8 @@ const sideRailStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: 14,
+  zIndex: 200, // ✅
+  pointerEvents: "auto",
 };
 
 const sideFabStyle: React.CSSProperties = {
