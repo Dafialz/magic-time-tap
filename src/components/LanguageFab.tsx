@@ -1,3 +1,4 @@
+// src/components/LanguageFab.tsx
 import React from "react";
 import { LANGS, type LangCode } from "../i18n/languages";
 import { useI18n } from "../i18n";
@@ -8,7 +9,10 @@ function flagSrc(code: LangCode) {
 }
 
 export default function LanguageFab() {
-  const { lang, setLang, dir } = useI18n();
+  // ✅ FIX: у твоєму I18nCtx зараз немає поля dir, тому беремо dir напряму з LANGS
+  const { lang, setLang } = useI18n();
+  const dir = (LANGS[lang]?.dir || "ltr") as "ltr" | "rtl";
+
   const [open, setOpen] = React.useState(false);
 
   // закриття по кліку поза меню
@@ -90,9 +94,7 @@ export default function LanguageFab() {
                   draggable={false}
                   style={{ width: 34, height: 34, borderRadius: 999, objectFit: "cover" }}
                 />
-                <div style={{ marginTop: 6, fontSize: 10, opacity: 0.9, fontWeight: 900 }}>
-                  {LANGS[c].label}
-                </div>
+                <div style={{ marginTop: 6, fontSize: 10, opacity: 0.9, fontWeight: 900 }}>{LANGS[c].label}</div>
               </button>
             ))}
           </div>

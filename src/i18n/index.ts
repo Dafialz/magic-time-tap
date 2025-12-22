@@ -1,3 +1,4 @@
+// src/i18n/index.ts
 import React from "react";
 import { LANGS, type LangCode } from "./languages";
 import { STRINGS } from "./strings";
@@ -16,7 +17,6 @@ export function getInitialLang(): LangCode {
     if (saved) return normalizeLang(saved);
   } catch {}
 
-  // fallback по мові браузера/телеграма
   const nav = (navigator as any)?.language || (navigator as any)?.languages?.[0] || "en";
   const base = String(nav).split("-")[0];
   return normalizeLang(base);
@@ -28,7 +28,7 @@ export function setLangLS(lang: LangCode) {
   } catch {}
 }
 
-type I18nCtx = {
+export type I18nCtx = {
   lang: LangCode;
   setLang: (l: LangCode) => void;
   t: (key: string) => string;
@@ -48,14 +48,15 @@ export function I18nProvider(props: { children: React.ReactNode }) {
   const t = React.useCallback(
     (key: string) => {
       const dict = STRINGS[lang] || STRINGS.en;
-      return dict[key] ?? STRINGS.en[key] ?? key;
+      return (dict as any)[key] ?? (STRINGS.en as any)[key] ?? key;
     },
     [lang]
   );
 
   const dir = (LANGS[lang]?.dir || "ltr") as "ltr" | "rtl";
 
-  return <Ctx.Provider value={{ lang, setLang, t, dir }}>{props.children}</Ctx.Provider>;
+  // ✅ без JSX, щоб файл міг бути .ts
+  return React.createElement(Ctx.Provider, { value: { lang, setLang, t, dir } }, props.children);
 }
 
 export function useI18n() {
