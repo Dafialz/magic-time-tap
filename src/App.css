@@ -68,31 +68,46 @@ body{
   padding-bottom: 8px;           /* трохи повітря */
 }
 
-/* ===== CSS для правих іконок (🏆 / 📅) — перебиває inline-style з TapArea ===== */
+/* ===== Quick actions (кнопки) — НЕОНОВІ як на фото =====
+   ВАЖЛИВО: цей блок замінює старий “правий стовпчик”.
+   Він робить кнопки в РЯДОК над блоком MGP. */
 .tap-area [aria-label="Quick actions"]{
-  position: absolute !important;
-  right: 14px !important;
-  top: 28% !important;
+  position: static !important;   /* прибираємо absolute */
+  inset: auto !important;
+  right: auto !important;
+  top: auto !important;
+
+  width: 100% !important;
+  max-width: 560px !important;
+  margin: 0 auto 10px !important;
+
   display: flex !important;
-  flex-direction: column !important;
-  gap: 14px !important;
+  flex-direction: row !important; /* ✅ рядок */
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+
   z-index: 220 !important;
   pointer-events: auto !important;
 }
 
+/* Неоновий “скляний” стиль для круглих кнопок */
 .tap-area [aria-label="Quick actions"] > button{
   width: 56px !important;
   height: 56px !important;
   border-radius: 9999px !important;
 
-  border: 1px solid rgba(255,255,255,.12) !important;
-  background: radial-gradient(55% 55% at 50% 50%,
-      rgba(46,255,204,.22),
-      rgba(111,82,255,.16)) !important;
+  border: 1px solid rgba(120,255,235,.22) !important;
+  background:
+    radial-gradient(60% 60% at 40% 35%, rgba(102,255,216,.22), transparent 62%),
+    radial-gradient(60% 60% at 70% 75%, rgba(111,82,255,.18), transparent 65%),
+    rgba(10,14,22,.22) !important;
 
   box-shadow:
-    0 10px 26px rgba(0,0,0,.30),
-    inset 0 0 0 2px rgba(255,255,255,.06) !important;
+    0 12px 30px rgba(0,0,0,.32),
+    inset 0 0 0 2px rgba(255,255,255,.06),
+    0 0 0 1px rgba(46,255,204,.10),
+    0 0 22px rgba(46,255,204,.18) !important;
 
   display: grid !important;
   place-items: center !important;
@@ -105,13 +120,24 @@ body{
 }
 
 .tap-area [aria-label="Quick actions"] > button:active{
-  transform: translateY(1px) scale(.98);
-  filter: brightness(1.06);
+  transform: translateY(1px) scale(.98) !important;
+  filter: brightness(1.06) !important;
 }
 
+/* бейдж “1” на календарі */
 .tap-area [aria-label="Quick actions"] > button span{
-  /* бейдж “1” на календарі */
-  box-shadow: 0 6px 14px rgba(0,0,0,.35) !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,.38) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+}
+
+/* центрована група (якщо в TapArea є контейнер для 2 кнопок по центру) */
+.tap-area [aria-label="Quick actions"] .center-actions,
+.tap-area [aria-label="Quick actions"] [data-center-actions]{
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 14px !important;
+  flex: 1 1 auto !important;
 }
 
 /* ===== HERO ===== */
