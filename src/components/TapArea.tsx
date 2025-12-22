@@ -291,14 +291,11 @@ export default function TapArea({
     const today = getEpochDay();
     const s = loadDaily();
 
-    // already claimed today
     if (s.lastClaimDay === today) return;
 
-    // if missed days, reset streak to 1
     if (s.lastClaimDay !== -1 && today - s.lastClaimDay > 1) {
       s.streakDay = 1;
     } else if (s.lastClaimDay !== -1) {
-      // next day in streak
       s.streakDay = clamp(s.streakDay + 1, 1, 30);
     }
 
@@ -310,7 +307,7 @@ export default function TapArea({
     setTimeout(() => setDailyOpen(false), 150);
   };
 
-  // ✅ правильна кнопка (без списку): натиснув → мова змінилась
+  // ✅ кнопка мови без меню: натиснув → мова змінилась
   const cycleLang = () => {
     const idx = LANGS.indexOf(lang);
     const next = LANGS[(idx >= 0 ? idx + 1 : 0) % LANGS.length];
@@ -320,8 +317,16 @@ export default function TapArea({
 
   return (
     <div className="tap-area" style={{ position: "relative" }}>
-      {/* ✅ ЛІВИЙ КРУЖОК МОВИ (БЕЗ МЕНЮ/СПИСКУ) */}
-      <button type="button" onClick={cycleLang} aria-label="Language" title="Language" style={langFabStyle}>
+      {/* ✅ ЄДИНА кнопка мови (без списку) */}
+      <button
+        type="button"
+        onClick={cycleLang}
+        onMouseDown={(e) => e.preventDefault()}
+        onPointerDown={(e) => e.preventDefault()}
+        aria-label="Language"
+        title="Language"
+        style={langFabStyle}
+      >
         <img
           src={flagSrc(lang)}
           alt={lang}
@@ -332,11 +337,27 @@ export default function TapArea({
 
       {/* Правий “рейл” (дві круглі кнопки) */}
       <div style={sideRailStyle} aria-label="Quick actions">
-        <button type="button" onClick={onOpenLeaders} style={sideFabStyle} aria-label={t.openLeaders} title={t.openLeaders}>
+        <button
+          type="button"
+          onClick={onOpenLeaders}
+          onMouseDown={(e) => e.preventDefault()}
+          onPointerDown={(e) => e.preventDefault()}
+          style={sideFabStyle}
+          aria-label={t.openLeaders}
+          title={t.openLeaders}
+        >
           🏆
         </button>
 
-        <button type="button" onClick={openDaily} style={sideFabStyle} aria-label={t.daily} title={t.daily}>
+        <button
+          type="button"
+          onClick={openDaily}
+          onMouseDown={(e) => e.preventDefault()}
+          onPointerDown={(e) => e.preventDefault()}
+          style={sideFabStyle}
+          aria-label={t.daily}
+          title={t.daily}
+        >
           📅
           {dayInfo.lastClaimDay !== getEpochDay() ? <span style={fabBadgeStyle}>1</span> : null}
         </button>
@@ -448,8 +469,12 @@ const langFabStyle: React.CSSProperties = {
   boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
   overflow: "hidden",
   cursor: "pointer",
-  zIndex: 200, // ✅ щоб точно було клікабельне
+  zIndex: 200,
   pointerEvents: "auto",
+
+  // прибирає синю підсвітку/фокус у багатьох WebView
+  outline: "none",
+  WebkitTapHighlightColor: "transparent" as any,
 };
 
 // вертикальна рейка праворуч
@@ -460,7 +485,7 @@ const sideRailStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: 14,
-  zIndex: 200, // ✅
+  zIndex: 200,
   pointerEvents: "auto",
 };
 
@@ -476,6 +501,9 @@ const sideFabStyle: React.CSSProperties = {
   placeItems: "center",
   boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
   position: "relative",
+
+  outline: "none",
+  WebkitTapHighlightColor: "transparent" as any,
 };
 
 const fabBadgeStyle: React.CSSProperties = {

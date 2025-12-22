@@ -11,6 +11,22 @@
 *{ box-sizing:border-box; }
 html, body, #root{ height:100%; }
 
+/* ===== FIX: прибрати синю підсвітку/outline при тапі (Android/WebView) ===== */
+button, a, [role="button"]{
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible{
+  outline: none;
+}
+button::-moz-focus-inner{
+  border: 0;
+}
+
 body{
   margin:0;
   font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
