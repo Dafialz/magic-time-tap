@@ -35,6 +35,17 @@ body{
   min-height:100dvh;
 }
 
+/* ===== TAP layout: прибити нижні блоки над BottomNav ===== */
+.tap-area{
+  min-height: calc(100dvh - 160px);
+  display: flex;
+  flex-direction: column;
+}
+.tap-bottom{
+  margin-top: auto;
+  padding-bottom: 10px;
+}
+
 /* ===== HERO ===== */
 .hero{ position:relative; display:grid; gap:14px; place-items:center; }
 .hero__title{

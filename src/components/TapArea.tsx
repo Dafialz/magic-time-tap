@@ -63,16 +63,6 @@ function setLang(lang: Lang) {
   } catch {}
 }
 
-const FLAG_SRC: Record<Lang, string> = {
-  en: "/flags/en.png",
-  zh: "/flags/cn.png",
-  hi: "/flags/in.png",
-  es: "/flags/es.png",
-  ar: "/flags/sa.png",
-  ru: "/flags/ru.png",
-  fr: "/flags/fr.png",
-};
-
 const I18N: Record<
   Lang,
   {
@@ -304,26 +294,8 @@ export default function TapArea({
     setTimeout(() => setDailyOpen(false), 150);
   };
 
-  const cycleLang = () => {
-    const cur = lang;
-    const idx = LANGS.indexOf(cur);
-    const next = LANGS[(idx >= 0 ? idx + 1 : 0) % LANGS.length];
-    setLang(next);
-    setLangState(next);
-  };
-
   return (
     <div className="tap-area">
-      {/* ЛІВИЙ КРУЖОК МОВИ */}
-      <button type="button" onClick={cycleLang} aria-label="Language" title="Language" style={langFabStyle}>
-        <img
-          src={FLAG_SRC[lang]}
-          alt={lang}
-          style={{ width: 52, height: 52, borderRadius: 9999, display: "block" }}
-          draggable={false}
-        />
-      </button>
-
       {/* Правий “рейл” (дві круглі кнопки) */}
       <div style={sideRailStyle} aria-label="Quick actions">
         <button type="button" onClick={onOpenLeaders} style={sideFabStyle} aria-label={t.openLeaders} title={t.openLeaders}>
@@ -346,36 +318,39 @@ export default function TapArea({
         </div>
       </section>
 
-      {/* MGP */}
-      <section className="stat-card" aria-live="polite">
-        <div className="stat-card__caption">{t.mtpCaption}</div>
-        <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
-      </section>
+      {/* ✅ Нижній блок: MGP + Meteor (прибитий до низу через CSS .tap-area + .tap-bottom) */}
+      <div className="tap-bottom">
+        {/* MGP */}
+        <section className="stat-card" aria-live="polite">
+          <div className="stat-card__caption">{t.mtpCaption}</div>
+          <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
+        </section>
 
-      {/* Метеор */}
-      <button
-        type="button"
-        className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
-        onClick={meteorVisible ? onMeteorClick : undefined}
-        aria-label={t.meteorAria}
-      >
-        <div className="meteor-card__icon">☄️</div>
+        {/* Метеор */}
+        <button
+          type="button"
+          className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
+          onClick={meteorVisible ? onMeteorClick : undefined}
+          aria-label={t.meteorAria}
+        >
+          <div className="meteor-card__icon">☄️</div>
 
-        <div className="meteor-card__text">
-          <div className="meteor-card__title">
-            {meteorVisible ? t.meteorCollect : t.meteorIn(Math.max(0, Math.floor(meteorSpawnIn)))}
+          <div className="meteor-card__text">
+            <div className="meteor-card__title">
+              {meteorVisible ? t.meteorCollect : t.meteorIn(Math.max(0, Math.floor(meteorSpawnIn)))}
+            </div>
+            <div className="meteor-card__subtitle">
+              {t.goldenMeteor}
+              {meteorVisible && buffLeft > 0 ? ` • ${buffLeft}s` : ""}
+            </div>
           </div>
-          <div className="meteor-card__subtitle">
-            {t.goldenMeteor}
-            {meteorVisible && buffLeft > 0 ? ` • ${buffLeft}s` : ""}
-          </div>
-        </div>
 
-        <div className="meteor-card__bonus">
-          <span>{meteorVisible ? `+${formatNumber(meteorBonus)}` : "+0"}</span>
-          <small>{`x${meteorMultiplier}`}</small>
-        </div>
-      </button>
+          <div className="meteor-card__bonus">
+            <span>{meteorVisible ? `+${formatNumber(meteorBonus)}` : "+0"}</span>
+            <small>{`x${meteorMultiplier}`}</small>
+          </div>
+        </button>
+      </div>
 
       {/* Модалка ЩОДЕННОГО БОНУСУ */}
       {dailyOpen && (
@@ -426,22 +401,7 @@ export default function TapArea({
   );
 }
 
-/* ===== styles ===== */
-
-const langFabStyle: React.CSSProperties = {
-  position: "absolute",
-  left: 14,
-  top: "28%",
-  width: 52,
-  height: 52,
-  borderRadius: 9999,
-  border: 0,
-  padding: 0,
-  background: "transparent",
-  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
-  overflow: "hidden",
-  cursor: "pointer",
-};
+/* ===== styles (inline) ===== */
 
 // вертикальна рейка праворуч
 const sideRailStyle: React.CSSProperties = {
