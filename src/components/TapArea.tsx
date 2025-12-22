@@ -1,3 +1,4 @@
+
 // src/components/TapArea.tsx
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -50,16 +51,6 @@ function applyLangToDom(lang: Lang) {
   try {
     document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-  } catch {}
-}
-
-function setLang(lang: Lang) {
-  try {
-    localStorage.setItem(LS_LANG_KEY, lang);
-  } catch {}
-  applyLangToDom(lang);
-  try {
-    window.dispatchEvent(new CustomEvent("mt_lang", { detail: lang }));
   } catch {}
 }
 
@@ -239,6 +230,8 @@ export default function TapArea({
   const [dailyOpen, setDailyOpen] = useState(false);
   const [dayInfo, setDayInfo] = useState(() => loadDaily());
 
+  // ✅ мову лишаємо (підтягується з localStorage або з mt_lang event),
+  // але кнопку перемикання МОВИ (зліва) — ВИДАЛЕНО як ти просив.
   const [lang, setLangState] = useState<Lang>(() => {
     const l = getLang();
     applyLangToDom(l);
@@ -296,6 +289,8 @@ export default function TapArea({
 
   return (
     <div className="tap-area">
+      {/* ✅ ЛІВИЙ КРУЖОК МОВИ — ВИДАЛЕНО */}
+
       {/* Правий “рейл” (дві круглі кнопки) */}
       <div style={sideRailStyle} aria-label="Quick actions">
         <button type="button" onClick={onOpenLeaders} style={sideFabStyle} aria-label={t.openLeaders} title={t.openLeaders}>
@@ -308,7 +303,7 @@ export default function TapArea({
         </button>
       </div>
 
-      {/* ✅ HERO (як на “має бути”) */}
+      {/* HERO */}
       <section className="hero">
         <div className="hero__title">MAGIC TIME</div>
 
@@ -320,13 +315,11 @@ export default function TapArea({
 
       {/* ✅ Нижній блок: MGP + Meteor (прибитий до низу через CSS .tap-area + .tap-bottom) */}
       <div className="tap-bottom">
-        {/* MGP */}
         <section className="stat-card" aria-live="polite">
           <div className="stat-card__caption">{t.mtpCaption}</div>
           <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
         </section>
 
-        {/* Метеор */}
         <button
           type="button"
           className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
