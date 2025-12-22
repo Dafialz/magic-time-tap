@@ -6,6 +6,9 @@
   --mtp-text:#e5e7eb; --mtp-text-dim:#cfd6ff; --mtp-border:rgba(255,255,255,.08);
   --mtp-grad-a:#28E7A8; --mtp-grad-b:#6F52FF; --mtp-yellow:#ffd54a;
   --clock-size: min(72vw, 420px);
+
+  /* висота нижнього меню (BottomNav) */
+  --bn-h: 92px;
 }
 
 *{ box-sizing:border-box; }
@@ -51,15 +54,64 @@ body{
   min-height:100dvh;
 }
 
-/* ===== TAP layout: прибити нижні блоки над BottomNav ===== */
+/* ===== TAP layout: прибити нижні блоки над BottomNav (САМЕ НИЗ) ===== */
 .tap-area{
-  min-height: calc(100dvh - 160px);
+  /* робимо як “екран” над bottom-nav */
+  min-height: calc(100dvh - var(--bn-h) - env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
+  position: relative;
 }
+
 .tap-bottom{
-  margin-top: auto;
-  padding-bottom: 10px;
+  margin-top: auto;              /* притискає вниз */
+  padding-bottom: 8px;           /* трохи повітря */
+}
+
+/* ===== CSS для правих іконок (🏆 / 📅) — перебиває inline-style з TapArea ===== */
+.tap-area [aria-label="Quick actions"]{
+  position: absolute !important;
+  right: 14px !important;
+  top: 28% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  z-index: 220 !important;
+  pointer-events: auto !important;
+}
+
+.tap-area [aria-label="Quick actions"] > button{
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 9999px !important;
+
+  border: 1px solid rgba(255,255,255,.12) !important;
+  background: radial-gradient(55% 55% at 50% 50%,
+      rgba(46,255,204,.22),
+      rgba(111,82,255,.16)) !important;
+
+  box-shadow:
+    0 10px 26px rgba(0,0,0,.30),
+    inset 0 0 0 2px rgba(255,255,255,.06) !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  color: #66ffd8 !important;
+  cursor: pointer !important;
+
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+}
+
+.tap-area [aria-label="Quick actions"] > button:active{
+  transform: translateY(1px) scale(.98);
+  filter: brightness(1.06);
+}
+
+.tap-area [aria-label="Quick actions"] > button span{
+  /* бейдж “1” на календарі */
+  box-shadow: 0 6px 14px rgba(0,0,0,.35) !important;
 }
 
 /* ===== HERO ===== */
