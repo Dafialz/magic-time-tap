@@ -226,7 +226,6 @@ function saveDaily(s: DailyState) {
   } catch {}
 }
 function dailyRewardForDay(day: number) {
-  // простий ростучий бонус (підкоригуєш як хочеш)
   // День 1: 1000, день 30: 30000
   const base = 1000;
   const step = 1000;
@@ -273,7 +272,6 @@ export default function TapArea({
   const reward = useMemo(() => dailyRewardForDay(dayInfo.streakDay), [dayInfo.streakDay]);
 
   useEffect(() => {
-    // оновлювати daily state при відкритті
     const fresh = loadDaily();
     setDayInfo(fresh);
   }, []);
@@ -316,14 +314,8 @@ export default function TapArea({
 
   return (
     <div className="tap-area">
-      {/* ЛІВИЙ КРУЖОК МОВИ (як на твоєму скріні) */}
-      <button
-        type="button"
-        onClick={cycleLang}
-        aria-label="Language"
-        title="Language"
-        style={langFabStyle}
-      >
+      {/* ЛІВИЙ КРУЖОК МОВИ */}
+      <button type="button" onClick={cycleLang} aria-label="Language" title="Language" style={langFabStyle}>
         <img
           src={FLAG_SRC[lang]}
           alt={lang}
@@ -344,15 +336,15 @@ export default function TapArea({
         </button>
       </div>
 
-      {/* Лого / центр */}
-      <div className="tap-hero">
-        <div className="tap-title">MAGIC TIME</div>
+      {/* ✅ HERO (як на “має бути”) */}
+      <section className="hero">
+        <div className="hero__title">MAGIC TIME</div>
 
-        <button type="button" className="tap-core" onClick={onTap} aria-label="Tap">
-          <div className="tap-core__ring" />
-          <div className="tap-core__sigil" />
-        </button>
-      </div>
+        <div className="hero__clock">
+          <img className="hero__img" src="/hourglass.png" alt="Magic Time" draggable={false} />
+          <button type="button" className="hero__tap" onClick={onTap} aria-label="Tap" />
+        </div>
+      </section>
 
       {/* MGP */}
       <section className="stat-card" aria-live="polite">
@@ -436,7 +428,6 @@ export default function TapArea({
 
 /* ===== styles ===== */
 
-// лівий кружок мови (під твій червоний круг)
 const langFabStyle: React.CSSProperties = {
   position: "absolute",
   left: 14,
