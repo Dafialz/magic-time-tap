@@ -34,6 +34,7 @@ function formatNumber(n: number) {
 /* ===== i18n (localStorage based) ===== */
 type Lang = "en" | "zh" | "hi" | "es" | "ar" | "ru" | "fr";
 const LS_LANG_KEY = "mt_lang_v1";
+
 const LANGS: Lang[] = ["en", "zh", "hi", "es", "ar", "ru", "fr"];
 
 function getLang(): Lang {
@@ -324,23 +325,15 @@ export default function TapArea({
     try {
       window.open(url, "_blank", "noopener,noreferrer");
     } catch {
+      // last resort
       (window.location as any).href = url;
     }
   };
 
   return (
-    <div
-      className="tap-area"
-      style={{
-        position: "relative",
-        // ✅ гарантуємо правильний flex-лейаут незалежно від CSS/вьюпорта Telegram
-        minHeight: "calc(100dvh - 160px)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* HERO (займає весь вільний простір) */}
-      <section className="hero" style={{ flex: "1 1 auto" }}>
+    <div className="tap-area" style={{ position: "relative" }}>
+      {/* HERO */}
+      <section className="hero">
         <div className="hero__title">MAGIC TIME</div>
 
         <div className="hero__clock">
@@ -349,18 +342,9 @@ export default function TapArea({
         </div>
       </section>
 
-      {/* НИЗ (завжди притиснутий вниз) */}
-      <div
-        className="tap-bottom"
-        style={{
-          marginTop: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          paddingBottom: 10,
-        }}
-      >
-        {/* ✅ КНОПКИ ПРЯМО НАД MGP */}
+      {/* Нижній блок: actions row + MGP + Meteor */}
+      <div className="tap-bottom" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+        {/* ✅ Ряд кнопок як на скріні: прапор зліва, 2 кнопки по центру, підтримка справа */}
         <div style={actionsBarStyle} aria-label="Quick actions">
           <button
             type="button"
@@ -419,7 +403,7 @@ export default function TapArea({
           </button>
         </div>
 
-        <section className="stat-card" aria-live="polite" style={{ margin: "0 auto" }}>
+        <section className="stat-card" aria-live="polite">
           <div className="stat-card__caption">{t.mtpCaption}</div>
           <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
         </section>
@@ -429,7 +413,6 @@ export default function TapArea({
           className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
           onClick={meteorVisible ? onMeteorClick : undefined}
           aria-label={t.meteorAria}
-          style={{ margin: "0 auto" }}
         >
           <div className="meteor-card__icon">☄️</div>
 
@@ -518,7 +501,7 @@ const baseFab: React.CSSProperties = {
 const actionsBarStyle: React.CSSProperties = {
   width: "100%",
   maxWidth: 560,
-  margin: "0 auto",
+  margin: "0 auto 10px",
   padding: "0 6px",
   display: "flex",
   alignItems: "center",
