@@ -341,7 +341,7 @@ export default function TapArea({
         <div className="hero__title">MAGIC TIME</div>
 
         <div className="hero__clock">
-          <img className="hero__img" src="/hourglass.png" alt="Magic Time" draggable={false} />
+          <img className="hero__img" src="/hero-hourglass.png" alt="Magic Time" draggable={false} />
           <button type="button" className="hero__tap" onClick={onTap} aria-label="Tap" />
         </div>
       </section>
