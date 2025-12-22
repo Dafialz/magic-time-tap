@@ -75,7 +75,6 @@ const FLAG_FILE: Record<Lang, string> = {
 };
 
 function flagSrc(code: Lang) {
-  // Vite: імпорт через new URL (працює зі src/assets)
   return new URL(`../assets/flags/${FLAG_FILE[code]}`, import.meta.url).toString();
 }
 
@@ -199,12 +198,12 @@ const I18N: Record<
 /** Daily bonus: 30-денний календар, один клейм на добу */
 const LS_DAILY_KEY = "mt_daily_v1";
 type DailyState = {
-  startedAtDay: number; // epoch day number when started
-  lastClaimDay: number; // epoch day number last claimed
-  streakDay: number; // 1..30 current day in calendar
+  startedAtDay: number;
+  lastClaimDay: number;
+  streakDay: number;
 };
 function getEpochDay(ts = Date.now()) {
-  return Math.floor(ts / 86400000); // day number since 1970
+  return Math.floor(ts / 86400000);
 }
 function loadDaily(): DailyState {
   try {
@@ -232,7 +231,6 @@ function saveDaily(s: DailyState) {
   } catch {}
 }
 function dailyRewardForDay(day: number) {
-  // День 1: 1000, день 30: 30000
   const base = 1000;
   const step = 1000;
   return base + (clamp(day, 1, 30) - 1) * step;
@@ -315,54 +313,25 @@ export default function TapArea({
     setLangState(next);
   };
 
+  const openSupport = () => {
+    const url = "https://t.me/MagicTime_support";
+    const tg = (window as any)?.Telegram?.WebApp;
+    try {
+      if (tg?.openTelegramLink) {
+        tg.openTelegramLink(url);
+        return;
+      }
+    } catch {}
+    try {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      // last resort
+      (window.location as any).href = url;
+    }
+  };
+
   return (
     <div className="tap-area" style={{ position: "relative" }}>
-      {/* ✅ ЄДИНА кнопка мови (без списку) */}
-      <button
-        type="button"
-        onClick={cycleLang}
-        onMouseDown={(e) => e.preventDefault()}
-        onPointerDown={(e) => e.preventDefault()}
-        aria-label="Language"
-        title="Language"
-        style={langFabStyle}
-      >
-        <img
-          src={flagSrc(lang)}
-          alt={lang}
-          style={{ width: 52, height: 52, borderRadius: 9999, display: "block" }}
-          draggable={false}
-        />
-      </button>
-
-      {/* Правий “рейл” (дві круглі кнопки) */}
-      <div style={sideRailStyle} aria-label="Quick actions">
-        <button
-          type="button"
-          onClick={onOpenLeaders}
-          onMouseDown={(e) => e.preventDefault()}
-          onPointerDown={(e) => e.preventDefault()}
-          style={sideFabStyle}
-          aria-label={t.openLeaders}
-          title={t.openLeaders}
-        >
-          🏆
-        </button>
-
-        <button
-          type="button"
-          onClick={openDaily}
-          onMouseDown={(e) => e.preventDefault()}
-          onPointerDown={(e) => e.preventDefault()}
-          style={sideFabStyle}
-          aria-label={t.daily}
-          title={t.daily}
-        >
-          📅
-          {dayInfo.lastClaimDay !== getEpochDay() ? <span style={fabBadgeStyle}>1</span> : null}
-        </button>
-      </div>
-
       {/* HERO */}
       <section className="hero">
         <div className="hero__title">MAGIC TIME</div>
@@ -373,8 +342,67 @@ export default function TapArea({
         </div>
       </section>
 
-      {/* Нижній блок: MGP + Meteor */}
+      {/* Нижній блок: actions row + MGP + Meteor */}
       <div className="tap-bottom">
+        {/* ✅ Ряд кнопок як на скріні: прапор зліва, 2 кнопки по центру, підтримка справа */}
+        <div style={actionsBarStyle} aria-label="Quick actions">
+          <button
+            type="button"
+            onClick={cycleLang}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
+            aria-label="Language"
+            title="Language"
+            style={langFabInlineStyle}
+          >
+            <img
+              src={flagSrc(lang)}
+              alt={lang}
+              style={{ width: 52, height: 52, borderRadius: 9999, display: "block" }}
+              draggable={false}
+            />
+          </button>
+
+          <div style={centerActionsStyle}>
+            <button
+              type="button"
+              onClick={openDaily}
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerDown={(e) => e.preventDefault()}
+              style={actionFabStyle}
+              aria-label={t.daily}
+              title={t.daily}
+            >
+              📅
+              {dayInfo.lastClaimDay !== getEpochDay() ? <span style={fabBadgeStyle}>1</span> : null}
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenLeaders}
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerDown={(e) => e.preventDefault()}
+              style={actionFabStyle}
+              aria-label={t.openLeaders}
+              title={t.openLeaders}
+            >
+              🏆
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={openSupport}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
+            style={supportFabStyle}
+            aria-label="Support"
+            title="Support"
+          >
+            💬
+          </button>
+        </div>
+
         <section className="stat-card" aria-live="polite">
           <div className="stat-card__caption">{t.mtpCaption}</div>
           <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
@@ -456,54 +484,56 @@ export default function TapArea({
 
 /* ===== styles (inline) ===== */
 
-const langFabStyle: React.CSSProperties = {
-  position: "absolute",
-  left: 14,
-  top: "28%",
-  width: 52,
-  height: 52,
-  borderRadius: 9999,
-  border: 0,
-  padding: 0,
-  background: "transparent",
-  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
-  overflow: "hidden",
-  cursor: "pointer",
-  zIndex: 200,
-  pointerEvents: "auto",
-
-  // прибирає синю підсвітку/фокус у багатьох WebView
-  outline: "none",
-  WebkitTapHighlightColor: "transparent" as any,
-};
-
-// вертикальна рейка праворуч
-const sideRailStyle: React.CSSProperties = {
-  position: "absolute",
-  right: 14,
-  top: "28%",
-  display: "flex",
-  flexDirection: "column",
-  gap: 14,
-  zIndex: 200,
-  pointerEvents: "auto",
-};
-
-const sideFabStyle: React.CSSProperties = {
+const baseFab: React.CSSProperties = {
   width: 52,
   height: 52,
   borderRadius: 9999,
   border: 0,
   cursor: "pointer",
-  background: "radial-gradient(55% 55% at 50% 50%, rgba(46,255,204,.25), rgba(111,82,255,.18))",
-  color: "#84ffe0",
   display: "grid",
   placeItems: "center",
-  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
   position: "relative",
-
   outline: "none",
   WebkitTapHighlightColor: "transparent" as any,
+  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
+};
+
+const actionsBarStyle: React.CSSProperties = {
+  width: "100%",
+  maxWidth: 560,
+  margin: "0 auto 10px",
+  padding: "0 6px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+};
+
+const centerActionsStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 14,
+  flex: "1 1 auto",
+};
+
+const langFabInlineStyle: React.CSSProperties = {
+  ...baseFab,
+  background: "transparent",
+  padding: 0,
+  overflow: "hidden",
+};
+
+const actionFabStyle: React.CSSProperties = {
+  ...baseFab,
+  background: "radial-gradient(55% 55% at 50% 50%, rgba(46,255,204,.25), rgba(111,82,255,.18))",
+  color: "#84ffe0",
+};
+
+const supportFabStyle: React.CSSProperties = {
+  ...baseFab,
+  background: "radial-gradient(55% 55% at 50% 50%, rgba(46,255,204,.18), rgba(111,82,255,.22))",
+  color: "#84ffe0",
 };
 
 const fabBadgeStyle: React.CSSProperties = {
