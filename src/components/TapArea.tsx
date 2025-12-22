@@ -316,22 +316,25 @@ export default function TapArea({
   const openSupport = () => {
     const url = "https://t.me/MagicTime_support";
     const tg = (window as any)?.Telegram?.WebApp;
+
+    // Telegram Mini App way
     try {
       if (tg?.openTelegramLink) {
         tg.openTelegramLink(url);
         return;
       }
     } catch {}
+
+    // Fallback
     try {
       window.open(url, "_blank", "noopener,noreferrer");
     } catch {
-      // last resort
       (window.location as any).href = url;
     }
   };
 
   return (
-    <div className="tap-area" style={{ position: "relative" }}>
+    <div className="tap-area">
       {/* HERO */}
       <section className="hero">
         <div className="hero__title">MAGIC TIME</div>
@@ -342,10 +345,10 @@ export default function TapArea({
         </div>
       </section>
 
-      {/* Нижній блок: actions row + MGP + Meteor */}
-      <div className="tap-bottom" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-        {/* ✅ Ряд кнопок як на скріні: прапор зліва, 2 кнопки по центру, підтримка справа */}
-        <div style={actionsBarStyle} aria-label="Quick actions">
+      {/* Нижній блок: (важливо) кнопки РЯДКОМ над рахунком */}
+      <div className="tap-bottom">
+        {/* ❗️НЕ використовуємо aria-label="Quick actions" (бо в старому CSS це могло робити position:absolute) */}
+        <div className="quick-actions-row" style={actionsRowStyle}>
           <button
             type="button"
             onClick={cycleLang}
@@ -353,23 +356,23 @@ export default function TapArea({
             onPointerDown={(e) => e.preventDefault()}
             aria-label="Language"
             title="Language"
-            style={langFabInlineStyle}
+            style={langFabStyle}
           >
             <img
               src={flagSrc(lang)}
               alt={lang}
-              style={{ width: 52, height: 52, borderRadius: 9999, display: "block" }}
+              style={{ width: 54, height: 54, borderRadius: 9999, display: "block" }}
               draggable={false}
             />
           </button>
 
-          <div style={centerActionsStyle}>
+          <div className="quick-actions-center" style={actionsCenterStyle}>
             <button
               type="button"
               onClick={openDaily}
               onMouseDown={(e) => e.preventDefault()}
               onPointerDown={(e) => e.preventDefault()}
-              style={actionFabStyle}
+              style={neonFabStyle}
               aria-label={t.daily}
               title={t.daily}
             >
@@ -382,25 +385,28 @@ export default function TapArea({
               onClick={onOpenLeaders}
               onMouseDown={(e) => e.preventDefault()}
               onPointerDown={(e) => e.preventDefault()}
-              style={actionFabStyle}
+              style={neonFabStyle}
               aria-label={t.openLeaders}
               title={t.openLeaders}
             >
               🏆
             </button>
+
+            <button
+              type="button"
+              onClick={openSupport}
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerDown={(e) => e.preventDefault()}
+              style={neonFabStyle}
+              aria-label="Support"
+              title="Support"
+            >
+              💬
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={openSupport}
-            onMouseDown={(e) => e.preventDefault()}
-            onPointerDown={(e) => e.preventDefault()}
-            style={supportFabStyle}
-            aria-label="Support"
-            title="Support"
-          >
-            💬
-          </button>
+          {/* Spacer щоб центр реально був по центру навіть з прапором зліва */}
+          <div aria-hidden="true" style={{ width: 54, height: 54 }} />
         </div>
 
         <section className="stat-card" aria-live="polite">
@@ -484,21 +490,7 @@ export default function TapArea({
 
 /* ===== styles (inline) ===== */
 
-const baseFab: React.CSSProperties = {
-  width: 52,
-  height: 52,
-  borderRadius: 9999,
-  border: 0,
-  cursor: "pointer",
-  display: "grid",
-  placeItems: "center",
-  position: "relative",
-  outline: "none",
-  WebkitTapHighlightColor: "transparent" as any,
-  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
-};
-
-const actionsBarStyle: React.CSSProperties = {
+const actionsRowStyle: React.CSSProperties = {
   width: "100%",
   maxWidth: 560,
   margin: "0 auto 10px",
@@ -509,7 +501,7 @@ const actionsBarStyle: React.CSSProperties = {
   gap: 10,
 };
 
-const centerActionsStyle: React.CSSProperties = {
+const actionsCenterStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -517,23 +509,36 @@ const centerActionsStyle: React.CSSProperties = {
   flex: "1 1 auto",
 };
 
-const langFabInlineStyle: React.CSSProperties = {
-  ...baseFab,
-  background: "transparent",
+const langFabStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 9999,
+  border: "1px solid rgba(255,255,255,.12)",
   padding: 0,
   overflow: "hidden",
+  cursor: "pointer",
+  background: "rgba(255,255,255,.03)",
+  boxShadow: "0 10px 26px rgba(0,0,0,.30), inset 0 0 0 2px rgba(255,255,255,.06)",
+  outline: "none",
+  WebkitTapHighlightColor: "transparent" as any,
 };
 
-const actionFabStyle: React.CSSProperties = {
-  ...baseFab,
-  background: "radial-gradient(55% 55% at 50% 50%, rgba(46,255,204,.25), rgba(111,82,255,.18))",
-  color: "#84ffe0",
-};
-
-const supportFabStyle: React.CSSProperties = {
-  ...baseFab,
-  background: "radial-gradient(55% 55% at 50% 50%, rgba(46,255,204,.18), rgba(111,82,255,.22))",
-  color: "#84ffe0",
+const neonFabStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 9999,
+  border: "1px solid rgba(255,255,255,.12)",
+  cursor: "pointer",
+  background:
+    "radial-gradient(55% 55% at 50% 50%, rgba(46,255,204,.22), rgba(111,82,255,.16))",
+  boxShadow:
+    "0 10px 26px rgba(0,0,0,.30), 0 0 18px rgba(40,231,168,.10), inset 0 0 0 2px rgba(255,255,255,.06)",
+  color: "#66ffd8",
+  display: "grid",
+  placeItems: "center",
+  position: "relative",
+  outline: "none",
+  WebkitTapHighlightColor: "transparent" as any,
 };
 
 const fabBadgeStyle: React.CSSProperties = {
@@ -547,7 +552,7 @@ const fabBadgeStyle: React.CSSProperties = {
   padding: "1px 6px",
   fontSize: 12,
   lineHeight: 1.4,
-  boxShadow: "0 2px 6px rgba(0,0,0,.35)",
+  boxShadow: "0 6px 14px rgba(0,0,0,.35)",
 };
 
 const modalRootStyle: React.CSSProperties = { position: "fixed", inset: 0, zIndex: 1200 };

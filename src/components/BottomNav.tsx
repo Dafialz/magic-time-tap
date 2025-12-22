@@ -1,3 +1,4 @@
+// src/components/BottomNav.tsx
 import React, { useEffect, useMemo, useState } from "react";
 
 export type TabKey = "tap" | "upgrades" | "artifacts" | "craft" | "skins" | "leaders";
