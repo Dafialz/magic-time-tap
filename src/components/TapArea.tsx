@@ -1,4 +1,3 @@
-
 // src/components/TapArea.tsx
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -52,6 +51,32 @@ function applyLangToDom(lang: Lang) {
     document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   } catch {}
+}
+
+function setLang(lang: Lang) {
+  try {
+    localStorage.setItem(LS_LANG_KEY, lang);
+  } catch {}
+  applyLangToDom(lang);
+  try {
+    window.dispatchEvent(new CustomEvent("mt_lang", { detail: lang }));
+  } catch {}
+}
+
+/** прапори лежать у src/assets/flags/*.png (Vite) */
+const FLAG_FILE: Record<Lang, string> = {
+  en: "en.png",
+  zh: "cn.png",
+  hi: "in.png",
+  es: "es.png",
+  ar: "sa.png",
+  ru: "ru.png",
+  fr: "fr.png",
+};
+
+function flagSrc(code: Lang) {
+  // Vite: імпорт через new URL (працює зі src/assets)
+  return new URL(`../assets/flags/${FLAG_FILE[code]}`, import.meta.url).toString();
 }
 
 const I18N: Record<
@@ -230,8 +255,6 @@ export default function TapArea({
   const [dailyOpen, setDailyOpen] = useState(false);
   const [dayInfo, setDayInfo] = useState(() => loadDaily());
 
-  // ✅ мову лишаємо (підтягується з localStorage або з mt_lang event),
-  // але кнопку перемикання МОВИ (зліва) — ВИДАЛЕНО як ти просив.
   const [lang, setLangState] = useState<Lang>(() => {
     const l = getLang();
     applyLangToDom(l);
@@ -287,9 +310,25 @@ export default function TapArea({
     setTimeout(() => setDailyOpen(false), 150);
   };
 
+  // ✅ ОЦЕ — правильна кнопка (без списку): натиснув → мова змінилась
+  const cycleLang = () => {
+    const idx = LANGS.indexOf(lang);
+    const next = LANGS[(idx >= 0 ? idx + 1 : 0) % LANGS.length];
+    setLang(next);
+    setLangState(next);
+  };
+
   return (
     <div className="tap-area">
-      {/* ✅ ЛІВИЙ КРУЖОК МОВИ — ВИДАЛЕНО */}
+      {/* ✅ ЛІВИЙ КРУЖОК МОВИ (БЕЗ МЕНЮ/СПИСКУ) */}
+      <button type="button" onClick={cycleLang} aria-label="Language" title="Language" style={langFabStyle}>
+        <img
+          src={flagSrc(lang)}
+          alt={lang}
+          style={{ width: 52, height: 52, borderRadius: 9999, display: "block" }}
+          draggable={false}
+        />
+      </button>
 
       {/* Правий “рейл” (дві круглі кнопки) */}
       <div style={sideRailStyle} aria-label="Quick actions">
@@ -313,7 +352,7 @@ export default function TapArea({
         </div>
       </section>
 
-      {/* ✅ Нижній блок: MGP + Meteor (прибитий до низу через CSS .tap-area + .tap-bottom) */}
+      {/* Нижній блок: MGP + Meteor */}
       <div className="tap-bottom">
         <section className="stat-card" aria-live="polite">
           <div className="stat-card__caption">{t.mtpCaption}</div>
@@ -395,6 +434,21 @@ export default function TapArea({
 }
 
 /* ===== styles (inline) ===== */
+
+const langFabStyle: React.CSSProperties = {
+  position: "absolute",
+  left: 14,
+  top: "28%",
+  width: 52,
+  height: 52,
+  borderRadius: 9999,
+  border: 0,
+  padding: 0,
+  background: "transparent",
+  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
+  overflow: "hidden",
+  cursor: "pointer",
+};
 
 // вертикальна рейка праворуч
 const sideRailStyle: React.CSSProperties = {
