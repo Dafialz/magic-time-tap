@@ -14,6 +14,273 @@ type Chest = {
   weights: number[];
 };
 
+/* ================= i18n (localStorage based) ================= */
+type Lang = "en" | "zh" | "hi" | "es" | "ar" | "ru" | "fr";
+const LS_LANG_KEY = "mt_lang_v1";
+const LANGS: Lang[] = ["en", "zh", "hi", "es", "ar", "ru", "fr"];
+
+function getLang(): Lang {
+  try {
+    const v = (localStorage.getItem(LS_LANG_KEY) || "").trim() as Lang;
+    return LANGS.includes(v) ? v : "en";
+  } catch {
+    return "en";
+  }
+}
+
+const I18N: Record<
+  Lang,
+  {
+    title: string;
+    payPill: string;
+    tonWallet: string;
+    hint: string;
+
+    buyFor: (ton: number) => string;
+
+    payModalTitle: string;
+    priceLabel: string;
+    commentLabel: string;
+    dontChange: string;
+
+    openTonkeeper: string;
+    checkPayment: string;
+    checking: string;
+    close: string;
+
+    lootTitleFrom: (chestTitle: string) => string;
+    ok: string;
+
+    // statuses / errors
+    pendingRestore: string;
+    stepOpenAndPay: string;
+    createIntentFail: string;
+
+    verifyChecking: string;
+    verifyCallFail: string;
+    verifyPending: string;
+
+    paymentRejectedOrExpired: string;
+    chestNotFound: string;
+    unknownStatus: (s: string) => string;
+
+    confirmedGranted: string;
+    bannedTitle: string;
+    payViaTonkeeperTitle: string;
+  }
+> = {
+  en: {
+    title: "Chests",
+    payPill: "TON payment → Tonkeeper",
+    tonWallet: "TON Wallet",
+    hint: "Loot is granted by the server. After paying, press “Check payment”.",
+    buyFor: (ton) => `Buy for ${ton} TON`,
+    payModalTitle: "Chest payment",
+    priceLabel: "Price",
+    commentLabel: "Transfer comment",
+    dontChange: "Do not change the comment — it’s required for automatic verification.",
+    openTonkeeper: "Open Tonkeeper",
+    checkPayment: "Check payment",
+    checking: "Checking…",
+    close: "Close",
+    lootTitleFrom: (title) => `Dropped from ${title}:`,
+    ok: "OK",
+    pendingRestore: "There is an unfinished purchase. If you paid — press “Check payment”.",
+    stepOpenAndPay: "Open Tonkeeper and send the transfer. Then press “Check payment”.",
+    createIntentFail: "Failed to create intent in Firestore. Check rules for purchase_intents_v1.",
+    verifyChecking: "Checking payment on the server…",
+    verifyCallFail:
+      "Failed to call server verification. Check: (1) firebase/functions in web, (2) region europe-west1, (3) user authenticated.",
+    verifyPending: "Payment not found/confirmed yet. If you paid — wait 10–30 sec and try again.",
+    paymentRejectedOrExpired: "Payment rejected or expired. Try again.",
+    chestNotFound: "Chest not found. Refresh the page.",
+    unknownStatus: (s) => `Unknown status: ${s}`,
+    confirmedGranted: "Payment confirmed ✅ Reward added to inventory.",
+    bannedTitle: "You are banned",
+    payViaTonkeeperTitle: "Pay via Tonkeeper",
+  },
+  zh: {
+    title: "宝箱",
+    payPill: "TON 支付 → Tonkeeper",
+    tonWallet: "TON 钱包",
+    hint: "掉落由服务器发放。支付后点击“检查支付”。",
+    buyFor: (ton) => `购买：${ton} TON`,
+    payModalTitle: "宝箱支付",
+    priceLabel: "价格",
+    commentLabel: "转账备注",
+    dontChange: "不要修改备注 — 自动验证需要它。",
+    openTonkeeper: "打开 Tonkeeper",
+    checkPayment: "检查支付",
+    checking: "检查中…",
+    close: "关闭",
+    lootTitleFrom: (title) => `来自 ${title} 的掉落：`,
+    ok: "好的",
+    pendingRestore: "有未完成的购买。如果你已支付 — 点击“检查支付”。",
+    stepOpenAndPay: "打开 Tonkeeper 完成转账，然后点击“检查支付”。",
+    createIntentFail: "无法在 Firestore 创建 intent。请检查 purchase_intents_v1 的 rules。",
+    verifyChecking: "正在服务器上检查支付…",
+    verifyCallFail:
+      "无法调用服务器验证。检查：(1) web 端 firebase/functions，(2) 区域 europe-west1，(3) 用户已登录。",
+    verifyPending: "尚未找到/确认支付。如果已支付 — 等 10–30 秒再试。",
+    paymentRejectedOrExpired: "支付被拒绝或已过期。请重试。",
+    chestNotFound: "未找到宝箱。请刷新页面。",
+    unknownStatus: (s) => `未知状态：${s}`,
+    confirmedGranted: "支付已确认 ✅ 奖励已加入背包。",
+    bannedTitle: "你已被封禁",
+    payViaTonkeeperTitle: "通过 Tonkeeper 支付",
+  },
+  hi: {
+    title: "चेस्ट",
+    payPill: "TON भुगतान → Tonkeeper",
+    tonWallet: "TON Wallet",
+    hint: "लूट सर्वर देता है। भुगतान के बाद “Payment check” दबाएँ।",
+    buyFor: (ton) => `${ton} TON में खरीदें`,
+    payModalTitle: "चेस्ट भुगतान",
+    priceLabel: "कीमत",
+    commentLabel: "ट्रांसफर कमेंट",
+    dontChange: "कमेंट न बदलें — ऑटो वेरिफिकेशन के लिए जरूरी है।",
+    openTonkeeper: "Tonkeeper खोलें",
+    checkPayment: "भुगतान जाँचें",
+    checking: "जाँच रहे…",
+    close: "बंद करें",
+    lootTitleFrom: (title) => `${title} से मिला:`,
+    ok: "ठीक है",
+    pendingRestore: "अधूरा खरीद मौजूद है। अगर आपने भुगतान किया — “भुगतान जाँचें” दबाएँ।",
+    stepOpenAndPay: "Tonkeeper खोलें और ट्रांसफर करें। फिर “भुगतान जाँचें” दबाएँ।",
+    createIntentFail: "Firestore में intent नहीं बन पाया। purchase_intents_v1 के rules चेक करें।",
+    verifyChecking: "सर्वर पर भुगतान जाँच रहे…",
+    verifyCallFail:
+      "सर्वर वेरिफिकेशन कॉल नहीं हो सका। चेक करें: (1) web पर firebase/functions, (2) region europe-west1, (3) user authenticated.",
+    verifyPending: "भुगतान अभी नहीं मिला/कन्फर्म नहीं हुआ। भुगतान किया है तो 10–30 सेकंड बाद फिर से करें।",
+    paymentRejectedOrExpired: "भुगतान अस्वीकृत/समाप्त। फिर से कोशिश करें।",
+    chestNotFound: "चेस्ट नहीं मिला। पेज रिफ्रेश करें।",
+    unknownStatus: (s) => `Unknown status: ${s}`,
+    confirmedGranted: "भुगतान कन्फर्म ✅ रिवॉर्ड इन्वेंटरी में जोड़ दिया गया।",
+    bannedTitle: "आप बैन हैं",
+    payViaTonkeeperTitle: "Tonkeeper से भुगतान",
+  },
+  es: {
+    title: "Cofres",
+    payPill: "Pago TON → Tonkeeper",
+    tonWallet: "Billetera TON",
+    hint: "El botín lo entrega el servidor. Después de pagar, pulsa “Verificar pago”.",
+    buyFor: (ton) => `Comprar por ${ton} TON`,
+    payModalTitle: "Pago del cofre",
+    priceLabel: "Precio",
+    commentLabel: "Comentario de la transferencia",
+    dontChange: "No cambies el comentario — es necesario para la verificación automática.",
+    openTonkeeper: "Abrir Tonkeeper",
+    checkPayment: "Verificar pago",
+    checking: "Verificando…",
+    close: "Cerrar",
+    lootTitleFrom: (title) => `Salió del ${title}:`,
+    ok: "OK",
+    pendingRestore: "Hay una compra sin terminar. Si pagaste — pulsa “Verificar pago”.",
+    stepOpenAndPay: "Abre Tonkeeper y realiza la transferencia. Luego pulsa “Verificar pago”.",
+    createIntentFail: "No se pudo crear el intent en Firestore. Revisa las rules de purchase_intents_v1.",
+    verifyChecking: "Verificando el pago en el servidor…",
+    verifyCallFail:
+      "No se pudo llamar a la verificación del servidor. Revisa: (1) firebase/functions en web, (2) región europe-west1, (3) usuario autenticado.",
+    verifyPending: "Pago aún no encontrado/confirmado. Si pagaste — espera 10–30 s y prueba de nuevo.",
+    paymentRejectedOrExpired: "Pago rechazado o expirado. Intenta otra vez.",
+    chestNotFound: "Cofre no encontrado. Actualiza la página.",
+    unknownStatus: (s) => `Estado desconocido: ${s}`,
+    confirmedGranted: "Pago confirmado ✅ Recompensa añadida al inventario.",
+    bannedTitle: "Estás bloqueado",
+    payViaTonkeeperTitle: "Pagar con Tonkeeper",
+  },
+  ar: {
+    title: "الصناديق",
+    payPill: "دفع TON → Tonkeeper",
+    tonWallet: "محفظة TON",
+    hint: "الغنيمة يمنحها الخادم. بعد الدفع اضغط “التحقق من الدفع”.",
+    buyFor: (ton) => `شراء مقابل ${ton} TON`,
+    payModalTitle: "دفع الصندوق",
+    priceLabel: "السعر",
+    commentLabel: "تعليق التحويل",
+    dontChange: "لا تغيّر التعليق — مطلوب للتحقق التلقائي.",
+    openTonkeeper: "فتح Tonkeeper",
+    checkPayment: "التحقق من الدفع",
+    checking: "جارِ التحقق…",
+    close: "إغلاق",
+    lootTitleFrom: (title) => `تم الحصول عليه من ${title}:`,
+    ok: "حسنًا",
+    pendingRestore: "هناك عملية شراء غير مكتملة. إذا دفعت — اضغط “التحقق من الدفع”.",
+    stepOpenAndPay: "افتح Tonkeeper وقم بالتحويل، ثم اضغط “التحقق من الدفع”.",
+    createIntentFail: "فشل إنشاء intent في Firestore. تحقق من rules الخاصة بـ purchase_intents_v1.",
+    verifyChecking: "نقوم بالتحقق من الدفع على الخادم…",
+    verifyCallFail:
+      "تعذر استدعاء التحقق من الخادم. تحقق: (1) firebase/functions على الويب، (2) المنطقة europe-west1، (3) المستخدم مسجل الدخول.",
+    verifyPending: "لم يتم العثور على الدفع/تأكيده بعد. إذا دفعت — انتظر 10–30 ثانية ثم أعد المحاولة.",
+    paymentRejectedOrExpired: "تم رفض الدفع أو انتهت صلاحيته. حاول مرة أخرى.",
+    chestNotFound: "الصندوق غير موجود. حدّث الصفحة.",
+    unknownStatus: (s) => `حالة غير معروفة: ${s}`,
+    confirmedGranted: "تم تأكيد الدفع ✅ تمت إضافة المكافأة إلى المخزون.",
+    bannedTitle: "أنت محظور",
+    payViaTonkeeperTitle: "الدفع عبر Tonkeeper",
+  },
+  ru: {
+    title: "Сундуки",
+    payPill: "Оплата TON → Tonkeeper",
+    tonWallet: "TON Wallet",
+    hint: "Лут выдаёт сервер. После оплаты нажми “Проверить оплату”.",
+    buyFor: (ton) => `Купить за ${ton} TON`,
+    payModalTitle: "Оплата сундука",
+    priceLabel: "Цена",
+    commentLabel: "Комментарий к переводу",
+    dontChange: "Не меняй комментарий — он нужен для автоматической проверки.",
+    openTonkeeper: "Открыть Tonkeeper",
+    checkPayment: "Проверить оплату",
+    checking: "Проверяем…",
+    close: "Закрыть",
+    lootTitleFrom: (title) => `Выпало из ${title}:`,
+    ok: "Ок",
+    pendingRestore: "Есть незавершённая покупка. Если ты оплатил — нажми “Проверить оплату”.",
+    stepOpenAndPay: "Открой Tonkeeper и сделай перевод. Потом нажми “Проверить оплату”.",
+    createIntentFail: "Не удалось создать intent в Firestore. Проверь rules для purchase_intents_v1.",
+    verifyChecking: "Проверяем оплату на сервере…",
+    verifyCallFail:
+      "Не удалось вызвать серверную проверку. Проверь: (1) firebase/functions в вебе, (2) регион europe-west1, (3) пользователь авторизован.",
+    verifyPending: "Оплата ещё не найдена/не подтверждена. Если оплатил — подожди 10–30 сек и попробуй снова.",
+    paymentRejectedOrExpired: "Платёж отклонён или просрочен. Попробуй ещё раз.",
+    chestNotFound: "Сундук не найден. Обнови страницу.",
+    unknownStatus: (s) => `Неизвестный статус: ${s}`,
+    confirmedGranted: "Оплата подтверждена ✅ Награда добавлена в инвентарь.",
+    bannedTitle: "Вы заблокированы",
+    payViaTonkeeperTitle: "Оплатить через Tonkeeper",
+  },
+  fr: {
+    title: "Coffres",
+    payPill: "Paiement TON → Tonkeeper",
+    tonWallet: "Portefeuille TON",
+    hint: "Le loot est attribué par le serveur. Après paiement, clique sur “Vérifier le paiement”.",
+    buyFor: (ton) => `Acheter pour ${ton} TON`,
+    payModalTitle: "Paiement du coffre",
+    priceLabel: "Prix",
+    commentLabel: "Commentaire du virement",
+    dontChange: "Ne change pas le commentaire — il est nécessaire pour la vérification automatique.",
+    openTonkeeper: "Ouvrir Tonkeeper",
+    checkPayment: "Vérifier le paiement",
+    checking: "Vérification…",
+    close: "Fermer",
+    lootTitleFrom: (title) => `Tombé du ${title} :`,
+    ok: "OK",
+    pendingRestore: "Un achat est en attente. Si tu as payé — clique “Vérifier le paiement”.",
+    stepOpenAndPay: "Ouvre Tonkeeper et fais le virement. Ensuite clique “Vérifier le paiement”.",
+    createIntentFail: "Impossible de créer l’intent dans Firestore. Vérifie les rules de purchase_intents_v1.",
+    verifyChecking: "Vérification du paiement sur le serveur…",
+    verifyCallFail:
+      "Impossible d’appeler la vérification serveur. Vérifie : (1) firebase/functions web, (2) région europe-west1, (3) utilisateur authentifié.",
+    verifyPending: "Paiement pas encore trouvé/confirmé. Si tu as payé — attends 10–30 s et réessaie.",
+    paymentRejectedOrExpired: "Paiement rejeté ou expiré. Réessaie.",
+    chestNotFound: "Coffre introuvable. Actualise la page.",
+    unknownStatus: (s) => `Statut inconnu : ${s}`,
+    confirmedGranted: "Paiement confirmé ✅ Récompense ajoutée à l’inventaire.",
+    bannedTitle: "Vous êtes banni",
+    payViaTonkeeperTitle: "Payer via Tonkeeper",
+  },
+};
+
 function powerWeights(poolLen: number, k: number): number[] {
   return Array.from({ length: poolLen }, (_, i) => 1 / Math.pow(i + 1, k));
 }
@@ -332,6 +599,17 @@ type Props = {
 };
 
 export default function SkinsShop(props: Props) {
+  const [lang, setLang] = React.useState<Lang>(() => getLang());
+  React.useEffect(() => {
+    const onLang = (e: any) => {
+      const next = String(e?.detail || "").trim() as Lang;
+      setLang(LANGS.includes(next) ? next : getLang());
+    };
+    window.addEventListener("mt_lang", onLang as any);
+    return () => window.removeEventListener("mt_lang", onLang as any);
+  }, []);
+  const t = React.useMemo(() => I18N[lang] ?? I18N.en, [lang]);
+
   const [openState, setOpenState] = React.useState<{ chest?: Chest; icon?: string }>({});
   const [payState, setPayState] = React.useState<{
     open: boolean;
@@ -349,7 +627,7 @@ export default function SkinsShop(props: Props) {
   const effectiveName = React.useMemo(() => {
     const n = props.nickname?.trim();
     if (n) return n;
-    return "Гість";
+    return "Guest";
   }, [props.nickname]);
 
   // Відновлення pending після refresh
@@ -362,8 +640,9 @@ export default function SkinsShop(props: Props) {
       open: true,
       pending: p,
       step: "waiting",
-      info: "Є незавершена покупка. Якщо ти оплатив — натисни “Перевірити оплату”.",
+      info: t.pendingRestore,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveUserId]);
 
   const closeLootModal = () => setOpenState({});
@@ -408,13 +687,13 @@ export default function SkinsShop(props: Props) {
       pending,
       step: "sent",
       error: "",
-      info: "Відкрий Tonkeeper і зроби переказ. Потім натисни “Перевірити оплату”.",
+      info: t.stepOpenAndPay,
     });
 
     createPurchaseIntent(pending, effectiveName).catch(() => {
       setPayState((s) => ({
         ...s,
-        error: "Не вдалося створити intent у Firestore. Перевір rules для purchase_intents_v1.",
+        error: t.createIntentFail,
       }));
     });
 
@@ -435,7 +714,7 @@ export default function SkinsShop(props: Props) {
       ...s,
       step: "checking",
       error: "",
-      info: "Перевіряємо оплату на сервері…",
+      info: t.verifyChecking,
     }));
 
     const result = await verifyViaFunction({ intentId: p.id }).catch(() => null);
@@ -444,8 +723,7 @@ export default function SkinsShop(props: Props) {
       setPayState((s) => ({
         ...s,
         step: "waiting",
-        error:
-          "Не вдалося викликати серверну перевірку. Перевір: (1) firebase/functions у вебі, (2) регіон europe-west1, (3) user залогінений.",
+        error: t.verifyCallFail,
         info: "",
       }));
       return;
@@ -459,9 +737,7 @@ export default function SkinsShop(props: Props) {
         ...s,
         step: "waiting",
         error: "",
-        info:
-          message ||
-          "Оплата ще не знайдена/не підтверджена. Якщо оплатив — зачекай 10–30 сек і натисни ще раз.",
+        info: message || t.verifyPending,
       }));
       return;
     }
@@ -472,7 +748,7 @@ export default function SkinsShop(props: Props) {
       setPayState((s) => ({
         ...s,
         step: "waiting",
-        error: message || "Платіж відхилено або прострочено. Спробуй ще раз.",
+        error: message || t.paymentRejectedOrExpired,
         info: "",
       }));
       return;
@@ -482,7 +758,7 @@ export default function SkinsShop(props: Props) {
       setPayState((s) => ({
         ...s,
         step: "waiting",
-        error: message || `Невідомий статус: ${status}`,
+        error: message || t.unknownStatus(status),
         info: "",
       }));
       return;
@@ -493,7 +769,7 @@ export default function SkinsShop(props: Props) {
       setPayState((s) => ({
         ...s,
         step: "waiting",
-        error: "Сундук не знайдено. Онови сторінку.",
+        error: t.chestNotFound,
         info: "",
       }));
       return;
@@ -508,7 +784,7 @@ export default function SkinsShop(props: Props) {
 
     setPayState((s) => ({
       ...s,
-      info: "Оплату підтверджено ✅ Нагороду додано в інвентар.",
+      info: t.confirmedGranted,
       error: "",
     }));
 
@@ -520,13 +796,13 @@ export default function SkinsShop(props: Props) {
 
   return (
     <section className="chests">
-      <h2>Сундуки</h2>
+      <h2>{t.title}</h2>
 
       <div className="ton-hint">
         <div className="ton-row">
           <div className="ton-pill">
             <span className="dot" />
-            Оплата TON → Tonkeeper
+            {t.payPill}
           </div>
           <a className="ton-btn" href="https://ton.org/wallets" target="_blank" rel="noreferrer">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
@@ -535,13 +811,11 @@ export default function SkinsShop(props: Props) {
                 fill="currentColor"
               />
             </svg>
-            <span>TON Wallet</span>
+            <span>{t.tonWallet}</span>
           </a>
         </div>
 
-        <div className="ton-sub">
-          Лут видає <b>сервер</b>. Після оплати натисни <b>“Перевірити оплату”</b>.
-        </div>
+        <div className="ton-sub">{t.hint}</div>
       </div>
 
       <div className="chest-grid">
@@ -555,10 +829,10 @@ export default function SkinsShop(props: Props) {
               className="open-btn"
               onClick={() => startPurchase(c)}
               disabled={!!props.isBanned}
-              title={props.isBanned ? "Ви заблоковані" : "Оплатити через Tonkeeper"}
+              title={props.isBanned ? t.bannedTitle : t.payViaTonkeeperTitle}
               style={props.isBanned ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
             >
-              Купити за {c.priceTon} TON
+              {t.buyFor(c.priceTon)}
             </button>
           </div>
         ))}
@@ -568,24 +842,22 @@ export default function SkinsShop(props: Props) {
       {payState.open && payState.pending && (
         <div className="pay-modal" onClick={closePayModal}>
           <div className="pay-box" onClick={(e) => e.stopPropagation()}>
-            <div className="pay-title">Оплата сундука</div>
+            <div className="pay-title">{t.payModalTitle}</div>
 
             <div className="pay-row">
               <div className="pay-left">
                 <div className="pay-name">{payState.pending.title}</div>
                 <div className="pay-meta">
-                  Ціна: <b>{payState.pending.priceTon} TON</b>
+                  {t.priceLabel}: <b>{payState.pending.priceTon} TON</b>
                 </div>
               </div>
               <div className={`badge badge-${payState.pending.tier}`}>{payState.pending.tier}</div>
             </div>
 
             <div className="pay-help">
-              <div style={{ opacity: 0.9 }}>Коментар до переказу:</div>
+              <div style={{ opacity: 0.9 }}>{t.commentLabel}:</div>
               <div className="pay-ref">{payState.pending.comment}</div>
-              <div style={{ opacity: 0.75, fontSize: 13, marginTop: 8 }}>
-                Не змінюй коментар — він потрібен для автоматичної перевірки.
-              </div>
+              <div style={{ opacity: 0.75, fontSize: 13, marginTop: 8 }}>{t.dontChange}</div>
             </div>
 
             {payState.info ? <div className="pay-info">{payState.info}</div> : null}
@@ -602,20 +874,16 @@ export default function SkinsShop(props: Props) {
                   })
                 }
               >
-                Відкрити Tonkeeper
+                {t.openTonkeeper}
               </button>
 
-              <button
-                className="pay-btn primary"
-                onClick={checkPaymentAndGrant}
-                disabled={payState.step === "checking"}
-              >
-                {payState.step === "checking" ? "Перевіряємо..." : "Перевірити оплату"}
+              <button className="pay-btn primary" onClick={checkPaymentAndGrant} disabled={payState.step === "checking"}>
+                {payState.step === "checking" ? t.checking : t.checkPayment}
               </button>
             </div>
 
             <button className="pay-close" onClick={closePayModal}>
-              Закрити
+              {t.close}
             </button>
           </div>
         </div>
@@ -625,10 +893,14 @@ export default function SkinsShop(props: Props) {
       {openState.chest && (
         <div className="loot-modal" onClick={closeLootModal}>
           <div className="loot-box" onClick={(e) => e.stopPropagation()}>
-            <div className="loot-title">Випало зі {openState.chest?.title}:</div>
-            {openState.icon ? <img className="loot-icon" src={openState.icon} alt="loot" /> : <div className="loot-placeholder">—</div>}
+            <div className="loot-title">{t.lootTitleFrom(openState.chest?.title || "")}</div>
+            {openState.icon ? (
+              <img className="loot-icon" src={openState.icon} alt="loot" />
+            ) : (
+              <div className="loot-placeholder">—</div>
+            )}
             <button className="close-btn" onClick={closeLootModal}>
-              Гаразд
+              {t.ok}
             </button>
           </div>
         </div>

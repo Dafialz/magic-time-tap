@@ -1,173 +1,362 @@
 // src/components/TapArea.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type Props = {
   onTap: () => void;
-  tapStyle?: React.CSSProperties;
-
   currentEnergy: number;
 
   meteorVisible: boolean;
-  onMeteorClick: () => void;
+  onMeteorClick?: () => void;
   meteorBuffLeft: number;
   meteorSpawnIn: number;
+  meteorBonus: number;
+  meteorMultiplier: number;
 
-  meteorBonus?: number;
-  meteorMultiplier?: number;
-
+  // Daily bonus (щоденні)
   onDailyBonusClaim?: (amount: number) => void;
+
+  // лідери
   onOpenLeaders?: () => void;
 };
 
-/* ===== ЩОДЕННИЙ БОНУС ===== */
-const DAILY_KEY = "mt_daily_v1";
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
+}
+function formatNumber(n: number) {
+  try {
+    if (!Number.isFinite(n)) return "0";
+    return Math.floor(n).toLocaleString("en-US");
+  } catch {
+    return String(Math.floor(n));
+  }
+}
 
-type DailyState = {
-  day: number; // 1..30
-  lastClaimLocalISO: string | null; // YYYY-MM-DD
+/* ===== i18n (localStorage based) ===== */
+type Lang = "en" | "zh" | "hi" | "es" | "ar" | "ru" | "fr";
+const LS_LANG_KEY = "mt_lang_v1";
+
+const LANGS: Lang[] = ["en", "zh", "hi", "es", "ar", "ru", "fr"];
+
+function getLang(): Lang {
+  try {
+    const v = (localStorage.getItem(LS_LANG_KEY) || "").trim() as Lang;
+    return LANGS.includes(v) ? v : "en";
+  } catch {
+    return "en";
+  }
+}
+
+function applyLangToDom(lang: Lang) {
+  try {
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  } catch {}
+}
+
+function setLang(lang: Lang) {
+  try {
+    localStorage.setItem(LS_LANG_KEY, lang);
+  } catch {}
+  applyLangToDom(lang);
+  try {
+    window.dispatchEvent(new CustomEvent("mt_lang", { detail: lang }));
+  } catch {}
+}
+
+const FLAG_SRC: Record<Lang, string> = {
+  en: "/flags/en.png",
+  zh: "/flags/cn.png",
+  hi: "/flags/in.png",
+  es: "/flags/es.png",
+  ar: "/flags/sa.png",
+  ru: "/flags/ru.png",
+  fr: "/flags/fr.png",
 };
 
-function two(n: number) {
-  return String(n).padStart(2, "0");
-}
-function todayLocalISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
-}
-function dateDiffDays(aISO: string, bISO: string): number {
-  const [ay, am, ad] = aISO.split("-").map(Number);
-  const [by, bm, bd] = bISO.split("-").map(Number);
-  const a = new Date(ay, (am || 1) - 1, ad || 1).setHours(0, 0, 0, 0);
-  const b = new Date(by, (bm || 1) - 1, bd || 1).setHours(0, 0, 0, 0);
-  return Math.round((b - a) / 86400000);
+const I18N: Record<
+  Lang,
+  {
+    mtpCaption: string;
+    meteorAria: string;
+    meteorCollect: string;
+    meteorIn: (s: number) => string;
+    goldenMeteor: string;
+    daily: string;
+    dayOf: (d: number) => string;
+    reward: string;
+    claimedToday: string;
+    claim: (amt: number) => string;
+    openLeaders: string;
+    missions: string;
+  }
+> = {
+  en: {
+    mtpCaption: "MGP",
+    meteorAria: "Golden Meteor",
+    meteorCollect: "Tap to collect",
+    meteorIn: (s) => `Meteor in ~${s}s`,
+    goldenMeteor: "Golden Meteor",
+    daily: "Daily bonus",
+    dayOf: (d) => `Day ${d} of 30`,
+    reward: "Reward",
+    claimedToday: "Already claimed today",
+    claim: (amt) => `Claim +${formatNumber(amt)} MGP`,
+    openLeaders: "Leaders",
+    missions: "Daily",
+  },
+  zh: {
+    mtpCaption: "MGP",
+    meteorAria: "金色流星",
+    meteorCollect: "点击领取",
+    meteorIn: (s) => `流星还有 ~${s}秒`,
+    goldenMeteor: "金色流星",
+    daily: "每日奖励",
+    dayOf: (d) => `第 ${d} 天 / 30`,
+    reward: "奖励",
+    claimedToday: "今天已领取",
+    claim: (amt) => `领取 +${formatNumber(amt)} MGP`,
+    openLeaders: "排行榜",
+    missions: "每日",
+  },
+  hi: {
+    mtpCaption: "MGP",
+    meteorAria: "गोल्डन उल्का",
+    meteorCollect: "इकट्ठा करने के लिए टैप करें",
+    meteorIn: (s) => `उल्का ~${s}s में`,
+    goldenMeteor: "गोल्डन उल्का",
+    daily: "दैनिक बोनस",
+    dayOf: (d) => `दिन ${d} / 30`,
+    reward: "इनाम",
+    claimedToday: "आज पहले ही लिया",
+    claim: (amt) => `लें +${formatNumber(amt)} MGP`,
+    openLeaders: "लीडर्स",
+    missions: "दैनिक",
+  },
+  es: {
+    mtpCaption: "MGP",
+    meteorAria: "Meteorito Dorado",
+    meteorCollect: "Toca para recoger",
+    meteorIn: (s) => `Meteorito en ~${s}s`,
+    goldenMeteor: "Meteorito Dorado",
+    daily: "Bono diario",
+    dayOf: (d) => `Día ${d} de 30`,
+    reward: "Recompensa",
+    claimedToday: "Ya reclamado hoy",
+    claim: (amt) => `Reclamar +${formatNumber(amt)} MGP`,
+    openLeaders: "Líderes",
+    missions: "Diario",
+  },
+  ar: {
+    mtpCaption: "MGP",
+    meteorAria: "نيزك ذهبي",
+    meteorCollect: "اضغط للتحصيل",
+    meteorIn: (s) => `النيزك خلال ~${s}ث`,
+    goldenMeteor: "نيزك ذهبي",
+    daily: "مكافأة يومية",
+    dayOf: (d) => `اليوم ${d} من 30`,
+    reward: "المكافأة",
+    claimedToday: "تم التحصيل اليوم",
+    claim: (amt) => `تحصيل +${formatNumber(amt)} MGP`,
+    openLeaders: "المتصدرون",
+    missions: "يومي",
+  },
+  ru: {
+    mtpCaption: "MGP",
+    meteorAria: "Золотой метеорит",
+    meteorCollect: "Нажми, чтобы собрать",
+    meteorIn: (s) => `Метеор через ~${s}s`,
+    goldenMeteor: "Золотой метеорит",
+    daily: "Ежедневный бонус",
+    dayOf: (d) => `День ${d} из 30`,
+    reward: "Награда",
+    claimedToday: "Уже получено сегодня",
+    claim: (amt) => `Забрать +${formatNumber(amt)} MGP`,
+    openLeaders: "Лидеры",
+    missions: "Ежедневно",
+  },
+  fr: {
+    mtpCaption: "MGP",
+    meteorAria: "Météore Dorée",
+    meteorCollect: "Appuie pour récupérer",
+    meteorIn: (s) => `Météore dans ~${s}s`,
+    goldenMeteor: "Météore Dorée",
+    daily: "Bonus quotidien",
+    dayOf: (d) => `Jour ${d} sur 30`,
+    reward: "Récompense",
+    claimedToday: "Déjà récupéré aujourd’hui",
+    claim: (amt) => `Récupérer +${formatNumber(amt)} MGP`,
+    openLeaders: "Classement",
+    missions: "Quotidien",
+  },
+};
+
+/** Daily bonus: 30-денний календар, один клейм на добу */
+const LS_DAILY_KEY = "mt_daily_v1";
+type DailyState = {
+  startedAtDay: number; // epoch day number when started
+  lastClaimDay: number; // epoch day number last claimed
+  streakDay: number; // 1..30 current day in calendar
+};
+function getEpochDay(ts = Date.now()) {
+  return Math.floor(ts / 86400000); // day number since 1970
 }
 function loadDaily(): DailyState {
   try {
-    const raw = localStorage.getItem(DAILY_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as DailyState;
-      if (typeof parsed.day === "number") return parsed;
+    const raw = localStorage.getItem(LS_DAILY_KEY);
+    if (!raw) {
+      const d = getEpochDay();
+      const init: DailyState = { startedAtDay: d, lastClaimDay: -1, streakDay: 1 };
+      localStorage.setItem(LS_DAILY_KEY, JSON.stringify(init));
+      return init;
     }
-  } catch {}
-  return { day: 1, lastClaimLocalISO: null };
+    const j = JSON.parse(raw);
+    return {
+      startedAtDay: Number(j.startedAtDay ?? getEpochDay()),
+      lastClaimDay: Number(j.lastClaimDay ?? -1),
+      streakDay: clamp(Number(j.streakDay ?? 1), 1, 30),
+    };
+  } catch {
+    const d = getEpochDay();
+    return { startedAtDay: d, lastClaimDay: -1, streakDay: 1 };
+  }
 }
 function saveDaily(s: DailyState) {
   try {
-    localStorage.setItem(DAILY_KEY, JSON.stringify(s));
+    localStorage.setItem(LS_DAILY_KEY, JSON.stringify(s));
   } catch {}
 }
-function computeDay(state: DailyState, todayISO: string): { day: number; claimedToday: boolean } {
-  if (!state.lastClaimLocalISO) return { day: 1, claimedToday: false };
-  if (state.lastClaimLocalISO === todayISO) return { day: state.day, claimedToday: true };
-  const diff = dateDiffDays(state.lastClaimLocalISO, todayISO);
-  if (diff === 1) return { day: state.day >= 30 ? 1 : state.day + 1, claimedToday: false };
-  return { day: 1, claimedToday: false };
+function dailyRewardForDay(day: number) {
+  // простий ростучий бонус (підкоригуєш як хочеш)
+  // День 1: 1000, день 30: 30000
+  const base = 1000;
+  const step = 1000;
+  return base + (clamp(day, 1, 30) - 1) * step;
 }
-function dailyReward(day: number): number {
-  return Math.floor(500 + 2264 * (day - 1) + (day === 30 ? 160 : 0));
-}
-/* ===== /ЩОДЕННИЙ БОНУС ===== */
 
 export default function TapArea({
   onTap,
   currentEnergy,
+
   meteorVisible,
   onMeteorClick,
   meteorBuffLeft,
   meteorSpawnIn,
-  meteorBonus = 0,
-  meteorMultiplier = 10,
+  meteorBonus,
+  meteorMultiplier,
+
   onDailyBonusClaim,
   onOpenLeaders,
 }: Props) {
-  const spawnIn = Math.max(0, Math.floor(meteorSpawnIn));
-  const buffLeft = Math.max(0, Math.floor(meteorBuffLeft));
-
-  const [dailyState, setDailyState] = useState<DailyState>(() => loadDaily());
   const [dailyOpen, setDailyOpen] = useState(false);
-  const todayISO = todayLocalISO();
-  const dayInfo = useMemo(() => computeDay(dailyState, todayISO), [dailyState, todayISO]);
-  const reward = useMemo(() => dailyReward(dayInfo.day), [dayInfo.day]);
+  const [dayInfo, setDayInfo] = useState(() => loadDaily());
+
+  const [lang, setLangState] = useState<Lang>(() => {
+    const l = getLang();
+    applyLangToDom(l);
+    return l;
+  });
+
+  useEffect(() => {
+    const onLang = (e: any) => {
+      const next = String(e?.detail || "").trim() as Lang;
+      const real = LANGS.includes(next) ? next : getLang();
+      setLangState(real);
+      applyLangToDom(real);
+    };
+    window.addEventListener("mt_lang", onLang as any);
+    return () => window.removeEventListener("mt_lang", onLang as any);
+  }, []);
+
+  const t = useMemo(() => I18N[lang] ?? I18N.en, [lang]);
+
+  const buffLeft = Math.max(0, Math.floor(meteorBuffLeft || 0));
+  const reward = useMemo(() => dailyRewardForDay(dayInfo.streakDay), [dayInfo.streakDay]);
+
+  useEffect(() => {
+    // оновлювати daily state при відкритті
+    const fresh = loadDaily();
+    setDayInfo(fresh);
+  }, []);
+
+  const openDaily = () => {
+    setDayInfo(loadDaily());
+    setDailyOpen(true);
+  };
 
   const claimDaily = () => {
-    if (dayInfo.claimedToday) return;
-    onDailyBonusClaim?.(reward);
-    const next: DailyState = { day: dayInfo.day, lastClaimLocalISO: todayISO };
-    setDailyState(next);
-    saveDaily(next);
-    setDailyOpen(false);
+    const today = getEpochDay();
+    const s = loadDaily();
+
+    // already claimed today
+    if (s.lastClaimDay === today) return;
+
+    // if missed days, reset streak to 1
+    if (s.lastClaimDay !== -1 && today - s.lastClaimDay > 1) {
+      s.streakDay = 1;
+    } else if (s.lastClaimDay !== -1) {
+      // next day in streak
+      s.streakDay = clamp(s.streakDay + 1, 1, 30);
+    }
+
+    s.lastClaimDay = today;
+    saveDaily(s);
+    setDayInfo(s);
+
+    onDailyBonusClaim?.(dailyRewardForDay(s.streakDay));
+    setTimeout(() => setDailyOpen(false), 150);
+  };
+
+  const cycleLang = () => {
+    const cur = lang;
+    const idx = LANGS.indexOf(cur);
+    const next = LANGS[(idx >= 0 ? idx + 1 : 0) % LANGS.length];
+    setLang(next);
+    setLangState(next);
   };
 
   return (
-    <div className="tap-area" onContextMenu={(e) => e.preventDefault()}>
-      {/* HERO */}
-      <div className="hero" style={{ position: "relative" }}>
-        <h1 className="hero__title" style={{ pointerEvents: "none" }}>
-          MAGIC TIME
-        </h1>
+    <div className="tap-area">
+      {/* ЛІВИЙ КРУЖОК МОВИ (як на твоєму скріні) */}
+      <button
+        type="button"
+        onClick={cycleLang}
+        aria-label="Language"
+        title="Language"
+        style={langFabStyle}
+      >
+        <img
+          src={FLAG_SRC[lang]}
+          alt={lang}
+          style={{ width: 52, height: 52, borderRadius: 9999, display: "block" }}
+          draggable={false}
+        />
+      </button>
 
-        {/* ПРАВА РЕЙКА: Лідери + Календар (вертикально) */}
-        <div style={sideRailStyle}>
-          <button type="button" aria-label="Список лідерів" onClick={onOpenLeaders} style={sideFabStyle}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M8 5h8v3a4 4 0 0 1-8 0V5z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M6 5H3v2a4 4 0 0 0 4 4"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M18 5h3v2a4 4 0 0 1-4 4"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M12 12v4M9 20h6M8 20l1-4h6l1 4"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+      {/* Правий “рейл” (дві круглі кнопки) */}
+      <div style={sideRailStyle} aria-label="Quick actions">
+        <button type="button" onClick={onOpenLeaders} style={sideFabStyle} aria-label={t.openLeaders} title={t.openLeaders}>
+          🏆
+        </button>
 
-          <button
-            type="button"
-            aria-label="Щоденний бонус"
-            onClick={() => setDailyOpen(true)}
-            style={sideFabStyle}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span style={fabBadgeStyle}>{dayInfo.day}</span>
-          </button>
-        </div>
+        <button type="button" onClick={openDaily} style={sideFabStyle} aria-label={t.daily} title={t.daily}>
+          📅
+          {dayInfo.lastClaimDay !== getEpochDay() ? <span style={fabBadgeStyle}>1</span> : null}
+        </button>
+      </div>
 
-        {/* Годинник */}
-        <div className="hero__clock">
-          <img src="/hero-hourglass.png" alt="" aria-hidden="true" className="hero__img" decoding="async" />
-          <button type="button" className="hero__tap" onClick={onTap} aria-label="Tap" />
-        </div>
+      {/* Лого / центр */}
+      <div className="tap-hero">
+        <div className="tap-title">MAGIC TIME</div>
+
+        <button type="button" className="tap-core" onClick={onTap} aria-label="Tap">
+          <div className="tap-core__ring" />
+          <div className="tap-core__sigil" />
+        </button>
       </div>
 
       {/* MGP */}
       <section className="stat-card" aria-live="polite">
-        <div className="stat-card__caption">MGP</div>
+        <div className="stat-card__caption">{t.mtpCaption}</div>
         <div className="stat-card__value">{formatNumber(currentEnergy)}</div>
       </section>
 
@@ -176,16 +365,17 @@ export default function TapArea({
         type="button"
         className={`meteor-card${meteorVisible ? " meteor-card--active" : ""}`}
         onClick={meteorVisible ? onMeteorClick : undefined}
-        aria-label="Золотий Метеорит"
+        aria-label={t.meteorAria}
       >
         <div className="meteor-card__icon">☄️</div>
 
         <div className="meteor-card__text">
           <div className="meteor-card__title">
-            {meteorVisible ? "Натисни, щоб зібрати" : `Метеор через ~${Math.max(0, Math.floor(spawnIn))}s`}
+            {meteorVisible ? t.meteorCollect : t.meteorIn(Math.max(0, Math.floor(meteorSpawnIn)))}
           </div>
           <div className="meteor-card__subtitle">
-            Золотий Метеорит{meteorVisible && buffLeft > 0 ? ` • ${buffLeft}s` : ""}
+            {t.goldenMeteor}
+            {meteorVisible && buffLeft > 0 ? ` • ${buffLeft}s` : ""}
           </div>
         </div>
 
@@ -211,32 +401,31 @@ export default function TapArea({
                 />
               </svg>
             </div>
-            <h3 style={modalTitleStyle}>Щоденний бонус</h3>
-            <div style={modalTextStyle}>
-              День <b>{dayInfo.day}</b> із 30
-            </div>
+
+            <h3 style={modalTitleStyle}>{t.daily}</h3>
+            <div style={modalTextStyle}>{t.dayOf(dayInfo.streakDay)}</div>
             <div style={{ ...modalTextStyle, fontSize: 18 }}>
-              Нагорода: <b>{formatNumber(reward)}</b> MGP
+              {t.reward}: <b>{formatNumber(reward)}</b> MGP
             </div>
 
             <button
               type="button"
               onClick={claimDaily}
-              disabled={dayInfo.claimedToday}
+              disabled={dayInfo.lastClaimDay === getEpochDay()}
               style={{
                 marginTop: 14,
                 width: "100%",
                 padding: "12px 16px",
                 borderRadius: 12,
                 border: 0,
-                cursor: dayInfo.claimedToday ? "default" : "pointer",
+                cursor: dayInfo.lastClaimDay === getEpochDay() ? "default" : "pointer",
                 background: "linear-gradient(180deg,#53ffa6 0%,#15d3c0 100%)",
                 color: "#041d17",
                 fontWeight: 900,
-                opacity: dayInfo.claimedToday ? 0.6 : 1,
+                opacity: dayInfo.lastClaimDay === getEpochDay() ? 0.6 : 1,
               }}
             >
-              {dayInfo.claimedToday ? "Вже отримано сьогодні" : `Забрати +${formatNumber(reward)} MGP`}
+              {dayInfo.lastClaimDay === getEpochDay() ? t.claimedToday : t.claim(reward)}
             </button>
           </div>
         </div>
@@ -247,6 +436,23 @@ export default function TapArea({
 
 /* ===== styles ===== */
 
+// лівий кружок мови (під твій червоний круг)
+const langFabStyle: React.CSSProperties = {
+  position: "absolute",
+  left: 14,
+  top: "28%",
+  width: 52,
+  height: 52,
+  borderRadius: 9999,
+  border: 0,
+  padding: 0,
+  background: "transparent",
+  boxShadow: "0 2px 10px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08)",
+  overflow: "hidden",
+  cursor: "pointer",
+};
+
+// вертикальна рейка праворуч
 const sideRailStyle: React.CSSProperties = {
   position: "absolute",
   right: 14,
@@ -315,9 +521,5 @@ const modalIconStyle: React.CSSProperties = {
   color: "#28E7A8",
   background: "radial-gradient(ellipse at center, rgba(10,240,220,.25), transparent 60%)",
 };
-const modalTitleStyle: React.CSSProperties = { margin: "0 0 8px", fontWeight: 900, fontSize: 20, letterSpacing: 0.3 };
-const modalTextStyle: React.CSSProperties = { opacity: 0.9, marginBottom: 6 };
-
-function formatNumber(n: number) {
-  return Math.floor(n).toLocaleString("uk-UA");
-}
+const modalTitleStyle: React.CSSProperties = { margin: "8px 0 6px", fontSize: 20, fontWeight: 900 };
+const modalTextStyle: React.CSSProperties = { opacity: 0.92, fontSize: 14, lineHeight: 1.5 };

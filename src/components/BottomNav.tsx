@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 export type TabKey = "tap" | "upgrades" | "artifacts" | "craft" | "skins" | "leaders";
 
@@ -11,6 +11,30 @@ type Props = {
    - Ті ж розміри (22x22), stroke="currentColor"
    - Стиль: руни/магія/алхімія, м’які скруглення
 */
+
+/* ===== i18n (localStorage based) ===== */
+type Lang = "en" | "zh" | "hi" | "es" | "ar" | "ru" | "fr";
+const LS_LANG_KEY = "mt_lang_v1";
+
+function getLang(): Lang {
+  try {
+    const v = (localStorage.getItem(LS_LANG_KEY) || "").trim() as Lang;
+    const ok: Lang[] = ["en", "zh", "hi", "es", "ar", "ru", "fr"];
+    return ok.includes(v) ? v : "en";
+  } catch {
+    return "en";
+  }
+}
+
+const TABS_I18N: Record<Lang, Record<"tap" | "upgrades" | "artifacts" | "craft" | "skins", string>> = {
+  en: { tap: "Tap", upgrades: "Friends", artifacts: "Artifacts", craft: "Craft", skins: "Chests" },
+  zh: { tap: "点击", upgrades: "好友", artifacts: "神器", craft: "合成", skins: "宝箱" },
+  hi: { tap: "टैप", upgrades: "दोस्त", artifacts: "कलाकृतियाँ", craft: "क्राफ्ट", skins: "संदूक" },
+  es: { tap: "Tocar", upgrades: "Amigos", artifacts: "Artefactos", craft: "Craft", skins: "Cofres" },
+  ar: { tap: "نقر", upgrades: "الأصدقاء", artifacts: "القطع الأثرية", craft: "الصنع", skins: "الصناديق" },
+  ru: { tap: "Тапать", upgrades: "Друзья", artifacts: "Артефакты", craft: "Крафт", skins: "Сундуки" },
+  fr: { tap: "Tap", upgrades: "Amis", artifacts: "Artefacts", craft: "Craft", skins: "Coffres" },
+};
 
 /* ТАПАТИ — руна “клік/імпульс” (палець + іскра) */
 const HandIcon = () => (
@@ -36,7 +60,6 @@ const HandIcon = () => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-
     <path
       d="M8.4 4.6l.6-1.4.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6Z"
       stroke="currentColor"
@@ -145,18 +168,31 @@ const TrophyIcon = () => (
   </svg>
 );
 
-// “Лідери” у нижній навігації не показуємо
-const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
-  { key: "tap", label: "Тапати", icon: <HandIcon /> },
-  { key: "upgrades", label: "Друзі", icon: <HourglassIcon /> },
-  { key: "artifacts", label: "Артефакти", icon: <ObeliskIcon /> },
-  { key: "craft", label: "Крафт", icon: <FlaskIcon /> },
-  { key: "skins", label: "Сундуки", icon: <TrophyIcon /> },
-];
-
 export default function BottomNav({ active, onChange }: Props) {
+  const [lang, setLang] = useState<Lang>(() => getLang());
+
+  useEffect(() => {
+    const onLang = (e: any) => {
+      const next = String(e?.detail || "").trim() as Lang;
+      setLang((prev) => (prev === next ? prev : (getLang() as Lang)));
+    };
+    window.addEventListener("mt_lang", onLang as any);
+    return () => window.removeEventListener("mt_lang", onLang as any);
+  }, []);
+
+  const labels = useMemo(() => TABS_I18N[lang] ?? TABS_I18N.en, [lang]);
+
+  // “Лідери” у нижній навігації не показуємо
+  const items: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
+    { key: "tap", label: labels.tap, icon: <HandIcon /> },
+    { key: "upgrades", label: labels.upgrades, icon: <HourglassIcon /> },
+    { key: "artifacts", label: labels.artifacts, icon: <ObeliskIcon /> },
+    { key: "craft", label: labels.craft, icon: <FlaskIcon /> },
+    { key: "skins", label: labels.skins, icon: <TrophyIcon /> },
+  ];
+
   return (
-    <nav className="bottom-nav" aria-label="Основна навігація">
+    <nav className="bottom-nav" aria-label="Main navigation">
       {items.map(({ key, label, icon }) => {
         const isActive = key === active;
         return (

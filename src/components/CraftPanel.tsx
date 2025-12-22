@@ -12,6 +12,151 @@ import { iconByLevel } from "../systems/shop_icons";
  *    • на $ → продаж за 70% від ЦІНИ поточного рівня
  */
 
+/* ================= i18n (localStorage based) ================= */
+type Lang = "en" | "zh" | "hi" | "es" | "ar" | "ru" | "fr";
+const LS_LANG_KEY = "mt_lang_v1";
+const LANGS: Lang[] = ["en", "zh", "hi", "es", "ar", "ru", "fr"];
+
+function getLang(): Lang {
+  try {
+    const v = (localStorage.getItem(LS_LANG_KEY) || "").trim() as Lang;
+    return LANGS.includes(v) ? v : "en";
+  } catch {
+    return "en";
+  }
+}
+
+function nfmt(n: number, lang: Lang, maxFrac = 2) {
+  const locale =
+    lang === "ru"
+      ? "ru-RU"
+      : lang === "fr"
+      ? "fr-FR"
+      : lang === "es"
+      ? "es-ES"
+      : lang === "hi"
+      ? "hi-IN"
+      : lang === "zh"
+      ? "zh-CN"
+      : lang === "ar"
+      ? "ar-SA"
+      : "en-US";
+  try {
+    return n.toLocaleString(locale, { maximumFractionDigits: maxFrac });
+  } catch {
+    return String(n);
+  }
+}
+
+const I18N: Record<
+  Lang,
+  {
+    title: string;
+    descA: string;
+    descMove: string;
+    descMerge: string;
+    descSell: string;
+    balance: string;
+    income: string;
+    perHour: string;
+    sellHint: string;
+    emptySlot: string;
+    freeSlotsNone: string;
+  }
+> = {
+  en: {
+    title: "Artifact Craft",
+    descA: "20 slots.",
+    descMove: "to empty — move;",
+    descMerge: "to same level — merge L+L = L+1;",
+    descSell: "to $ — sell (70% of level price).",
+    balance: "Balance",
+    income: "Income",
+    perHour: "MGP/hour",
+    sellHint: "Drag item here to sell for 70% of the level price",
+    emptySlot: "Empty slot",
+    freeSlotsNone: "No free slots in craft",
+  },
+  zh: {
+    title: "神器合成",
+    descA: "20 个槽位。",
+    descMove: "拖到空位 — 移动；",
+    descMerge: "拖到同等级 — 合并 L+L = L+1；",
+    descSell: "拖到 $ — 出售（等级价格的 70%）。",
+    balance: "余额",
+    income: "收益",
+    perHour: "MGP/小时",
+    sellHint: "把物品拖到这里以 70% 价格出售",
+    emptySlot: "空槽位",
+    freeSlotsNone: "没有空的合成槽位",
+  },
+  hi: {
+    title: "आर्टिफैक्ट क्राफ्ट",
+    descA: "20 स्लॉट।",
+    descMove: "खाली पर — मूव;",
+    descMerge: "एक ही लेवल पर — मर्ज L+L = L+1;",
+    descSell: "$ पर — बेचें (लेवल कीमत का 70%).",
+    balance: "बैलेंस",
+    income: "आय",
+    perHour: "MGP/घंटा",
+    sellHint: "70% कीमत पर बेचने के लिए यहाँ ड्रैग करें",
+    emptySlot: "खाली स्लॉट",
+    freeSlotsNone: "क्राफ्ट में खाली स्लॉट नहीं है",
+  },
+  es: {
+    title: "Craft de artefactos",
+    descA: "20 espacios.",
+    descMove: "a vacío — mover;",
+    descMerge: "al mismo nivel — fusionar L+L = L+1;",
+    descSell: "a $ — vender (70% del precio).",
+    balance: "Saldo",
+    income: "Ingreso",
+    perHour: "MGP/h",
+    sellHint: "Arrastra aquí para vender por el 70% del precio del nivel",
+    emptySlot: "Espacio vacío",
+    freeSlotsNone: "No hay espacios libres",
+  },
+  ar: {
+    title: "صنع القطع الأثرية",
+    descA: "20 خانة.",
+    descMove: "إلى خانة فارغة — نقل؛",
+    descMerge: "إلى نفس المستوى — دمج L+L = L+1؛",
+    descSell: "إلى $ — بيع (70% من السعر).",
+    balance: "الرصيد",
+    income: "الدخل",
+    perHour: "MGP/ساعة",
+    sellHint: "اسحب العنصر هنا للبيع مقابل 70% من سعر المستوى",
+    emptySlot: "خانة فارغة",
+    freeSlotsNone: "لا توجد خانات فارغة",
+  },
+  ru: {
+    title: "Крафт артефактов",
+    descA: "20 слотов.",
+    descMove: "на пустой — переместить;",
+    descMerge: "на такой же уровень — слияние L+L = L+1;",
+    descSell: "на $ — продать (70% цены уровня).",
+    balance: "Баланс",
+    income: "Доход",
+    perHour: "MGP/час",
+    sellHint: "Перетащи сюда предмет, чтобы продать за 70% цены уровня",
+    emptySlot: "Пустой слот",
+    freeSlotsNone: "Нет свободных слотов в крафте",
+  },
+  fr: {
+    title: "Craft d’artefacts",
+    descA: "20 emplacements.",
+    descMove: "sur vide — déplacer;",
+    descMerge: "même niveau — fusion L+L = L+1;",
+    descSell: "sur $ — vendre (70% du prix).",
+    balance: "Solde",
+    income: "Revenu",
+    perHour: "MGP/h",
+    sellHint: "Glisse ici pour vendre à 70% du prix du niveau",
+    emptySlot: "Emplacement vide",
+    freeSlotsNone: "Aucun emplacement libre",
+  },
+};
+
 type CraftItem = {
   level: number;
   name: string;
@@ -33,7 +178,6 @@ const SLOTS_COUNT = 20;
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
-const coin = (n: number) => n.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
 
 type DragState = {
   active: boolean;
@@ -49,6 +193,18 @@ type DragState = {
 
 export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Props) {
   const defs = useMemo(() => items ?? buildCraftItems(), [items]);
+
+  const [lang, setLang] = useState<Lang>(() => getLang());
+  useEffect(() => {
+    const onLang = (e: any) => {
+      const next = String(e?.detail || "").trim() as Lang;
+      setLang(LANGS.includes(next) ? next : getLang());
+    };
+    window.addEventListener("mt_lang", onLang as any);
+    return () => window.removeEventListener("mt_lang", onLang as any);
+  }, []);
+
+  const t = useMemo(() => I18N[lang] ?? I18N.en, [lang]);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const isMountedRef = useRef(true);
@@ -81,8 +237,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     };
   }, []);
 
-  const defOf = (lvl: number | undefined) =>
-    typeof lvl === "number" && lvl >= 1 && lvl <= 50 ? defs[lvl - 1] : undefined;
+  const defOf = (lvl: number | undefined) => (typeof lvl === "number" && lvl >= 1 && lvl <= 50 ? defs[lvl - 1] : undefined);
 
   // 70% від ціни поточного рівня (універсально для L1..L50)
   const sellValueForLevel = (lvl: number) => {
@@ -266,10 +421,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slots]);
 
-  const totalIncome = useMemo(
-    () => slots.reduce((acc, lvl) => acc + (defOf(lvl)?.income_per_hour_mgp ?? 0), 0),
-    [slots, defs]
-  );
+  const totalIncome = useMemo(() => slots.reduce((acc, lvl) => acc + (defOf(lvl)?.income_per_hour_mgp ?? 0), 0), [slots, defs]);
 
   const dragOverDollar = drag.active && drag.started && drag.overDollar;
   const dragOverIdx = drag.active && drag.started ? drag.overIdx : null;
@@ -278,15 +430,13 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
 
   return (
     <section className="craft">
-      <h2>Крафт артефактів</h2>
+      <h2>{t.title}</h2>
       <p>
-        <b>20 слотів.</b> Перетягни предмет:
-        <b> на порожній</b> — перемістити; <b>на такий самий рівень</b> — злиття <b>L+L = L+1</b>; на <b>$</b> — продати
-        (70% від ціни рівня).
+        <b>{t.descA}</b> {t.descMove} <b>{t.descMerge}</b> {t.descSell}
       </p>
 
       <div className="row" style={{ opacity: 0.9, marginBottom: 8 }}>
-        Баланс: <b>{coin(mgp)} MGP</b> • Дохід: <b>{coin(totalIncome)}</b> MGP/год
+        {t.balance}: <b>{nfmt(mgp, lang)} MGP</b> • {t.income}: <b>{nfmt(totalIncome, lang)}</b> {t.perHour}
       </div>
 
       <div className="craft-root" ref={rootRef}>
@@ -297,8 +447,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
 
             const isDragOver = dragOverIdx === i;
             const { ok, reason } = drag.active ? canDropInfo(i, drag.level) : { ok: false, reason: "blocked" as const };
-            const dropClass =
-              isDragOver ? (ok ? (reason === "merge" ? "drop-ok-merge" : "drop-ok-move") : "drop-bad") : "";
+            const dropClass = isDragOver ? (ok ? (reason === "merge" ? "drop-ok-merge" : "drop-ok-move") : "drop-bad") : "";
 
             const icon = lvl > 0 ? iconByLevel(lvl) : "";
             const isDragSource = drag.active && drag.started && drag.srcIdx === i;
@@ -318,7 +467,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
                 type="button"
                 draggable={false}
                 onPointerDown={(e) => onPointerDownCell(e, i, lvl)}
-                title={lvl ? `L${lvl}` : "Порожній слот"}
+                title={lvl ? `L${lvl}` : t.emptySlot}
               >
                 <div className="tile-fig">
                   {icon && !isDragSource ? (
@@ -327,7 +476,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
                     <span className="tile-plus">{isDragSource ? "" : "+"}</span>
                   )}
                   <span className="tile-lvl">{lvl ? `L${lvl}` : ""}</span>
-                  <div className="tile-sub">{lvl > 0 && curDef ? `${coin(curDef.income_per_hour_mgp)}/год` : ""}</div>
+                  <div className="tile-sub">{lvl > 0 && curDef ? `${nfmt(curDef.income_per_hour_mgp, lang)}/h` : ""}</div>
                 </div>
               </button>
             );
@@ -337,7 +486,7 @@ export default function CraftPanel({ mgp, setMgp, slots, setSlots, items }: Prop
         <button
           data-drop="dollar"
           className={`craft-dollar ${dragOverDollar ? "drag-over" : ""}`}
-          title="Перетягни сюди предмет, щоб продати за 70% від ціни рівня"
+          title={t.sellHint}
           onClick={(e) => e.preventDefault()}
           type="button"
         >

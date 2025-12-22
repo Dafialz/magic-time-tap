@@ -17,7 +17,7 @@ import { formatNum } from "./utils/format";
 
 import HeaderBar from "./components/HeaderBar";
 import TapArea from "./components/TapArea";
-import UpgradesList from "./components/UpgradesList"; // ✅ тепер це вкладка "Друзі"
+import UpgradesList from "./components/UpgradesList";
 import ArtifactsPanel from "./components/ArtifactsPanel";
 import CraftPanel from "./components/CraftPanel";
 import SkinsShop from "./components/SkinsShop";
@@ -26,20 +26,15 @@ import AppModal from "./components/AppModal";
 import LeadersPanel from "./components/LeadersPanel";
 import AdminPanel from "./components/AdminPanel";
 
-// сервіс лідерборду + auth/users (+admin ban)
-// ✅ setUserBan прибрано (автобан вимкнено)
 import { upsertScore, ensureAuth, subscribeUser, upsertUserProfile } from "./services/leaderboard";
+
+import { I18nProvider, useI18n } from "./i18n";
 
 const CRAFT_SLOT_COUNT = 21;
 const OFFLINE_CAP_SECS = 3 * 3600;
 
-// ✅ твій адмінський Firebase Auth UID (тільки він зможе банити по Rules)
 const ADMIN_AUTH_UID = "zzyUPc53FPOwOSn2DcNZirHyusu1";
 
-/**
- * ✅ Щоб витрати НЕ "відкочувались" після refresh:
- * памʼятаємо останній застосований server balance у localStorage.
- */
 const LS_APPLIED_SERVER_BAL_KEY = "mt_applied_server_balance_v1";
 const LS_APPLIED_SERVER_BAL_AT_KEY = "mt_applied_server_balance_at_v1";
 
@@ -62,8 +57,7 @@ function writeNumLS(key: string, value: number) {
 
 function tsToMs(x: any): number | null {
   try {
-    const d: Date =
-      typeof x?.toDate === "function" ? x.toDate() : x instanceof Date ? x : (null as any);
+    const d: Date = typeof x?.toDate === "function" ? x.toDate() : x instanceof Date ? x : (null as any);
     if (!d) return null;
     const ms = d.getTime();
     return Number.isFinite(ms) ? ms : null;
@@ -72,16 +66,15 @@ function tsToMs(x: any): number | null {
   }
 }
 
-export default function App() {
+function AppInner() {
+  const { t } = useI18n();
+
   const [activeTab, setActiveTab] = useState<TabKey>("tap");
 
-  // 🔑 Auth UID
-  const [leaderUserId, setLeaderUserId] = useState<string>(""); // "" = ще не готово
+  const [leaderUserId, setLeaderUserId] = useState<string>("");
 
-  // Telegram display name
   const [username, setUsername] = useState<string>("Гість");
 
-  // Telegram meta (збережемо в users_v1)
   const [tgMeta, setTgMeta] = useState<{
     tgId?: number;
     tgUsername?: string;
@@ -89,7 +82,6 @@ export default function App() {
     last?: string;
   }>({});
 
-  // 1) Telegram init
   useEffect(() => {
     const tg = (window as any)?.Telegram?.WebApp;
     if (!tg) return;
@@ -121,7 +113,6 @@ export default function App() {
     } catch {}
   }, []);
 
-  // 2) Firebase Auth (Anonymous)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -143,7 +134,6 @@ export default function App() {
   const [level, setLevel] = useState<number>(1);
   const [prestiges, setPrestiges] = useState<number>(0);
 
-  // ✅ головний баланс (в UI це MTP)
   const [mgp, setMgp] = useState<number>(0);
 
   const [craftSlots, setCraftSlots] = useState<number[]>(() => Array(CRAFT_SLOT_COUNT).fill(0));
@@ -166,14 +156,11 @@ export default function App() {
 
   const craftItems = useMemo(() => buildCraftItems(), []);
 
-  /* ===== ban / профіль ===== */
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState<string>("");
 
-  // ✅ гідратація локального сейву
   const hydratedFromLocalRef = useRef(false);
 
-  // ✅ server balance: застосовуємо ТІЛЬКИ коли воно реально змінилось в Firestore
   const lastAppliedServerBalRef = useRef<number | null>(null);
   const lastAppliedServerAtRef = useRef<number | null>(null);
 
@@ -259,7 +246,6 @@ export default function App() {
     };
   }, [leaderUserId]);
 
-  // ✅ heartbeat у users_v1/{uid} раз на 20s
   useEffect(() => {
     if (!leaderUserId) return;
 
@@ -293,7 +279,6 @@ export default function App() {
     };
   }, [leaderUserId, username, mgp, tgMeta.tgId, tgMeta.tgUsername, tgMeta.first, tgMeta.last]);
 
-  /* ===== load/save ===== */
   useEffect(() => {
     const sAny = loadState() as any;
     const now = Date.now();
@@ -311,7 +296,6 @@ export default function App() {
     setLevel(sAny.level ?? 1);
     setPrestiges(sAny.prestiges ?? 0);
 
-    // ✅ підтримка старого ключа "mm" + нового "mgp" (на всяк випадок)
     setMgp(sAny.mgp ?? sAny.mm ?? 0);
 
     if (Array.isArray(sAny.craftSlots)) {
@@ -345,8 +329,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // ✅ ВАЖЛИВО: SaveState у тебе все ще очікує поле "mm"
-    // Тому при сейві кладемо MTP у "mm" (а не в "mgp"), щоб TypeScript не падав.
     const payload: SaveState = {
       ce,
       totalEarned,
@@ -356,13 +338,13 @@ export default function App() {
       hc,
       level,
       prestiges,
-      upgrades: [], // ✅ вкладку апгрейдів замінили на “Друзі”
+      upgrades: [],
       lastSeenAt: Date.now(),
       artifacts,
       equippedArtifactIds: equippedIds,
       ownedSkins,
       equippedSkinId,
-      mm: mgp, // ✅ FIX: було mgp, але SaveState чекає mm
+      mm: mgp,
       craftSlots,
     };
 
@@ -406,7 +388,7 @@ export default function App() {
 
   const onClickTap = () => {
     if (isBanned) {
-      setOfflineModalText(`⛔ Ви заблоковані.${banReason ? ` Причина: ${banReason}` : ""}`);
+      setOfflineModalText(`${t("banned.title")}${banReason ? ` ${t("banned.reason")} ${banReason}` : ""}`);
       setOfflineModalOpen(true);
       return;
     }
@@ -461,7 +443,6 @@ export default function App() {
     return true;
   };
 
-  // пуш у лідерборд (тротлінг)
   const lastPush = useRef<{ t: number; s: number }>({ t: 0, s: 0 });
   useEffect(() => {
     if (isBanned) return;
@@ -480,7 +461,6 @@ export default function App() {
     lastPush.current = { t: now, s: score };
   }, [mgp, username, leaderUserId, isBanned]);
 
-  /* ===== admin ===== */
   const [adminOpen, setAdminOpen] = useState(false);
   const isAdmin = useMemo(() => !!leaderUserId && leaderUserId === ADMIN_AUTH_UID, [leaderUserId]);
 
@@ -519,7 +499,7 @@ export default function App() {
               opacity: 0.9,
             }}
           >
-            Підключення...
+            {t("loading")}
           </div>
         ) : null}
 
@@ -534,10 +514,10 @@ export default function App() {
               textAlign: "center",
             }}
           >
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>⛔ Ви заблоковані</div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>{t("banned.title")}</div>
             {banReason ? (
               <div style={{ opacity: 0.9 }}>
-                Причина: <b>{banReason}</b>
+                {t("banned.reason")} <b>{banReason}</b>
               </div>
             ) : (
               <div style={{ opacity: 0.9 }}>Зверніться до адміністратора.</div>
@@ -560,7 +540,6 @@ export default function App() {
           />
         )}
 
-        {/* ✅ ВКЛАДКА "ДРУЗІ" */}
         {activeTab === "upgrades" && <UpgradesList userId={leaderUserId} nickname={username} />}
 
         {activeTab === "artifacts" && <ArtifactsPanel mgp={mgp} setMgp={setMgp} addToCraft={addToCraft} />}
@@ -570,12 +549,7 @@ export default function App() {
         )}
 
         {activeTab === "skins" && (
-          <SkinsShop
-            userId={leaderUserId || "no_uid"}
-            nickname={username}
-            isBanned={isBanned}
-            onLoot={({ level }) => addToCraft(level)}
-          />
+          <SkinsShop userId={leaderUserId || "no_uid"} nickname={username} isBanned={isBanned} onLoot={({ level }) => addToCraft(level)} />
         )}
 
         {activeTab === "leaders" && (
@@ -637,5 +611,13 @@ export default function App() {
 
       <style>{`.page-content{ padding-bottom: 92px; }`}</style>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <I18nProvider>
+      <AppInner />
+    </I18nProvider>
   );
 }
