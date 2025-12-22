@@ -343,7 +343,7 @@ export default function TapArea({
       </section>
 
       {/* Нижній блок: actions row + MGP + Meteor */}
-      <div className="tap-bottom">
+      <div className="tap-bottom" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
         {/* ✅ Ряд кнопок як на скріні: прапор зліва, 2 кнопки по центру, підтримка справа */}
         <div style={actionsBarStyle} aria-label="Quick actions">
           <button
