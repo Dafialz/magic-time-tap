@@ -496,7 +496,7 @@ function nextRewardForCount(friendsCount: number): { nextN: number; amount: numb
 
 /* ===== Task config ===== */
 
-export type TaskKey = "tiktok" | "facebook" | "instagram" | "twitter" | "youtube" | "vk" | "telegram" | "site";
+export type TaskKey = "tiktok" | "facebook" | "instagram" | "twitter" | "youtube" | "telegram" | "site";
 
 type TaskDef = {
   key: TaskKey;
@@ -506,14 +506,13 @@ type TaskDef = {
 };
 
 const TASKS: TaskDef[] = [
-  { key: "tiktok", title: "TikTok", reward: 5_000, url: "https://tiktok.com" },
-  { key: "facebook", title: "Facebook", reward: 5_000, url: "https://facebook.com" },
-  { key: "instagram", title: "Instagram", reward: 5_000, url: "https://instagram.com" },
-  { key: "twitter", title: "X (Twitter)", reward: 5_000, url: "https://x.com" },
-  { key: "youtube", title: "YouTube", reward: 5_000, url: "https://youtube.com" },
-  { key: "vk", title: "VK", reward: 5_000, url: "https://vk.com" },
-  { key: "telegram", title: "Telegram", reward: 5_000, url: "https://t.me" },
-  { key: "site", title: "MAGT website", reward: 100_000, url: "https://magt.netlify.app/" },
+  { key: "tiktok", title: "TikTok", reward: 5_000, url: "tiktok.com/@magic.time97?_r=1&_t=ZN-92YXAihQEUd" },
+  { key: "facebook", title: "Facebook", reward: 5_000, url: "facebook.com/share/1AuVfhme9G/?mibextid=wwXIfr" },
+  { key: "instagram", title: "Instagram", reward: 5_000, url: "instagram.com/magtcoin" },
+  { key: "twitter", title: "X (Twitter)", reward: 5_000, url: "x.com/magtcoin?s=21" },
+  { key: "youtube", title: "YouTube", reward: 5_000, url: "https://www.youtube.com/@magtcoin" },
+  { key: "telegram", title: "Telegram", reward: 5_000, url: "https://t.me/magtcoin" },
+  { key: "site", title: "MAGT website", reward: 100_000, url: "https://magtcoin.com/" },
 ];
 
 /* ===== Types ===== */
