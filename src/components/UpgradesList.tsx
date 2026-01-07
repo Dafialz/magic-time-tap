@@ -59,14 +59,6 @@ function localeByLang(lang: Lang): string {
     : "en-US";
 }
 
-function fmtIntByLang(n: number, lang: Lang) {
-  try {
-    return Math.floor(n).toLocaleString(localeByLang(lang));
-  } catch {
-    return String(Math.floor(n));
-  }
-}
-
 function fmtDate(ms: number, lang: Lang) {
   try {
     return new Date(ms).toLocaleString(localeByLang(lang));
@@ -496,7 +488,7 @@ function nextRewardForCount(friendsCount: number): { nextN: number; amount: numb
 
 /* ===== Task config ===== */
 
-export type TaskKey = "tiktok" | "facebook" | "instagram" | "twitter" | "youtube" | "vk" | "telegram" | "site";
+export type TaskKey = "tiktok" | "facebook" | "instagram" | "twitter" | "youtube" | "telegram" | "site";
 
 type TaskDef = {
   key: TaskKey;
@@ -506,14 +498,13 @@ type TaskDef = {
 };
 
 const TASKS: TaskDef[] = [
-  { key: "tiktok", title: "TikTok", reward: 5_000, url: "https://tiktok.com" },
-  { key: "facebook", title: "Facebook", reward: 5_000, url: "https://facebook.com" },
-  { key: "instagram", title: "Instagram", reward: 5_000, url: "https://instagram.com" },
-  { key: "twitter", title: "X (Twitter)", reward: 5_000, url: "https://x.com" },
-  { key: "youtube", title: "YouTube", reward: 5_000, url: "https://youtube.com" },
-  { key: "vk", title: "VK", reward: 5_000, url: "https://vk.com" },
-  { key: "telegram", title: "Telegram", reward: 5_000, url: "https://t.me" },
-  { key: "site", title: "MAGT website", reward: 100_000, url: "https://magt.netlify.app/" },
+  { key: "tiktok", title: "TikTok", reward: 5_000, url: "https://tiktok.com/@magic.time97?_r=1&_t=ZN-92YXAihQEUd" },
+  { key: "facebook", title: "Facebook", reward: 5_000, url: "https://facebook.com/share/1AuVfhme9G/?mibextid=wwXIfr" },
+  { key: "instagram", title: "Instagram", reward: 5_000, url: "https://instagram.com/magtcoin" },
+  { key: "twitter", title: "X (Twitter)", reward: 5_000, url: "https://x.com/magtcoin?s=21" },
+  { key: "youtube", title: "YouTube", reward: 5_000, url: "https://www.youtube.com/@magtcoin" },
+  { key: "telegram", title: "Telegram", reward: 5_000, url: "https://t.me/magtcoin" },
+  { key: "site", title: "MAGT website", reward: 100_000, url: "https://magtcoin.com/" },
 ];
 
 /* ===== Types ===== */
@@ -553,7 +544,11 @@ function hasFirebaseEnv() {
 async function withFirestore<T>(fn: (db: any, fs: any) => Promise<T>) {
   if (!hasFirebaseEnv()) return null as any;
 
+  // TS може лаятись, якщо firebase не встановлений — тоді або ставиш firebase, або додаєш d.ts.
+  // Тут робимо м’яко, щоб файл не валив TypeScript збірку.
+  // @ts-ignore
   const appMod: any = await import("firebase/app");
+  // @ts-ignore
   const fsMod: any = await import("firebase/firestore");
 
   const e = env();
@@ -572,7 +567,9 @@ async function withFirestore<T>(fn: (db: any, fs: any) => Promise<T>) {
 async function withCallable<T>(fn: (app: any, functionsMod: any) => Promise<T>) {
   if (!hasFirebaseEnv()) return null as any;
 
+  // @ts-ignore
   const appMod: any = await import("firebase/app");
+  // @ts-ignore
   const functionsMod: any = await import("firebase/functions");
 
   const e = env();
@@ -644,8 +641,9 @@ function makeRefLink(botUsername: string, webAppShortName: string, uid: string):
 
 function normalizeTaskKey(x: any): TaskKey | null {
   const s = String(x ?? "").trim();
-  if (s === "tiktok" || s === "facebook" || s === "instagram" || s === "twitter" || s === "youtube" || s === "vk" || s === "telegram" || s === "site")
-    return s;
+  // ❌ vk прибрали — його немає в TaskKey
+  if (s === "tiktok" || s === "facebook" || s === "instagram" || s === "twitter" || s === "youtube" || s === "telegram" || s === "site")
+    return s as TaskKey;
   return null;
 }
 
@@ -687,8 +685,9 @@ function writeOpenAt(uid: string, task: TaskKey, ts: number) {
   } catch {}
 }
 
-export default function UpgradesList(props: Props & any) {
+export default function UpgradesList(props: Props) {
   const [lang, setLang] = React.useState<Lang>(() => getLang());
+
   React.useEffect(() => {
     const onLang = (e: any) => {
       const next = String(e?.detail || "").trim() as Lang;
@@ -697,6 +696,7 @@ export default function UpgradesList(props: Props & any) {
     window.addEventListener("mt_lang", onLang as any);
     return () => window.removeEventListener("mt_lang", onLang as any);
   }, []);
+
   const t = React.useMemo(() => I18N[lang] ?? I18N.en, [lang]);
 
   const uid = String(props.userId || "").trim();
@@ -767,21 +767,25 @@ export default function UpgradesList(props: Props & any) {
 
   async function copyLink() {
     if (!refLink) return;
+
     try {
-      await navigator.clipboard.writeText(refLink);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(refLink);
+        showToast(t.toastCopied);
+        return;
+      }
+    } catch {}
+
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = refLink;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
       showToast(t.toastCopied);
     } catch {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = refLink;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        showToast(t.toastCopied);
-      } catch {
-        showToast(t.toastCopyFail);
-      }
+      showToast(t.toastCopyFail);
     }
   }
 
@@ -857,6 +861,7 @@ export default function UpgradesList(props: Props & any) {
 
   function openTask(task: TaskDef) {
     if (!uid) return;
+
     // запам'ятали момент відкриття
     writeOpenAt(uid, task.key, Date.now());
 
@@ -1000,7 +1005,13 @@ export default function UpgradesList(props: Props & any) {
             const readyAt = openedAt ? openedAt + VERIFY_MS : 0;
             const msLeft = openedAt ? Math.max(0, readyAt - Date.now()) : 0;
 
-            const stage: "open" | "wait" | "claim" | "done" = done ? "done" : !openedAt ? "open" : msLeft > 0 ? "wait" : "claim";
+            const stage: "open" | "wait" | "claim" | "done" = done
+              ? "done"
+              : !openedAt
+              ? "open"
+              : msLeft > 0
+              ? "wait"
+              : "claim";
 
             const btnText =
               stage === "done" ? t.stageDone : stage === "open" ? t.stageOpen : stage === "claim" ? t.stageClaim : t.stageClaim;
@@ -1059,7 +1070,12 @@ export default function UpgradesList(props: Props & any) {
                 </div>
 
                 <div className="taskActions">
-                  <button className={`btn primary single ${stage === "open" ? "open" : ""}`} onClick={onBtnClick} disabled={btnDisabled} title={titleText}>
+                  <button
+                    className={`btn primary single ${stage === "open" ? "open" : ""}`}
+                    onClick={onBtnClick}
+                    disabled={btnDisabled}
+                    title={titleText}
+                  >
                     {busy && stage !== "done" ? "..." : btnText}
                   </button>
                 </div>

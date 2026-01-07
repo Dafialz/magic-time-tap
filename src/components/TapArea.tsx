@@ -200,7 +200,7 @@ const LS_DAILY_KEY = "mt_daily_v1";
 type DailyState = {
   startedAtDay: number;
   lastClaimDay: number;
-  streakDay: number;
+  streakDay: number; // збережений "останній день серії" (або поточний прогрес)
 };
 function getEpochDay(ts = Date.now()) {
   return Math.floor(ts / 86400000);
@@ -234,6 +234,32 @@ function dailyRewardForDay(day: number) {
   const base = 1000;
   const step = 1000;
   return base + (clamp(day, 1, 30) - 1) * step;
+}
+
+/**
+ * ✅ ВАЖЛИВО:
+ * Ми показуємо "наступний день для отримання" (next claim day),
+ * і саме його ж нараховуємо при claim.
+ *
+ * Приклад:
+ * - якщо вчора забрав день 1 -> сьогодні показує день 2 (2000) і дає 2000
+ * - якщо пропустив 2+ дні -> скидає на день 1 (1000)
+ */
+function computeNextClaimDay(s: DailyState, today: number) {
+  if (s.lastClaimDay === today) {
+    // вже забрано сьогодні — показуємо поточний день (для інфо)
+    return clamp(s.streakDay, 1, 30);
+  }
+  if (s.lastClaimDay !== -1 && today - s.lastClaimDay > 1) {
+    // пропуск — починаємо з 1
+    return 1;
+  }
+  if (s.lastClaimDay === -1) {
+    // ще не було жодного клейму
+    return clamp(s.streakDay, 1, 30);
+  }
+  // звичайний case: наступний день
+  return clamp(s.streakDay + 1, 1, 30);
 }
 
 export default function TapArea({
@@ -273,7 +299,14 @@ export default function TapArea({
   const t = useMemo(() => I18N[lang] ?? I18N.en, [lang]);
 
   const buffLeft = Math.max(0, Math.floor(meteorBuffLeft || 0));
-  const reward = useMemo(() => dailyRewardForDay(dayInfo.streakDay), [dayInfo.streakDay]);
+
+  // ✅ ТУТ головний фікс: показуємо наступний день і його ж reward
+  const nextClaimDay = useMemo(() => {
+    const today = getEpochDay();
+    return computeNextClaimDay(dayInfo, today);
+  }, [dayInfo]);
+
+  const reward = useMemo(() => dailyRewardForDay(nextClaimDay), [nextClaimDay]);
 
   useEffect(() => {
     const fresh = loadDaily();
@@ -291,17 +324,19 @@ export default function TapArea({
 
     if (s.lastClaimDay === today) return;
 
-    if (s.lastClaimDay !== -1 && today - s.lastClaimDay > 1) {
-      s.streakDay = 1;
-    } else if (s.lastClaimDay !== -1) {
-      s.streakDay = clamp(s.streakDay + 1, 1, 30);
-    }
+    const dayToClaim = computeNextClaimDay(s, today);
+    const amount = dailyRewardForDay(dayToClaim);
 
+    // ✅ записуємо саме той day, який віддали
+    s.streakDay = dayToClaim;
     s.lastClaimDay = today;
+
     saveDaily(s);
     setDayInfo(s);
 
-    onDailyBonusClaim?.(dailyRewardForDay(s.streakDay));
+    // ✅ нарахування рівно таке саме як показано в UI
+    onDailyBonusClaim?.(amount);
+
     setTimeout(() => setDailyOpen(false), 150);
   };
 
@@ -347,7 +382,6 @@ export default function TapArea({
 
       {/* Нижній блок: (важливо) кнопки РЯДКОМ над рахунком */}
       <div className="tap-bottom">
-        {/* ❗️НЕ використовуємо aria-label="Quick actions" (бо в старому CSS це могло робити position:absolute) */}
         <div className="quick-actions-row" style={actionsRowStyle}>
           <button
             type="button"
@@ -405,7 +439,6 @@ export default function TapArea({
             </button>
           </div>
 
-          {/* Spacer щоб центр реально був по центру навіть з прапором зліва */}
           <div aria-hidden="true" style={{ width: 54, height: 54 }} />
         </div>
 
@@ -457,7 +490,10 @@ export default function TapArea({
             </div>
 
             <h3 style={modalTitleStyle}>{t.daily}</h3>
-            <div style={modalTextStyle}>{t.dayOf(dayInfo.streakDay)}</div>
+
+            {/* ✅ Показуємо саме день, який буде отриманий */}
+            <div style={modalTextStyle}>{t.dayOf(nextClaimDay)}</div>
+
             <div style={{ ...modalTextStyle, fontSize: 18 }}>
               {t.reward}: <b>{formatNumber(reward)}</b> MGP
             </div>
